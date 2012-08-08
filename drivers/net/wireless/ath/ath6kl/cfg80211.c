@@ -34,7 +34,7 @@
 #endif
 
 static unsigned int ath6kl_p2p = 1;
-static unsigned int ath6kl_first_2g_only = 1;
+static unsigned int ath6kl_first_2g_only = 0;
 
 module_param(ath6kl_p2p, uint, 0644);
 module_param(ath6kl_first_2g_only, uint, 0644);

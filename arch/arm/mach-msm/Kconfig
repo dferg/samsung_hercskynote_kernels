@@ -1746,8 +1746,6 @@ choice
                         default y
 			bool "USA ATT SGH-I727"
 			
-		config USA_MODEL_SGH_I727R 
-		    bool "USA ATT SGH-I727R"
 			
 		config USA_MODEL_SGH_I757 
 		    bool "USA ATT SGH-I757"
@@ -1774,6 +1772,11 @@ choice
 		config EUR_MODEL_GT_P7320
 			bool "GT-P7320"
 endchoice
+
+config USA_MODEL_SGH_I727R 
+		depends on (USA_MODEL_SGH_I727)
+                default n 
+		bool "USA ATT SGH-I727R"
 
 config USA_MODEL_SGH_T989D
                 depends on (USA_MODEL_SGH_T989)

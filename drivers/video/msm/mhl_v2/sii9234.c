@@ -63,7 +63,6 @@ static void cbus_command_response(struct sii9234_data *sii9234);
 static irqreturn_t sii9234_irq_thread(int irq, void *data);
 
 static struct cbus_packet cbus_pkt_buf[CBUS_PKT_BUF_COUNT];
-
 #ifdef CONFIG_MHL_SWING_LEVEL
 static ssize_t sii9234_swing_test_show(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -1863,7 +1862,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 					goto err_exit;
 				} else 
  					sii9234->power_mode = MHL_POWER_MODE_OFF;  
-				
+
  					INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback); 
  					disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq); 
  			 

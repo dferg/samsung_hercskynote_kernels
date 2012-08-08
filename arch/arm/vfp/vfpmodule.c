@@ -606,7 +606,7 @@ static int __init vfp_init(void)
 			(vfpsid & FPSID_PART_MASK) >> FPSID_PART_BIT,
 			(vfpsid & FPSID_VARIANT_MASK) >> FPSID_VARIANT_BIT,
 			(vfpsid & FPSID_REV_MASK) >> FPSID_REV_BIT);
-		
+
 		vfp_vector = vfp_support_entry;
 
 		thread_register_notifier(&vfp_notifier_block);

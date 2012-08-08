@@ -999,6 +999,12 @@ static int sec_bat_get_property(struct power_supply *ps,
 			val->intval = 100;
 			break;
 		}
+
+		if( info->batt_soc == 100 &&
+		    info->charging_status == POWER_SUPPLY_STATUS_CHARGING) {
+			val->intval = 99;
+			break;
+		}
 #endif
 		val->intval = info->batt_soc;
 		if (val->intval == -1)

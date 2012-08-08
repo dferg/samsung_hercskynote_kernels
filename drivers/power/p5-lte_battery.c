@@ -62,7 +62,11 @@ static enum power_supply_property p5_battery_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_AVG,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static enum power_supply_property p5_power_properties[] = {
@@ -928,6 +932,18 @@ static int p5_bat_get_property(struct power_supply *bat_ps,
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = battery->info.batt_vol * 1000;
+		pr_debug("voltage = %d\n", val->intval);
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
+		val->intval = battery->info.batt_vol * 1000;
+		pr_debug("avg voltage = %d\n", val->intval);
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+		val->intval = get_fuelgauge_value(FG_CURRENT_AVG);
+		pr_debug("level = %d\n", val->intval);
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = battery->info.level;
 		pr_debug("level = %d\n", val->intval);
@@ -993,7 +1009,7 @@ static struct device_attribute p5_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_vol),
 	SEC_BATTERY_ATTR(batt_temp),
 	SEC_BATTERY_ATTR(batt_temp_cels),
-	SEC_BATTERY_ATTR(charging_source),
+	SEC_BATTERY_ATTR(batt_charging_source),
 	SEC_BATTERY_ATTR(batt_read_raw_soc),
 	SEC_BATTERY_ATTR(batt_reset_soc),
 	SEC_BATTERY_ATTR(reset_cap),
@@ -1015,7 +1031,6 @@ static struct device_attribute p5_battery_attrs[] = {
 #if 1 //def CONFIG_SAMSUNG_LPM_MODE	
 	SEC_BATTERY_ATTR(charging_mode_booting),
 	SEC_BATTERY_ATTR(batt_lp_charging),
-	SEC_BATTERY_ATTR(voltage_now),
 #endif	
 };
 
@@ -1045,7 +1060,6 @@ enum {
 #if 1 //def CONFIG_SAMSUNG_LPM_MODE	
 	CHARGING_MODE_BOOTING,
 	BATT_LP_CHARGING,
-	VOLTAGE_NOW,
 #endif	
 };
 
@@ -1170,15 +1184,6 @@ static ssize_t p5_bat_show_property(struct device *dev,
 	case BATT_LP_CHARGING:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			test_batterydata->charging_mode_booting);
-		break;
-	case VOLTAGE_NOW:
-#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
-		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
-			get_fuelgauge_value(FG_VOLTAGE) * 1000);
-#else
-		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
-			get_fuelgauge_value(FG_VOLTAGE));
-#endif
 		break;
 #endif		
 	default:

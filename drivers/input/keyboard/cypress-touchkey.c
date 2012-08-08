@@ -809,8 +809,7 @@ static void melfas_touchkey_early_resume(struct early_suspend *h)
 
 if(touchled_cmd_reversed) {
 			touchled_cmd_reversed = 0;
-#if defined (CONFIG_USA_MODEL_SGH_I717)	|| defined (CONFIG_USA_MODEL_SGH_T769) \
-	|| defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_CAN_MODEL_SGH_I577R) || defined (CONFIG_USA_MODEL_SGH_I727)		
+#if defined (CONFIG_USA_MODEL_SGH_I717)	|| defined (CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_CAN_MODEL_SGH_I577R)		
 			msleep(100);
 #endif
 	//		msleep(300);		
