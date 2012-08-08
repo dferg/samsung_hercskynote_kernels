@@ -610,7 +610,7 @@ static void touchkey_auto_calibration(int autocal_on_off)
 static void melfas_touchkey_early_suspend(struct early_suspend *h)
 {
     int index =0;
-#if defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_USA_MODEL_SGH_I717)    
+#if defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_USA_MODEL_SGH_I717)   || defined (CONFIG_USA_MODEL_SGH_T989D) 
     int ret = 0;
     signed char int_data[] ={0x80};
 #endif    
@@ -624,7 +624,7 @@ static void melfas_touchkey_early_suspend(struct early_suspend *h)
     }
 
     disable_irq(IRQ_TOUCHKEY_INT);
-#if defined (CONFIG_USA_MODEL_SGH_I717)
+#if defined (CONFIG_USA_MODEL_SGH_I717)|| defined (CONFIG_USA_MODEL_SGH_T989D)
     ret = cancel_work_sync(&touchkey_work);
     if (ret) {
 	    printk(KERN_DEBUG "[Touchkey] enable_irq ret = %d\n", ret);
@@ -873,8 +873,7 @@ if(touchled_cmd_reversed) {
 
 #if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160L)\
 	|| defined (CONFIG_USA_MODEL_SGH_T769)|| defined(CONFIG_USA_MODEL_SGH_I577)|| defined(CONFIG_CAN_MODEL_SGH_I577R)\
-	|| defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)|| defined(CONFIG_USA_MODEL_SGH_I727)\
-	|| defined(CONFIG_USA_MODEL_SGH_T989) 
+	|| defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)
 		enable_irq(IRQ_TOUCHKEY_INT);
 		touchkey_enable = 1;
 		msleep(50);

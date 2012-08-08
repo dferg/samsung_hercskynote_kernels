@@ -354,7 +354,12 @@ enum rgnd_state {
 	RGND_2K,
 	RGND_SHORT
 };
-
+enum mhl_power_mode {
+	MHL_POWER_MODE_D0,
+	MHL_POWER_MODE_D2,
+	MHL_POWER_MODE_D3,
+	MHL_POWER_MODE_OFF=0xFF,
+};
 enum mhl_state {
 	STATE_DISCONNECTED = 0,
 	STATE_DISCOVERY_FAILED,
@@ -460,6 +465,7 @@ struct sii9234_data {
 	bool				claimed;
 	enum mhl_state			state;
 	enum rgnd_state			rgnd;
+	enum mhl_power_mode	power_mode;
 	bool				rsen;
 
 	struct mutex			lock;

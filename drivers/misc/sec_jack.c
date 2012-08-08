@@ -200,7 +200,7 @@
 #define KEY_VOLUMEDOWN_ADC_MAX 660
 #endif
 
-#if defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_T989)
+#if  defined(CONFIG_USA_MODEL_SGH_T989D)
 #define JACK_WATERPROOF
 #endif
 

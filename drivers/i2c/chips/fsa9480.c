@@ -197,7 +197,7 @@ static bool usedeskdock = false;
 extern unsigned int get_hw_rev(void);
 static int HWversion=0;
 static int gv_intr2=0;
-static int isDeskdockconnected=0;
+int isDeskdockconnected=0;
 static int initial_check=0;
 #ifdef CONFIG_VIDEO_MHL_V2
 #define MHL_DEVICE		2
@@ -759,7 +759,7 @@ EXPORT_SYMBOL(fsa9480_manual_switching);
 
 static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 {
-	int device_type, ret;
+	int device_type, ret, adc;
 	unsigned char val1, val2;
 	struct fsa9480_platform_data *pdata = usbsw->pdata;
 	struct i2c_client *client = usbsw->client;
@@ -775,7 +775,7 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 	}
 	val1 = device_type & 0xff;
 	val2 = device_type >> 8;
-
+        adc = i2c_smbus_read_byte_data(client, FSA9480_REG_ADC);
 	dev_info(&client->dev, "dev1: 0x%x, dev2: 0x%x\n", val1, val2);
 
 	/* Attached */
@@ -846,8 +846,16 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 				pdata->jig_cb(FSA9480_ATTACHED);
 		/* Desk Dock */
 		} else if (val2 & DEV_AV) {
-			if (HWversion==VERSION_FSA9485)
-			{
+                        if ((adc & 0x1F) == 0x1A) {
+                                pr_info("FSA Deskdock Attach\n");
+                                FSA9480_CheckAndHookAudioDock(USE_DESK_DOCK, 1);
+#if defined(CONFIG_VIDEO_MHL_V1) || defined(CONFIG_VIDEO_MHL_V2)
+                                isDeskdockconnected = 1;
+#endif
+                                i2c_smbus_write_byte_data(client,
+                                                FSA9480_REG_RESERVED_1D, 0x08);
+                        } else {
+				if (HWversion==VERSION_FSA9485)	{
 				if (isDeskdockconnected && usedeskdock) {
 					printk(KERN_DEBUG "FSA MHL isDeskdockconnected\n");
 					return;
@@ -862,10 +870,12 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 				if(!sec_get_lpm_mode())
 					mhl_ret = mhl_onoff_ex(1);
 			}
+#if 0
 			if (mhl_ret != MHL_DEVICE) {
 				FSA9480_CheckAndHookAudioDock(USE_DESK_DOCK, 1);
 				isDeskdockconnected = 1;
 			}
+#endif
 			EnableFSA9480Interrupts();
 #else
 			FSA9480_CheckAndHookAudioDock(USE_DESK_DOCK, 1);
@@ -896,6 +906,7 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 					"%s: err %d\n", __func__, ret);
 		/* Car Dock */
 #endif
+		}
 		} else if (val2 & DEV_JIG_UART_ON) {
 			if (pdata->cardock_cb)
 				pdata->cardock_cb(FSA9480_ATTACHED);
@@ -971,6 +982,8 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 			printk(KERN_DEBUG "FSA MHL Detach\n");
 			FSA9480_MhlSwitchSel(0);
 #elif defined(CONFIG_VIDEO_MHL_V2)
+                        i2c_smbus_write_byte_data(client,
+                                        FSA9480_REG_RESERVED_1D, 0x04);
 			if (isDeskdockconnected)
 				FSA9480_CheckAndHookAudioDock(USE_DESK_DOCK, 0);
 			isDeskdockconnected = 0;
