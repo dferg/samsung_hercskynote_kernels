@@ -544,8 +544,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *d = list_entry(p, struct hci_dev, list);
 
-		if (!test_bit(HCI_UP, &d->flags) ||
-				test_bit(HCI_RAW, &d->flags))
+		if (!test_bit(HCI_UP, &d->flags) || test_bit(HCI_RAW, &d->flags))
 			continue;
 
 		/* Simple routing:
@@ -586,8 +585,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type,
 
 	if (type == LE_LINK) {
 		struct adv_entry *entry;
-/* SSBT :: KJH + * to check le connection & stored key,
- * if there is stored key, use addr_type. */
+/* SSBT :: KJH + * to check le connection & stored key, if there is stored key, use addr_type. */
 		struct smp_ltk *ltk;
 
 		le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);

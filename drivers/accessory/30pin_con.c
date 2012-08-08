@@ -79,13 +79,11 @@ static int check_using_stmpe811_adc(void)
 {
 	int ret =0 ;
 
-#if defined(CONFIG_TARGET_LOCALE_USA_ATT) || \
-    defined(CONFIG_TARGET_LOCALE_KOR_SKT) || \
-    defined(CONFIG_TARGET_LOCALE_KOR_LGU) || \
-    defined(CONFIG_TARGET_LOCALE_EUR_OPEN)|| \
-	defined(CONFIG_USA_OPERATOR_ATT)
-	ret = (system_rev>=0x0003) ? 1 : 0;
-#elif defined(CONFIG_TARGET_LOCALE_JPN_NTT)
+#if defined(CONFIG_TARGET_LOCALE_KOR) || \
+    defined(CONFIG_TARGET_LOCALE_JPN) || \
+    defined(CONFIG_EUR_OPERATOR_OPEN) || \
+    defined(CONFIG_JPN_OPERATOR_NTT)  || \
+    defined(CONFIG_USA_OPERATOR_ATT)
 	ret = (system_rev>=0x0003) ? 1 : 0;
 #else
 	ret = 0;
@@ -205,7 +203,7 @@ void acc_accessory_uevent(struct acc_con_info *acc, int acc_adc)
 			if ((acc->current_accessory == ACCESSORY_OTG) &&
 				acc->pdata->otg_en)
 				acc->pdata->otg_en(0);
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_TARGET_LOCALE_KOR) || defined(CONFIG_TARGET_LOCALE_JPN)
 #else
 			if (acc->current_accessory == ACCESSORY_LINEOUT)
 				switch_set_state(&acc->ear_jack_switch, UEVENT_DOCK_NONE);
@@ -226,12 +224,12 @@ void acc_accessory_uevent(struct acc_con_info *acc, int acc_adc)
 			if (acc->pdata->acc_power)
 				acc->pdata->acc_power(0, false);
 			msleep(20);
-			
+
 			if (acc->pdata->otg_en)
 				acc->pdata->otg_en(1);
 			msleep(30);
 		} else if (acc->current_accessory == ACCESSORY_LINEOUT) {
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_TARGET_LOCALE_KOR)  || defined(CONFIG_TARGET_LOCALE_JPN)
 #else
 			switch_set_state(&acc->ear_jack_switch, 1);
 #endif
@@ -244,7 +242,7 @@ void acc_accessory_uevent(struct acc_con_info *acc, int acc_adc)
 			env_ptr = "ACCESSORY=OTG";
 		else if (acc->current_accessory == ACCESSORY_LINEOUT) {
 			env_ptr = "ACCESSORY=lineout";
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_TARGET_LOCALE_KOR) || defined(CONFIG_TARGET_LOCALE_JPN)
 #else
 			switch_set_state(&acc->ear_jack_switch, UEVENT_DOCK_NONE);
 #endif

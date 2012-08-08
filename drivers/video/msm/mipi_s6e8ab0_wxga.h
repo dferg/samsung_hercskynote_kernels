@@ -31,7 +31,7 @@
 #ifndef MIPI_S6E8AB0_WXGA_H
 #define MIPI_S6E8AB0_WXGA_H
 
-#define S6E8AB0_WXGA_60HZ_490MBPS
+//#define S6E8AB0_WXGA_60HZ_490MBPS
 #define MAPPING_TBL_AUTO_BRIGHTNESS 
 
 int mipi_s6e8ab0_wxga_device_register(struct msm_panel_info *pinfo,

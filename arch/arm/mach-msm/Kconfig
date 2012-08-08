@@ -1648,6 +1648,12 @@ choice
 		bool "Locale EUR "
 		help
 		  Support EUR Board
+		  
+	config TARGET_LOCALE_HKTW
+		bool "Locale HKTW "
+		help
+		  Support HKTW Board
+		  
 endchoice
 
 choice
@@ -1760,6 +1766,15 @@ choice
 
 endchoice
 
+choice
+		prompt "Europe Model Name"
+		default EUR_MODEL_GT_P7320
+		depends on TARGET_LOCALE_EUR
+
+		config EUR_MODEL_GT_P7320
+			bool "GT-P7320"
+endchoice
+
 config USA_MODEL_SGH_T989D
                 depends on (USA_MODEL_SGH_T989)
                 default n             
@@ -1777,6 +1792,12 @@ choice
 
 		config JPN_MODEL_SC_01D
 			bool "JPN NTT SC-01D"
+
+		config JPN_MODEL_SC_05D
+			bool "JPN NTT SC-05D"
+			
+		config JPN_MODEL_SC_07D
+			bool "JPN NTT SC-07D"
 endchoice
 
 config SAMSUNG_8X60_TABLET
@@ -1791,6 +1812,11 @@ config USA_MODEL_SGH_T879
     bool "USA TMO SGH-T879"	
 	depends on TARGET_LOCALE_USA && USA_MODEL_SGH_I717
     default n		
+
+config HKTW_MODEL_GT_N7005
+			bool "HKTW OPEN GT-N7005"
+			depends on TARGET_LOCALE_HKTW
+	    default n		
 			
 config EUR_MODEL_GT_I9210
 	default n
@@ -2356,5 +2382,11 @@ config MSM_DCVS
 	  The DCVS manager allows idle driver to feed the idle information to the
 	  algorithm and the algorithm returns a frequency for the core which is
 	  passed to the frequency change driver.
+
+config ATHEROS_WIFI
+	bool "ATHEROS WIFI"
+
+config NL80211_TESTMODE
+	bool "NL80211 TESTMODE" 
 
 endif

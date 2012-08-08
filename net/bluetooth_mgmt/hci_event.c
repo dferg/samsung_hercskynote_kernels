@@ -1983,9 +1983,19 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto check_auth;
 
-	if (ev->status == 0)
+	if (ev->status == 0) {
 		hci_check_pending_name(hdev, conn, &ev->bdaddr, ev->name,
 					strnlen(ev->name, HCI_MAX_NAME_LENGTH));
+		/* workaround for HM1800
+		* If HM1800 & incoming connection, change the role as master
+		*/
+		if (conn != NULL && !conn->out
+		&& (!strncmp(ev->name, "HM1800", 6) || !strncmp(ev->name, "HM5000", 6))) {
+			BT_ERR("VPS's device should be change role");
+			hci_conn_switch_role(conn, 0x00);
+		}
+
+	}
 	else
 		hci_check_pending_name(hdev, conn, &ev->bdaddr, NULL, 0);
 
@@ -2905,6 +2915,8 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 	case 0x1a:	/* Unsupported Remote Feature */
 	case 0x1f:	/* Unspecified error */
 		if (conn->out && conn->attempt < 2) {
+			/* wbs */
+			if (!conn->hdev->is_wbs)
 			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
 					(hdev->esco_type & EDR_ESCO_MASK);
 			hci_setup_sync(conn, conn->link->handle);

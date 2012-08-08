@@ -235,7 +235,7 @@ int pm8901_is_old_PCB_with_PM8901(void)
                 retval = 1;
         else if( rev >=7 )
                 retval = 0;                
-#elif defined(CONFIG_KOR_MODEL_SHV_E160S)
+#elif defined(CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_JPN_MODEL_SC_05D)
         if( rev <= 10 )
                 retval = 1;
         else if( rev >=11 )
@@ -258,6 +258,11 @@ int pm8901_is_old_PCB_with_PM8901(void)
         else if( rev >=11 )
                 retval = 0;
 #elif defined(CONFIG_USA_MODEL_SGH_I957)
+	if( rev <= 7 )
+		retval = 1;
+	else if( rev >= 8)
+		retval = 0;
+#elif defined(CONFIG_EUR_MODEL_GT_P7320)
 	if( rev <= 7 )
 		retval = 1;
 	else if( rev >= 8)

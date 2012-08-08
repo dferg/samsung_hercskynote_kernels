@@ -54,7 +54,7 @@
 	&& defined(CONFIG_TARGET_LOCALE_USA)
 #if defined(CONFIG_USA_MODEL_SGH_I577)
 #define RDWR_MACADDR
-#else	
+#else
 #define WRITE_MACADDR
 #endif
 #endif
@@ -66,10 +66,8 @@
 
 #if defined(CONFIG_TARGET_SERIES_Q1)\
 	&& defined(CONFIG_TARGET_LOCALE_USA)
-#ifdef CONFIG_USA_OPERATOR_TMO
 #undef RSSI_OFFSET
-#define RSSI_OFFSET 15
-#endif
+#define RSSI_OFFSET 7
 #define WRITE_MACADDR
 #define HW_OOB
 #endif

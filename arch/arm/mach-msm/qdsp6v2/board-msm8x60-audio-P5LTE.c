@@ -68,6 +68,8 @@
 #include "timpani_profile_quincy_lgt.h"
 #elif defined(CONFIG_USA_MODEL_SGH_I957)  //P5LTE-ATT
 #include "timpani_profile_p5lte_att.h"
+#elif defined(CONFIG_EUR_MODEL_GT_P7320)  //P5LTE-EUR //SHOULD BE CHECKED
+#include "timpani_profile_p5lte_att.h"
 #elif defined(CONFIG_KOR_MODEL_SHV_E140S)  //P5LTE-SKT
 #include "timpani_profile_p5lte_skt.h"
 #elif defined(CONFIG_KOR_MODEL_SHV_E140K)  //P5LTE-KT
@@ -3733,8 +3735,8 @@ static struct snddev_icodec_data speaker_headset_rx_data = {
 	.profile = &speaker_headset_rx_profile,
 	.channel_mode = 2,
 	.default_sample_rate = 48000,
-	.pamp_on = msm_snddev_amp_on_speaker,
-	.pamp_off = msm_snddev_amp_off_speaker,
+	.pamp_on = msm_snddev_amp_on_speaker_headset,
+	.pamp_off = msm_snddev_amp_off_speaker_headset,
 	.voltage_on = msm_snddev_voltage_on,
 	.voltage_off = msm_snddev_voltage_off,
 };

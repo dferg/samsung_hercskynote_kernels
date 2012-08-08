@@ -650,11 +650,13 @@ static int __msm_pmem_table_del(struct msm_sync *sync,
 					pinfo->vaddr == region->info.vaddr &&
 					pinfo->fd == region->info.fd) {
 				hlist_del(node);
+				spin_unlock_irqrestore(&sync->pmem_frame_spinlock, flags); //spinlock_test
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 				ion_free(client_for_ion, region->handle);
 #else
 				put_pmem_file(region->file);
 #endif
+				spin_lock_irqsave(&sync->pmem_frame_spinlock, flags); //spinlock_test
 				kfree(region);
 				CDBG("%s: type %d, vaddr  0x%p\n",
 					__func__, pinfo->type, pinfo->vaddr);
@@ -674,11 +676,13 @@ static int __msm_pmem_table_del(struct msm_sync *sync,
 				pinfo->vaddr == region->info.vaddr &&
 				pinfo->fd == region->info.fd) {
 				hlist_del(node);
+				spin_unlock_irqrestore(&sync->pmem_frame_spinlock, flags);  //spinlock_test
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 				ion_free(client_for_ion, region->handle);
 #else
 				put_pmem_file(region->file);
 #endif
+				spin_lock_irqsave(&sync->pmem_frame_spinlock, flags);//spinlock_test
 				kfree(region);
 				CDBG("%s: type %d, vaddr  0x%p\n",
 					__func__, pinfo->type, pinfo->vaddr);
@@ -697,11 +701,13 @@ static int __msm_pmem_table_del(struct msm_sync *sync,
 					pinfo->vaddr == region->info.vaddr &&
 					pinfo->fd == region->info.fd) {
 				hlist_del(node);
+				spin_unlock_irqrestore(&sync->pmem_stats_spinlock, flags); //spinlock_test
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 				ion_free(client_for_ion, region->handle);
 #else
 				put_pmem_file(region->file);
 #endif
+				spin_lock_irqsave(&sync->pmem_stats_spinlock, flags); //spinlock_test
 				kfree(region);
 				CDBG("%s: type %d, vaddr  0x%p\n",
 					__func__, pinfo->type, pinfo->vaddr);
@@ -4113,12 +4119,17 @@ int msm_camera_drv_start(struct platform_device *dev,
 
 	pmsm = kzalloc(sizeof(struct msm_cam_device) * 4 +
 			sizeof(struct msm_sync), GFP_ATOMIC);
-	if (!pmsm)
+	if (!pmsm) {
+		printk(KERN_ERR "%s: create class failed.\n", __func__);	//request SM
+		class_destroy(msm_class);
 		return -ENOMEM;
+	}
 	sync = (struct msm_sync *)(pmsm + 4);
 
 	rc = msm_sync_init(sync, dev, sensor_probe);
 	if (rc < 0) {
+		printk(KERN_ERR "%s: create class failed..\n", __func__);	//request SM
+		class_destroy(msm_class);
 		kfree(pmsm);
 		return rc;
 	}
@@ -4126,6 +4137,8 @@ int msm_camera_drv_start(struct platform_device *dev,
 	CDBG("%s: setting camera node %d\n", __func__, camera_node);
 	rc = msm_device_init(pmsm, sync, camera_node);
 	if (rc < 0) {
+		printk(KERN_ERR "%s: create class failed...\n", __func__);	//request SM
+		class_destroy(msm_class);
 		msm_sync_destroy(sync);
 		kfree(pmsm);
 		return rc;

@@ -78,7 +78,7 @@ static struct gpiomux_setting gsbi4 = {
 	.pull = GPIOMUX_PULL_DOWN, // GPIOMUX_PULL_NONE
 };
 
-#if defined(CONFIG_MACH_P8_LTE) && defined(CONFIG_TARGET_LOCALE_KOR_SKT)
+#if defined(CONFIG_KOR_OPERATOR_SKT)
 static struct gpiomux_setting gsbi4_p8 = {
 	.func = GPIOMUX_FUNC_1, 
 	.drv = GPIOMUX_DRV_10MA,
@@ -771,18 +771,6 @@ static struct gpiomux_setting input_pn_cfg = {
 };
 
 
-#if defined(CONFIG_MACH_P8_LTE) && defined(CONFIG_TARGET_LOCALE_KOR_SKT)
-static struct gpiomux_setting irda_en_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-static struct gpiomux_setting irda_suspend_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-    .dir  = GPIOMUX_IN,	
-};
 static struct gpiomux_setting mxt768e_touch_irq_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -794,7 +782,6 @@ static struct gpiomux_setting mxt768e_touch_suspend_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
     .dir  = GPIOMUX_IN,	
 };
-#endif
 
 static struct msm_gpiomux_config msm8x60_gsbi_configs[] __initdata = {
 	{
@@ -915,7 +902,7 @@ static struct msm_gpiomux_config msm8x60_ebi2_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &ps_hold,
 		},
 	},
-#if defined(CONFIG_MACH_P8_LTE) /*  123 ~ 130 is normal gpio */
+#if defined(CONFIG_KOR_OPERATOR_SKT) /*  123 ~ 130 is normal gpio */
 	{
 		.gpio      = 123,
 		.settings = {
@@ -928,14 +915,6 @@ static struct msm_gpiomux_config msm8x60_ebi2_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &ebi2_a_d,
 		},
 	},
-#if !defined(CONFIG_TARGET_LOCALE_KOR_SKT)	
-	{
-		.gpio      = 125,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &ebi2_a_d,
-		},
-	},
-#endif	
 	{
 		.gpio      = 126,
 		.settings = {
@@ -1010,12 +989,6 @@ static struct msm_gpiomux_config msm8x60_ebi2_configs[] __initdata = {
 	},
 	{
 		.gpio      = 140,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &ebi2_a_d,
-		},
-	},
-	{
-		.gpio      = 141,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &ebi2_a_d,
 		},
@@ -2117,6 +2090,22 @@ static struct msm_gpiomux_config msm8x60_cam_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &cam_suspend_cfg,
 		},
 	},
+#if defined(CONFIG_KOR_OPERATOR_SKT)
+		// cam sda
+	{
+		.gpio      = 47,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi4_p8,
+		},
+	},
+	// cam scl
+	{
+		.gpio      = 48,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi4_p8,
+		},
+	},	
+#else	
 	// cam sda
 	{
 		.gpio      = 47,
@@ -2131,6 +2120,7 @@ static struct msm_gpiomux_config msm8x60_cam_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gsbi4,
 		},
 	},
+#endif	
 	// cam pmic en1
 	{
 		.gpio      = 57,
@@ -2378,21 +2368,29 @@ static struct msm_gpiomux_config msm8x60_motor_configs[]	__initdata = {
 	},
 };
 
-static struct msm_gpiomux_config msm8x60_nc_configs[] __initdata = {
+
+static struct msm_gpiomux_config msm8x60_mxt768e_configs[]	__initdata = {
+	// touch irq
 	{
-		.gpio      = 142,
-		.settings = {
+		
+		.gpio			=	125,
+		.settings	= {
+			[GPIOMUX_ACTIVE] = &mxt768e_touch_irq_cfg,		
+			[GPIOMUX_SUSPENDED]	=	&mxt768e_touch_suspend_cfg,
+		}
+	},
+
+};
+
+static struct msm_gpiomux_config msm8x60_nc_configs[] __initdata = {
+	{		
+		.gpio			=	62,
+		.settings	= {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
-	},
+	},  
 	{
 		.gpio      = 153,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &nc_cfg,
-		},
-	},
-        {
-		.gpio      = 72,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
@@ -2403,30 +2401,57 @@ static struct msm_gpiomux_config msm8x60_nc_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
 	},
-        {
+	{
 		.gpio      = 74,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
 	},
-        {
+	{
 		.gpio      = 75,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
 	},
-        {
-		.gpio      = 153,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &nc_cfg,
-		},
-	},
-        {
+	{
 		.gpio      = 169,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &nc_cfg,
 		},
 	},
+	{
+		.gpio      = 141,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+
+#ifndef CONFIG_CMC624_P8LTE	
+	{
+		.gpio      = 70,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	{
+		.gpio      = 72,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	{
+		.gpio      = 156,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	{
+		.gpio      = 157,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+#endif
 };
 
 struct msm_gpiomux_configs
@@ -2559,19 +2584,23 @@ msm8x60_charm_gpiomux_cfgs[] __initdata = {
 	{NULL, 0},
 };
 struct msm_gpiomux_configs
-msm8x60_p5_lte_gpiomux_cfgs[] __initdata = {
+msm8x60_p8_lte_gpiomux_cfgs[] __initdata = {
 	{msm8x60_gsbi_configs, ARRAY_SIZE(msm8x60_gsbi_configs)},
-	{p5_lte_usb_sel, ARRAY_SIZE(p5_lte_usb_sel)}, 
+	{p8_lte_usb_sel, ARRAY_SIZE(p8_lte_usb_sel)}, 
 	{msm8x60_uart_configs, ARRAY_SIZE(msm8x60_uart_configs)},
 #ifdef CONFIG_MSM_GSBI9_UART
 	{msm8x60_charm_uart_configs, ARRAY_SIZE(msm8x60_charm_uart_configs)},
 #endif
+#if !defined(CONFIG_KOR_OPERATOR_SKT)	
 	{msm8x60_aux_pcm_configs, ARRAY_SIZE(msm8x60_aux_pcm_configs)},
+#endif	
 	{msm8x60_sdc_configs, ARRAY_SIZE(msm8x60_sdc_configs)},
 	{msm8x60_snd_configs, ARRAY_SIZE(msm8x60_snd_configs)},
 	{msm8x60_mi2s_configs, ARRAY_SIZE(msm8x60_mi2s_configs)},
+#if !defined(CONFIG_KOR_OPERATOR_SKT)	
 	{msm8x60_lcdc_configs, ARRAY_SIZE(msm8x60_lcdc_configs)},
-	{msm8x60_mdp_vsync_configs, ARRAY_SIZE(msm8x60_mdp_vsync_configs)},
+#endif	
+//	{msm8x60_mdp_vsync_configs, ARRAY_SIZE(msm8x60_mdp_vsync_configs)},
 	{msm8x60_hdmi_configs, ARRAY_SIZE(msm8x60_hdmi_configs)},
 	{msm8x60_pmic_configs, ARRAY_SIZE(msm8x60_pmic_configs)},
 //	{msm8x60_common_configs, ARRAY_SIZE(msm8x60_common_configs)},
@@ -2586,12 +2615,13 @@ msm8x60_p5_lte_gpiomux_cfgs[] __initdata = {
 #ifdef CONFIG_GYRO_K3G
 	{msm8x60_gyro_configs, ARRAY_SIZE(msm8x60_gyro_configs)},
 #endif
-#ifdef CONFIG_CMC623_P5LTE
-	{msm8x60_cmc623_configs, ARRAY_SIZE(msm8x60_cmc623_configs)},
+#ifdef CONFIG_CMC624_P8LTE
+	{msm8x60_cmc624_configs, ARRAY_SIZE(msm8x60_cmc624_configs)},
 #endif
 	{msm8x60_charm_sdc_configs, ARRAY_SIZE(msm8x60_charm_sdc_configs)},
 	{msm8x60_charm_configs, ARRAY_SIZE(msm8x60_charm_configs)},
-	{msm8x60_wlan_configs, ARRAY_SIZE(msm8x60_wlan_configs)},
+	{msm8x60_mxt768e_configs, ARRAY_SIZE(msm8x60_mxt768e_configs)},	
+//	{msm8x60_wlan_configs, ARRAY_SIZE(msm8x60_wlan_configs)},
 	{msm8x60_motor_configs, ARRAY_SIZE(msm8x60_motor_configs)},
 	{msm8x60_boot_configs, ARRAY_SIZE(msm8x60_boot_configs)},
 	{msm8x60_nc_configs, ARRAY_SIZE(msm8x60_nc_configs)},

@@ -9144,7 +9144,7 @@ static struct pm_gpio chg_stat = {
 #endif
 
 #ifdef CONFIG_SAMSUNG_JACK
-#if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
+#if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_JPN_MODEL_SC_05D)
 		pr_info("%s PMIC_GPIO_EAR_DET : ear_det_new\n", __func__);
 		rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_DET), &ear_det_new);
 #else

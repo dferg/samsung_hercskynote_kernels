@@ -3669,7 +3669,7 @@ static struct msm_i2c_platform_data msm_gsbi7_qup_i2c_pdata = {
 	/*QC patch for case 00580204 , I2C QTR failure*/
 	.pri_clk = 60,
 	.pri_dat = 59,
-	.msm_i2c_config_gpio = gsbi7_qup_i2c_gpio_config,
+	.msm_i2c_config_gpio = NULL,
 //rohbt		.msm_i2c_config_gpio = gsbi_qup_i2c_gpio_config,
 };
 
@@ -4251,7 +4251,7 @@ unsigned char hdmi_is_primary;
 #if defined (CONFIG_FB_MSM_MIPI_S6E8AA0_HD720_PANEL)
 #define MSM_ION_WB_SIZE 	0x1700000 /* 24MB */
 #else
-#define MSM_ION_WB_SIZE		0x1400000 /* 20MB */
+#define MSM_ION_WB_SIZE		0x1500000 /* 20MB */
 #endif
 #define MSM_ION_QSECOM_SIZE	0x600000 /* (6MB) */
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
@@ -6325,6 +6325,14 @@ int get_mhl_int_irq(void)
         return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_MHL_INT_9);
 	else
 		return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_MHL_INT_31);
+#elif defined (CONFIG_EUR_MODEL_GT_I9210)
+    if(hw_rev < 0x08) {
+		pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MHL_INT_9), &mhl_int);
+ 			return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_MHL_INT_9);
+	} else {
+		pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MHL_INT_31), &mhl_int);
+        	return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_MHL_INT_31);
+	}
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
     if(hw_rev < 0x0b) {
 		pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MHL_INT_9), &mhl_int);
@@ -16388,7 +16396,11 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 int mdp_core_clk_rate_table[] = {
 	85330000,
+#if defined(CONFIG_USA_MODEL_SGH_T769)  || defined(CONFIG_USA_MODEL_SGH_I577)
+	160000000,
+#else
 	128000000,
+#endif
 	160000000,
 	200000000,
 };

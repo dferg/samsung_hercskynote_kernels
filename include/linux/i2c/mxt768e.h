@@ -17,6 +17,9 @@
 #define __MXT_H__
 
 #define MXT_DEV_NAME "Atmel MXT768E"
+#define MXT_SW_RESET_TIME		300		/* msec */
+#define MXT_HW_RESET_TIME		300	/* msec */
+
 enum { RESERVED_T0 = 0,
 	RESERVED_T1,
 	DEBUG_DELTAS_T2,
@@ -77,11 +80,11 @@ enum { RESERVED_T0 = 0,
 	SPT_GENERICDATA_T57,
 	RESERVED_T255 = 255,
 };
+
 struct mxt_platform_data {
 	int max_finger_touches;
-	const u8 **config;
-	const u8 **config_e;
 	int gpio_read_done;
+	const u8 **config;
 	int min_x;
 	int max_x;
 	int min_y;
@@ -90,27 +93,14 @@ struct mxt_platform_data {
 	int max_z;
 	int min_w;
 	int max_w;
-	u8 chrgtime_batt;
-	u8 chrgtime_charging;
-	u8 atchcalst;
-	u8 atchcalsthr;
 	u8 tchthr_batt;
 	u8 tchthr_charging;
-	u8 tchthr_batt_e;
-	u8 tchthr_charging_e;
-	u8 calcfg_batt_e;
-	u8 calcfg_charging_e;
-	u8 atchcalsthr_e;
-	u8 atchfrccalthr_e;
-	u8 atchfrccalratio_e;
+	u8 calcfg_batt;
+	u8 calcfg_charging;
 	u8 idlesyncsperx_batt;
 	u8 idlesyncsperx_charging;
 	u8 actvsyncsperx_batt;
 	u8 actvsyncsperx_charging;
-	u8 idleacqint_batt;
-	u8 idleacqint_charging;
-	u8 actacqint_batt;
-	u8 actacqint_charging;
 	u8 xloclip_batt;
 	u8 xloclip_charging;
 	u8 xhiclip_batt;
@@ -127,18 +117,21 @@ struct mxt_platform_data {
 	u8 yedgectrl_charging;
 	u8 yedgedist_batt;
 	u8 yedgedist_charging;
-	u8 tchhyst_batt;
-	u8 tchhyst_charging;
-	const u8 *t48_config_batt_e;
-	const u8 *t48_config_chrg_e;
+	const u8 *t48_config_batt;
+	const u8 *t48_config_chrg;
 	void (*power_on) (void);
 	void (*power_off) (void);
 	void (*register_cb) (void *);
-	void (*read_ta_status) (void *);
+	void (*read_ta_status) (bool *);
 };
-typedef enum
-    { MXT_PAGE_UP = 0x01, MXT_PAGE_DOWN = 0x02, MXT_DELTA_MODE =
-   0x10, MXT_REFERENCE_MODE = 0x11, MXT_CTE_MODE = 0x31
-} diagnostic_debug_command;
 
+enum {
+	MXT_PAGE_UP =		0x01,
+	MXT_PAGE_DOWN =		0x02,
+	MXT_DELTA_MODE =	0x10,
+	MXT_REFERENCE_MODE =	0x11,
+	MXT_CTE_MODE =		0x31
+};
+
+extern struct class *sec_class;
 #endif				/*  */

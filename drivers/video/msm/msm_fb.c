@@ -739,7 +739,12 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 	}
 #endif	
 
+
+#ifdef CONFIG_TARGET_SERIES_P8LTE
+	if (!mfd->panel_power_on) {
+#else
 	if (!mfd->panel_power_on || !bl_updated) {
+#endif
 		unset_bl_level = bkl_lvl;
 		return;
 	} else {

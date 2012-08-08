@@ -524,7 +524,7 @@ static struct gpiomux_setting touchkey_suspend_cfg = {
 };
 #endif
 
-#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)
+#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 static struct gpiomux_setting torch_active_cfg = {
     .func = GPIOMUX_FUNC_GPIO,
     .drv = GPIOMUX_DRV_2MA,
@@ -1112,7 +1112,7 @@ static struct msm_gpiomux_config msm8x60_touchkey_configs[] __initdata = {
 };
 #endif
 
-#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)
+#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 static struct msm_gpiomux_config msm8x60_torch_configs[] __initdata = {
 	{
 		.gpio      = 62,
@@ -2353,7 +2353,7 @@ msm8x60_charm_gpiomux_cfgs[] __initdata = {
 	{msm8x60_motor_configs, ARRAY_SIZE(msm8x60_motor_configs)},
 	{msm8x60_boot_configs, ARRAY_SIZE(msm8x60_boot_configs)},
 	{msm8x60_nc_configs, ARRAY_SIZE(msm8x60_nc_configs)},
-#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)
+#if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 	{msm8x60_torch_configs, ARRAY_SIZE(msm8x60_torch_configs)},
 #endif 
 	{NULL, 0},

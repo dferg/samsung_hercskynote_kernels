@@ -182,6 +182,8 @@
 #include <linux/usb/f_accessory.h>
 #endif
 
+// ==============================================
+
 #define MSM_SHARED_RAM_PHYS 0x40000000
 
 /* Common PMIC GPIO ************************************************************/
@@ -3004,9 +3006,12 @@ static void __init msm8x60_init_dsps(void)
 //#define MSM_FB_PHYSICAL_BASE			0x40400000
 #define MSM_PMEM_MDP_BASE			0x40400000
 #define MSM_PMEM_MDP_SIZE				0x01E00000
-#define MSM_ION_AUDIO_BASE			0x42300000
+#if 0
+#define MSM_ION_AUDIO_BASE			0x42200000
+#endif
+#define MSM_ION_QSECOM_BASE			0x42200000
 #define MSM_PMEM_KERNEL_EBI1_SIZE	0x600000
-#define MSM_PMEM_AUDIO_BASE			0x42700000
+#define MSM_PMEM_AUDIO_BASE			0x42800000
 #define MSM_PMEM_AUDIO_SIZE        		0x300000 // 3MB
 
 #define RAM_CONSOLE_BASE_ADDR	0x42D80000
@@ -3028,11 +3033,12 @@ static void __init msm8x60_init_dsps(void)
 #define MSM_ION_MM_FW_SIZE	0x200000 /* (2MB) */
 #define MSM_ION_MM_SIZE		0x3600000 /* (54MB) */
 #define MSM_ION_MFC_SIZE	SZ_8K
-#define MSM_ION_WB_SIZE		0x1E000000 /* 30MB */ 
+#define MSM_ION_WB_SIZE		0x01E00000 /* 30MB */ 
+#define MSM_ION_QSECOM_SIZE	0x600000 /* (6MB) */
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-#define MSM_ION_HEAP_NUM	7
+#define MSM_ION_HEAP_NUM	8
 #else
 #define MSM_ION_HEAP_NUM	1
 #endif
@@ -4923,7 +4929,7 @@ static struct rpm_regulator_init_data rpm_regulator_init_data[] = {
 #endif
 //	RPM_LDO(PM8058_L10, 0, 1, 0, 2600000, 2600000, LDO300HMIN),
 	RPM_LDO(PM8058_L10, 0, 1, 0, 1500000, 2600000, LDO300HMIN),
-#if defined(CONFIG_USA_MODEL_SGH_I957) || defined(CONFIG_KOR_MODEL_SHV_E140S) || defined(CONFIG_KOR_MODEL_SHV_E140K) || defined(CONFIG_KOR_MODEL_SHV_E140L)
+#if defined(CONFIG_EUR_MODEL_GT_P7320) || defined(CONFIG_USA_MODEL_SGH_I957) || defined(CONFIG_KOR_MODEL_SHV_E140S) || defined(CONFIG_KOR_MODEL_SHV_E140K) || defined(CONFIG_KOR_MODEL_SHV_E140L)
 	RPM_LDO(PM8058_L11, 0, 1, 0, 2850000, 2850000, LDO150HMIN),
 #else
 	RPM_LDO(PM8058_L11, 0, 1, 0, 1500000, 1500000, LDO150HMIN),
@@ -5869,7 +5875,19 @@ static struct ion_platform_data ion_pdata = {
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *) &cp_wb_ion_pdata,
 		},
-/*		{
+   		{
+			.id	= ION_QSECOM_HEAP_ID,
+			.type	= ION_HEAP_TYPE_CARVEOUT,
+			.name	= ION_QSECOM_HEAP_NAME,
+#if defined (CONFIG_SAMSUNG_MEMORY_LAYOUT_ARRANGE)
+			.base	= MSM_ION_QSECOM_BASE,		// should be physical addr
+#endif			
+			.size	= MSM_ION_QSECOM_SIZE,
+			.memory_type = ION_EBI_TYPE,
+			.extra_data = (void *) &co_ion_pdata,
+		},
+#if 0
+		{
 			.id	= ION_AUDIO_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
 			.name	= ION_AUDIO_HEAP_NAME,
@@ -5879,7 +5897,8 @@ static struct ion_platform_data ion_pdata = {
 			.size	= MSM_ION_AUDIO_SIZE,
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_ion_pdata,
-		}, */
+		}, 
+#endif
 #endif
 	}
 };
@@ -5941,7 +5960,10 @@ static void reserve_ion_memory(void)
 	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_CAMERA_SIZE;
 #if !defined (CONFIG_SAMSUNG_MEMORY_LAYOUT_ARRANGE)
 	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_WB_SIZE;
-//	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_AUDIO_SIZE;
+	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_QSECOM_SIZE;
+#if 0
+	msm8x60_reserve_table[MEMTYPE_EBI1].size += MSM_ION_AUDIO_SIZE;
+#endif
 #endif
 #endif
 }
@@ -6579,7 +6601,11 @@ static struct pm8xxx_keypad_platform_data ffa_keypad_data = {
 };
 
 static struct pm8xxx_rtc_platform_data pm8058_rtc_pdata = {
+#if defined(CONFIG_KOR_MODEL_SHV_E140L)
+	.rtc_write_enable       = false,
+#else
 	.rtc_write_enable       = true,
+#endif
 	.rtc_alarm_powerup	= false,
 };
 
@@ -9895,7 +9921,7 @@ int mdp_core_clk_rate_table[] = {
 #else
 int mdp_core_clk_rate_table[] = {
 	128000000, //0922 QC recommend : from 85330000
-	128000000, //0922 QC recommend : from 85330000
+	177780000, //0922 QC recommend : from 85330000
 	177780000, //0922 QC recommend : from -> 177780000
 	200000000,
 };

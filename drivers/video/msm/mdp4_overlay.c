@@ -1521,13 +1521,19 @@ void mdp4_mixer_blend_setup(struct mdp4_overlay_pipe *pipe)
 
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 
-	blend_op = (MDP4_BLEND_FG_ALPHA_FG_CONST |
-		    MDP4_BLEND_BG_ALPHA_BG_CONST);
+	if( pipe->mixer_num == MDP4_MIXER1)
+		blend_op = 0;
+	else
+		blend_op = (MDP4_BLEND_FG_ALPHA_FG_CONST |
+						 MDP4_BLEND_BG_ALPHA_BG_CONST);	
 	outpdw(overlay_base + off + 0x108, pipe->alpha);
 	outpdw(overlay_base + off + 0x10c, 0xff - pipe->alpha);
 	fg_color3_out = 1; /* keep fg alpha by default */
 
 	if (pipe->is_fg) {
+		if( pipe->mixer_num == MDP4_MIXER1)
+			blend_op = (MDP4_BLEND_FG_ALPHA_FG_CONST |
+						 MDP4_BLEND_BG_ALPHA_BG_CONST);
 		if (pipe->alpha == 0xff &&
 			bg_pipe->pipe_type == OVERLAY_TYPE_RGB) {
 			u32 op_mode;
@@ -2287,6 +2293,11 @@ static u32 mdp4_overlay_blt_enable(struct mdp_overlay *req,
 	}
 #endif
 #endif
+
+#ifdef CONFIG_CMC623_P5LTE
+	use_blt = 0;
+#endif
+
 	return use_blt;
 }
 
@@ -2326,25 +2337,14 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 
 	perf_level = mdp4_overlay_get_perf_level(req, mfd);
 
-	#ifdef CONFIG_CMC623_P5LTE
-	if ((mfd->panel_info.type == LCDC_PANEL) &&
-	    (req->src_rect.h >
-		req->dst_rect.h || req->src_rect.w > req->dst_rect.w)) {
-		if (mdp4_overlay_validate_downscale(req, mfd,
-			perf_level, mfd->panel_info.clk_rate)) {
-			mutex_unlock(&mfd->dma->ov_mutex);
-			return -ERANGE;
-		}
-	}
-	#else
 	if (mixer == MDP4_MIXER0) {
 		u32 use_blt = mdp4_overlay_blt_enable(req, mfd,	perf_level);
 		mfd->use_ov0_blt &= ~(1 << (pipe->pipe_ndx-1));
 		mfd->use_ov0_blt |= (use_blt << (pipe->pipe_ndx-1));
 	}
-	#endif
 
-#if !(defined CONFIG_FB_MSM_LCDC_PANEL)
+#if !(defined CONFIG_FB_MSM_LCDC_PANEL) \
+	&& !(defined CONFIG_FB_MSM_MIPI_DSI_S6E8AA0_WXGA_Q1)
 	if (mfd->use_ov0_blt)
 	 mdp4_overlay_update_blt_mode(mfd);
 #endif

@@ -26,14 +26,14 @@
 #include <asm/unaligned.h>
 #include <linux/firmware.h>
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) 
+#if defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)  || defined (CONFIG_JPN_MODEL_SC_05D)
 #include "mXT540e__APP_V1-3-AA_.h"
 #else
 #include "mXT540e__APP_V1-2-AA_.h"
 #endif
 
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) ||defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) ||defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 #include <linux/input/mt.h>
 #endif
 
@@ -206,7 +206,7 @@ extern int sec_debug_level(void);
 int touch_is_pressed;
 EXPORT_SYMBOL(touch_is_pressed);
 static int mxt540e_enabled;
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)|| defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)|| defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 #if defined (SEC_TSP_POSITION_DEBUG_XTOPHER)
 static bool g_debug_switch = true;
 #else
@@ -256,6 +256,13 @@ u8 Median_Error_Table_TA[4]={33,20,15,0};
 u8 Median_Error_Table_Batt[4] = {20,10,30,10};
 u8 table_cnt =0 ;
 u8 MedianError_cnt;
+
+
+#if defined(CONFIG_USA_MODEL_SGH_I717)
+static unsigned int gIgnoreReport_flag;
+static unsigned int gForceCalibration_flag;
+#endif
+
 
 static int read_mem(struct mxt540e_data *data, u16 reg, u8 len, u8 *buf)
 {
@@ -514,6 +521,9 @@ uint8_t calibrate_chip(void)
 							msecs_to_jiffies(2500));
 		}
 	}
+#if defined(CONFIG_USA_MODEL_SGH_I717)
+	gForceCalibration_flag = 1;
+#endif
 	return ret;
 }
 
@@ -550,11 +560,7 @@ static void mxt540e_ta_probe(int ta_status)
 	} else {
 		get_object_info(data, TOUCH_MULTITOUCHSCREEN_T9, &size, &obj_address);
 		
-#if defined (CONFIG_USA_MODEL_SGH_I717)
-		value = 176;
-#else
-		value = 192;
-#endif		
+		value = 192;	
 		error |= write_mem(data, obj_address+6, 1, &value);
 		value = 50;
 		error |= write_mem(data, obj_address+7, 1, &value);
@@ -790,7 +796,7 @@ set_lcd_esd_ignore(1);
 		data->fingers[i].z = 0;
 		data->fingers[i].state = MXT540E_STATE_RELEASE;
 		
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 	if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 		input_mt_slot(data->input_dev, i);
 		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -897,7 +903,7 @@ static void report_input_data_torelease(struct mxt540e_data *data)
 	for (i = 0; i < data->num_fingers; i++) {
 		if (data->fingers[i].state == MXT540E_STATE_INACTIVE)
 			continue;
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 		if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -1074,7 +1080,7 @@ static void report_input_data(struct mxt540e_data *data)
 		if (data->fingers[i].state == MXT540E_STATE_INACTIVE)
 			continue;
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 		if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -1125,7 +1131,7 @@ static void report_input_data(struct mxt540e_data *data)
 				printk(KERN_DEBUG "[TSP] id[%d] status:%d\n", i, data->fingers[i].z);
 #endif
 #else
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 		// use all debug-log below.
 #else
 		if (data->fingers[i].z == 0)
@@ -1265,6 +1271,13 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 			if (msg[1] == 0x00) /* normal mode */
 			{
 				printk("[TSP] normal mode\n");
+#if defined(CONFIG_USA_MODEL_SGH_I717)				
+				if ((gForceCalibration_flag == 1)&& (gIgnoreReport_flag == 1)) {
+					gIgnoreReport_flag = 0;
+					printk(KERN_DEBUG"[TSP] Now! Enable Touch Report!!!\n");
+				}
+#endif
+			
 			}
 			if ((msg[1]&0x04) == 0x04) /* I2C checksum error */
 			{
@@ -1422,6 +1435,7 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 						value = 22;
 						error |= write_mem(data, obj_address+1, 1, &value);
 					} else {
+#if !defined(CONFIG_USA_MODEL_SGH_I717)
 						get_object_info(data, TOUCH_MULTITOUCHSCREEN_T9, &size, &obj_address);
 						value = 160;
 						error = write_mem(data, obj_address+6, 1, &value);
@@ -1433,6 +1447,7 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 						error |= write_mem(data, obj_address+22, 1, &value);
 						value = 2;
 						error |= write_mem(data, obj_address+24, 1, &value);
+#endif
 						get_object_info(data, PROCG_NOISESUPPRESSION_T48, &size, &obj_address);
 						value = 242;
 						error |= write_mem(data, obj_address+2, 1, &value);
@@ -1475,7 +1490,11 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 						error |= write_mem(data, obj_address+22, 1, &value);
 						value = 46;
 						error |= write_mem(data, obj_address+25, 1, &value);
+						#if defined (CONFIG_USA_MODEL_SGH_I717)
+						value = 128;
+						#else
 						value = 112;
+						#endif
 						error |= write_mem(data, obj_address+34, 1, &value);
 						value = 35;
 						error |= write_mem(data, obj_address+35, 1, &value);
@@ -1484,7 +1503,11 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 						value = 40;
 						error |= write_mem(data, obj_address+42, 1, &value);
 						get_object_info(data, SPT_CTECONFIG_T46, &size, &obj_address);
+						#if defined (CONFIG_USA_MODEL_SGH_I717)
+						value = 24;
+						#else
 						value = 32;
+						#endif
 						error |= write_mem(data, obj_address+3, 1, &value);
 						get_object_info(data, SPT_GENERICDATA_T57, &size, &obj_address);
 						value = 15;
@@ -1507,6 +1530,13 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 					}
 		}
 
+
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+		if (gIgnoreReport_flag == 1) {
+			printk(KERN_DEBUG"[TSP] gIgnore touch\n");
+			return IRQ_HANDLED;
+		}
+#endif
 		if (object_type == TOUCH_MULTITOUCHSCREEN_T9) {
 			id = msg[0] - data->finger_type;
 
@@ -1641,6 +1671,12 @@ static void mxt540e_early_suspend(struct early_suspend *h)
 		touch_is_pressed = 0;
 		is_drawingmode = 0;
 
+
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+		gIgnoreReport_flag = 0;
+		gForceCalibration_flag = 0;
+#endif
+
 		disable_irq(data->client->irq);
 		mxt540e_internal_suspend(data);
 	} else {
@@ -1662,7 +1698,10 @@ static void mxt540e_late_resume(struct early_suspend *h)
 		mxt540e_internal_resume(data);
 
 		mxt540e_enabled = 1;
-        
+
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+		gIgnoreReport_flag = 1;
+#endif        
         ret = read_mem(data, 0, sizeof(id), id);
         
         if (ret) {
@@ -1816,7 +1855,7 @@ static ssize_t mxt540e_object_show(struct device *dev,
 }
 
 struct device *sec_touchscreen;
-#if defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
+#if defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 static u8 firmware_latest =0x13; /* mxt540E : 0x10 */
 #else
 static u8 firmware_latest =0x12; /* mxt540E : 0x10 */
@@ -1921,7 +1960,7 @@ void read_dbg_data(uint8_t dbg_mode , uint16_t node, uint16_t *dbg_data)
 	}
 }
 
-#if defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) // For Kor's Factory test Mode 
+#if defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D) // For Kor's Factory test Mode 
 #define MIN_VALUE 19744
 #define MAX_VALUE 28864
 
@@ -2259,7 +2298,7 @@ static int mxt540e_load_fw(struct device *dev, const char *fn)
         return -ENOMEM;
     }
     
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) 
+#if defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)  || defined (CONFIG_JPN_MODEL_SC_05D)
     fw->size = ARRAY_SIZE(mXT540e__APP_V1_3_AA);
     fw->data = mXT540e__APP_V1_3_AA;
 #else    
@@ -2373,7 +2412,7 @@ static int mxt540e_load_fw_bootmode(struct device *dev, const char *fn)
         return -ENOMEM;
     }
     
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) 
+#if defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)  || defined (CONFIG_JPN_MODEL_SC_05D)
     fw->size = ARRAY_SIZE(mXT540e__APP_V1_3_AA);
     fw->data = mXT540e__APP_V1_3_AA;
 #else    
@@ -3218,7 +3257,7 @@ tsp_reinit:;
 	input_set_drvdata(input_dev, data);
 	input_dev->name = "sec_touchscreen";
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 	set_bit(EV_ABS, input_dev->evbit);
 	set_bit(MT_TOOL_FINGER, input_dev->keybit);
 	set_bit(INPUT_PROP_DIRECT, input_dev->propbit);

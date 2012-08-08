@@ -1643,9 +1643,10 @@ int p8lte_cmc624_setup(void)
 }
 #endif
 
+extern int state_lcd_on; //mipi_s6e8ab0_wxga.c
 extern int mipi_dsi_off(struct platform_device *pdev);//mipi_dsi_p8.c
 extern int mipi_dsi_on(struct platform_device *pdev);//mipi_dsi_p8.c
-//extern struct platform_device *pdev_temp;//mipi_dsi_p8.c
+extern struct platform_device *pdev_temp;//mipi_dsi_p8.c
 
 
 int cmc_timer_esd_refresh = 0;
@@ -1667,7 +1668,7 @@ void cmc_lcd_esd_seq( struct sec_esd_info *pSrc )
 	
 //	DPRINT("%s : %d\n", __func__, pSrc->esd_cnt);
 	mutex_lock(&tuning_mutex);
-	if(is_cmc624_on)
+	if(state_lcd_on)
 	{
 
 		cmc624_I2cWrite16( 0x00, 0x0003 );	// BANK 3
@@ -1684,8 +1685,8 @@ void cmc_lcd_esd_seq( struct sec_esd_info *pSrc )
 					printk("cmc624 add 0x%x = 0x%x\n",cmc_read_add[i], data[i]);
 					printk("cmc esd timer, count : %d ------LCD RESET \n", error_count);
 					cmc_timer_esd_refresh = 1;	
-//					mipi_dsi_off(pdev_temp);
-//					mipi_dsi_on(pdev_temp);
+					mipi_dsi_off(pdev_temp);
+					mipi_dsi_on(pdev_temp);
 					cmc_timer_esd_refresh = 0;	
 					error_count = 0;
 					mutex_lock(&tuning_mutex);

@@ -21,7 +21,7 @@
 #include "mipi_s6e8ab0_wxga.h"
 #include "mipi_s6e8ab0_wxga_seq.h"
 #include "mdp4_video_enhance.h"
-#include "smart_dimming.h"
+#include "smart_dimming_s6e8ab0.h"
 
 #include <linux/gpio.h>
 
@@ -29,6 +29,7 @@
 #include "pxlte_cmc624.h"
 #endif
 
+static void set_backlight(struct msm_fb_data_type *mfd);
 #define LCDC_DEBUG
 //#define LCD_FACTORY_TEST
 
@@ -64,9 +65,19 @@ void unset_lcd_MaxLimit();
 #define GPIO_S6E8AB0_RESET (28)
 
 #define LCD_OFF_GAMMA_VALUE (0)
-#define DEFAULT_CANDELA_VALUE (150)  // ½Å·Ú¼º spec: QuincyÀÇ °æ¿ì 150cd
+#define DEFAULT_CANDELA_VALUE (150)  // Å·Ú¼ spec: Quincy  150cd
 
 #define ACL_OFF_GAMMA_VALUE (60)
+//elvss
+#define ELVSS_OFFSET_MAX		0x00
+#define ELVSS_OFFSET_2		0x04
+#define ELVSS_OFFSET_1		0x08
+#define ELVSS_OFFSET_MIN		0x0C
+#define ELVSS_OFFSET_DYN_MIN	0x0B
+
+#define DYNAMIC_ELVSS_MIN_VALUE		0x81
+#define DYNAMIC_ELVSS_MAX_VALUE_32	0xA1
+#define DYNAMIC_ELVSS_MAX_VALUE_24	0xA9
 
 enum lcd_id_value {
 	lcd_id_unknown = -1,
@@ -133,6 +144,7 @@ struct lcd_setting {
 	struct dsi_cmd_desc_LCD *lcd_acl_table;
 	struct dsi_cmd_desc_LCD *lcd_elvss_table;
 	int	eachElvss_value;
+	int 	eachElvss_limit;
 	int	eachElvss_vector;
 	int	IdPannel;
 
@@ -148,14 +160,21 @@ static struct lcd_setting s6e8ab0_lcd;
 //
 
 
-void set_lcd_esd_ignore( boolean src );
+//void set_lcd_esd_ignore( boolean src );
+extern int sec_esd_disable(void); //sec_mipi_lcd_esd_refresh.c
+extern int sec_esd_enable(void); //sec_mipi_lcd_esd_refresh.c
+
+extern void cmc_esd_disable(void);// sec_cmc_esd_refresh.c
+extern void cmc_esd_enable(void);// sec_cmc_esd_refresh.c
+int state_lcd_on = 0; //extern
+int lcd_esd_refresh = 0; //extern
 static void lcd_set_brightness(struct msm_fb_data_type *mfd, int level);
 static void lcd_gamma_apply( struct msm_fb_data_type *mfd, int srcGamma);
 static void lcd_gamma_smartDimming_apply( struct msm_fb_data_type *mfd, int srcGamma);
-static void lcd_apply_elvss(struct msm_fb_data_type *mfd, int srcElvss, struct lcd_setting *lcd);
-static void lcd_apply_acl(struct msm_fb_data_type *mfd, unsigned int srcAcl, boolean nowOffNeedOn);
+static int lcd_apply_elvss(struct msm_fb_data_type *mfd, int srcElvss, struct lcd_setting *lcd);
+//static void lcd_apply_acl(struct msm_fb_data_type *mfd, unsigned int srcAcl, boolean nowOffNeedOn);
 static void lcd_set_acl(struct msm_fb_data_type *mfd, struct lcd_setting *lcd);
-static void lcd_set_elvss(struct msm_fb_data_type *mfd, struct lcd_setting *lcd);
+static int lcd_set_elvss(struct msm_fb_data_type *mfd, struct lcd_setting *lcd);
 static void lcd_gamma_ctl(struct msm_fb_data_type *mfd, struct lcd_setting *lcd);
 
 static struct msm_panel_common_pdata *pdata;
@@ -202,39 +221,13 @@ static char ETC_COND_SET_2_3[3] = {0xB1, 0x04, 0x00};
 static char ETC_COND_SET_2_4[10] = {0xB6, 0x0C, 0x02, 0x03, 0x32, 0xC0, 0x44, 0x44, 0xC0, 0x00};
 static char ETC_COND_SET_2_7[8] = {0xF4, 0xCF, 0x0A, 0x12, 0x10, 0x19, 0x33, 0x03 };
 
-#ifdef S6E8AB0_WXGA_60HZ_490MBPS
 static char PANEL_COND_SET[41] = {
-	0xF8 ,
+	0xF8,
 	0x01, 0x8E, 0x00, 0x00, 0x00, 0xAC, 0x00, 0x9E, 0x8D, 0x1F, 
 	0x4E, 0x9C, 0x7D, 0x3F, 0x10, 0x00, 0x20, 0x02, 0x10, 0x7D, 
 	0x10, 0x00, 0x00, 0x02, 0x08, 0x10, 0x34, 0x34, 0x34, 0xC0, 
 	0xC1, 0x01, 0x00, 0xC1, 0x82, 0x00, 0xC8, 0xC1, 0xE3, 0x01
 };
-#elif S6E8AB0_WXGA_57p2HZ_480MBPS
-static char PANEL_COND_SET[39] = {
-	0xF8 ,
-	0x25, 0x34, 0x00, 0x00, 0x00, 0x95, 0x00, 0x3C, 0x7D, 0x08,
-	0x27, 0x00, 0x00, 0x10, 0x00, 0x00, 0x20, 0x02, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x02, 0x08, 0x08, 0x23, 0x63, 0xC0, 0xC1,
-	0x01, 0x81, 0xC1, 0x00, 0xC8, 0xC1, 0xD3, 0x01
-};
-#elif defined(S6E8AB0_WXGA_58HZ_500MBPS)
-static char PANEL_COND_SET[39] = {
-	0xF8 ,
-	0x25, 0x34, 0x00, 0x00, 0x00, 0x95, 0x00, 0x3C, 0x7D, 0x08,
-	0x27, 0x00, 0x00, 0x10, 0x00, 0x00, 0x20, 0x02, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x02, 0x08, 0x08, 0x23, 0x63, 0xC0, 0xC1,
-	0x01, 0x81, 0xC1, 0x00, 0xC8, 0xC1, 0xD3, 0x01
-};
-#elif defined(S6E8AB0_WXGA_60HZ_500MBPS)
-static char PANEL_COND_SET[39] = {
-	0xF8 ,
-	0x25, 0x34, 0x00, 0x00, 0x00, 0x95, 0x00, 0x3C, 0x7D, 0x08,
-	0x27, 0x00, 0x00, 0x10, 0x00, 0x00, 0x20, 0x02, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x02, 0x08, 0x08, 0x23, 0x63, 0xC0, 0xC1,
-	0x01, 0x81, 0xC1, 0x00, 0xC8, 0xC1, 0xD3, 0x01
-};
-#endif 
 
 static char DISPLAY_COND_SET[4] = { 0xF2, 0xC8, 0x05, 0x0D };
 
@@ -243,6 +236,21 @@ static char GAMMA_COND_SET[25] = {
 	0x1F, 0x00, 0x1F, 0xE5, 0x00, 0xE2, 0xCF, 0xCC, 0xC6, 0xD3,
 	0xD7, 0xCF, 0xAE, 0xB6, 0xA7, 0xBF, 0xC4, 0xB9, 0x00, 0x94,
 	0x00, 0x9F, 0x00, 0xCE
+};
+//acl
+const unsigned char SEQ_ACL_ON[] = {
+	0xC0, 0x01,
+};
+
+const unsigned char SEQ_ACL_OFF[] = {
+	0xC0, 0x00,
+};
+
+const unsigned char SEQ_ACL_CUTOFF_40[] = {
+	0xC1,
+	0x4D, 0x96, 0x1D, 0x00, 0x00, 0x04, 0xFF, 0x00, 0x00, 0x03,
+	0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x37,
+	0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x1D, 0x4D, 0x96, 
 };
 
 static char exit_sleep[2] = {0x11, 0x00};
@@ -260,8 +268,8 @@ static char acl_on_cmd[2] = {0xC0, 0x01};
 //static char reset_cmd[2] = {0x01, 0x00};
 
 static struct dsi_cmd_desc s6e8ab0_display_off_cmds[] = {
-//	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(display_off), display_off},
-//	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(enter_sleep), enter_sleep}
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(display_off), display_off},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(enter_sleep), enter_sleep}
 };
 
 static struct dsi_cmd_desc s6e8ab0_gamma_update_cmd = {
@@ -273,7 +281,7 @@ static struct dsi_cmd_desc s6e8ab0_acl_off_cmd = {
 static struct dsi_cmd_desc s6e8ab0_acl_on_cmd = {
 	DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(acl_on_cmd), acl_on_cmd};
 
-
+#if 0
 static struct dsi_cmd_desc s6e8ab0_display_on_cmds[] = {
     {DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(AUTO_POW_ON), AUTO_POW_ON},
     {DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(exit_sleep), exit_sleep},
@@ -290,6 +298,11 @@ static struct dsi_cmd_desc s6e8ab0_display_on_cmds[] = {
     {DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(ETC_COND_SET_2_7), ETC_COND_SET_2_7},    
     {DTYPE_GEN_LWRITE, 1, 0, 0, 120, sizeof(ACL_COND_SET_40), ACL_COND_SET_40},    
     {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(display_on), display_on},
+};
+#endif
+static struct dsi_cmd_desc s6e8ab0_wxga_display_on[] ={
+	{DTYPE_DCS_WRITE,  1, 0, 0, 0,   sizeof(display_on), display_on},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,   sizeof(VREGOUT_SET), VREGOUT_SET}
 };
 
 static struct dsi_cmd_desc s6e8ab0_display_on_before_read_id[] = {
@@ -318,7 +331,7 @@ static struct dsi_cmd_desc s6e8ab0_display_on_after_gamma_cmds[] = {
     {DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(ETC_COND_SET_1), ETC_COND_SET_1},
     {DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(ELVSS_DEFAULT), ELVSS_DEFAULT}, //5-1
     {DTYPE_GEN_LWRITE, 1, 0, 0, 120, sizeof(ETC_COND_SET_2), ETC_COND_SET_2},
-    {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(display_on), display_on},
+  //  {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(display_on), display_on},
 };
 
 static inline boolean isPANEL_COND_SET( char* src )
@@ -369,6 +382,7 @@ static void update_LCD_SEQ_by_id(struct lcd_setting *destLCD)
 	PANEL_COND_SET_dlen_NEW = sizeof(PANEL_COND_SET);
 	PANEL_COND_SET_NEW = PANEL_COND_SET;
 
+#if 0
 	for( i = 0; i < ARRAY_SIZE( s6e8ab0_display_on_cmds ); i++ )
 	{
 		if( isPANEL_COND_SET(s6e8ab0_display_on_cmds[i].payload))
@@ -379,6 +393,7 @@ static void update_LCD_SEQ_by_id(struct lcd_setting *destLCD)
 			LOG_ADD( " c%d", i );
 		}
 	}
+#endif
 
 	for( i = 0; i < ARRAY_SIZE( s6e8ab0_display_on_before_gamma_cmds ); i++ )
 	{
@@ -462,8 +477,10 @@ void update_id( char* srcBuffer, struct lcd_setting *destLCD )
 		case 0x03:
 			destLCD->factory_id_material = lcd_id_material_M2;
 			LOG_ADD( " M2" );
+		break;
 		case 0x25:
 			destLCD->factory_id_material = lcd_id_material_M3;
+			destLCD->isSmartDimming = true;			
 			LOG_ADD( " M3" );
 		break;
 		case 0x23:
@@ -494,7 +511,7 @@ void update_id( char* srcBuffer, struct lcd_setting *destLCD )
 		case 0x15:
 			destLCD->factory_id_material = lcd_id_material_SM2;
 			destLCD->isSmartDimming = true;
-			LOG_ADD( " M2" );
+			LOG_ADD( " SM2" );
 		break;
 		case 0x83:
 			destLCD->factory_id_material = lcd_id_material_SM2_cond_15;
@@ -513,6 +530,7 @@ void update_id( char* srcBuffer, struct lcd_setting *destLCD )
 		break;
 		default :
 			destLCD->factory_id_material = lcd_id_unknown;
+			destLCD->isSmartDimming = true;			
 			LOG_ADD( " M?" );
 		break;				
 	} // end switch
@@ -522,6 +540,18 @@ void update_id( char* srcBuffer, struct lcd_setting *destLCD )
 	checkValue = srcBuffer[2];
 	switch( checkValue )
 	{
+
+		case 0x44:
+			destLCD->factory_id_elvssType = lcd_id_elvss_normal;
+			break;
+			
+		default :
+			destLCD->factory_id_elvssType = lcd_id_elvss_each;
+			destLCD->eachElvss_value = (checkValue & 0x3F); 
+			destLCD->eachElvss_limit = (checkValue & 0xc0) >> 6; ; 			
+			LOG_ADD( " Ielvss(%x)", destLCD->eachElvss_value );
+			break;
+	/*
 		case 0x33:
 			destLCD->factory_id_elvssType = lcd_id_elvss_normal;
 		break;
@@ -538,10 +568,10 @@ void update_id( char* srcBuffer, struct lcd_setting *destLCD )
 		default :
 			destLCD->factory_id_elvssType = lcd_id_elvss_each;
 			LOG_ADD( " Ielvss" );
-		break;
+		break;*/
 	} // end switch
 	// Dynamic elvss configuration
-	destLCD->factory_id_lcdDCDC = (checkValue & 0x80)? lcd_id_lcdDCDC_TPS65138A : lcd_id_lcdDCDC_TPS65138;
+//	destLCD->factory_id_lcdDCDC = (checkValue & 0x80)? lcd_id_lcdDCDC_TPS65138A : lcd_id_lcdDCDC_TPS65138;
 
 #if 0
 #if 1
@@ -692,6 +722,28 @@ static lcd_read_mtp( char* pDest, const int isUseMutex )
 }
 #endif
 
+static int make_gamma_table(void)
+{
+	int ret = 0;
+	int i;
+	u32 gamma;
+
+	for(i = 0 ; i < MAX_GAMMA_VALUE ; i++)
+	{
+#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
+	    gamma = candela_table[i];
+#else
+		gamma = s6e8ab0_lcd.lcd_brightness_table[i].lux;
+#endif
+		if( gamma > SmartDimming_CANDELA_UPPER_LIMIT ) gamma = SmartDimming_CANDELA_UPPER_LIMIT;
+
+		memcpy(GAMMA_SmartDimming_COND_SET_table[i], GAMMA_SmartDimming_COND_SET, sizeof(GAMMA_SmartDimming_COND_SET));
+		calc_gamma_table(&(s6e8ab0_lcd.smart), gamma, &GAMMA_SmartDimming_COND_SET_table[i][SmartDimming_GammaUpdate_Pos]);
+	}
+
+	return ret;
+}
+
 static int lcd_on_seq(struct msm_fb_data_type *mfd)
 {
 	int	txCnt;
@@ -708,15 +760,13 @@ static int lcd_on_seq(struct msm_fb_data_type *mfd)
 	// if update gamma after displayOnCommand cannot be update lcd.
 	// so gammaTableCommand is moved to ahead of displayOnCommand.
 
-	mutex_lock(&(s6e8ab0_lcd.lock));
 
 	if( s6e8ab0_lcd.lcd_state.initialized )	{
 		DPRINT("%s : Already ON -> return 1\n", __func__ );
 		ret = 1;
 	}
 	else {
-		
-		set_lcd_esd_ignore( TRUE );
+		mutex_lock(&(s6e8ab0_lcd.lock));		
 		DPRINT("%s +\n", __func__);
 
 		txAmount = ARRAY_SIZE(s6e8ab0_display_on_before_read_id);
@@ -727,10 +777,7 @@ static int lcd_on_seq(struct msm_fb_data_type *mfd)
 			isFailed_TX = TRUE;
 			goto failed_tx_lcd_on_seq;
 		}
-#if 1//def CONFIG_CMC624_P8LTE
-	if(1)//(!p8lte_has_cmc624())
-	{
-		
+
 #ifdef LCD_FACTORY_TEST
 		read_reg( 0xD1, LCD_ID_BUFFER_SIZE, s6e8ab0_lcd.lcd_id_buffer, FALSE );
 
@@ -777,62 +824,10 @@ static int lcd_on_seq(struct msm_fb_data_type *mfd)
 
 			printk(KERN_WARNING " It goes to ID unknown!\n");
 			update_LCD_SEQ_by_id( &s6e8ab0_lcd );
+			make_gamma_table();
 		}
 #endif
-	}
-#else /* CONFIG_CMC624_P8LTE */
 
-#ifdef LCD_FACTORY_TEST
-			read_reg( 0xD1, LCD_ID_BUFFER_SIZE, s6e8ab0_lcd.lcd_id_buffer, FALSE );
-
-			lcd_read_mtp( lcd_mtp_data, FALSE );
-			s6e8ab0_lcd.isSmartDimming_loaded = TRUE;
-
-			update_id( s6e8ab0_lcd.lcd_id_buffer, &s6e8ab0_lcd );
-
-			update_LCD_SEQ_by_id( &s6e8ab0_lcd );
-
-#else
-			if( !s6e8ab0_lcd.isSmartDimming_loaded )
-			{
-				read_reg( MTP_REGISTER, MTP_DATA_SIZE, lcd_mtp_data, FALSE );
-#if 0 // kyNam_110915_ do not check MTP-Fail-check			
-				for( i=0, j=0; i < MTP_DATA_SIZE; i++ ) if(lcd_mtp_data[i]==0) j++;
-				if( j > MTP_DATA_SIZE/2 )
-				{
-					DPRINT( "MTP Load FAIL\n" );
-					s6e8ab0_lcd.isSmartDimming_loaded = FALSE;
-					isFAIL_mtp_load = TRUE;
-
-#ifdef SmartDimming_useSampleValue
-					for( i = 0; i < MTP_DATA_SIZE; i++ )	 lcd_mtp_data[i] = lcd_mtp_data_default[i];
-					s6e8ab0_lcd.isSmartDimming_loaded = TRUE;
-#endif 				
-				} 
-				else 
-#endif 			
-				{
-					LOG_START();
-					LOG_ADD( "mtp :" );
-					for( i = 0; i < MTP_DATA_SIZE; i++ )	LOG_ADD( " %02x", lcd_mtp_data[i] );
-					LOG_FINISH();
-
-					s6e8ab0_lcd.isSmartDimming_loaded = TRUE;
-				}
-			}
-
-			if( s6e8ab0_lcd.factory_id_line == lcd_id_unknown )
-			{
-				read_reg( 0xD1, LCD_ID_BUFFER_SIZE, s6e8ab0_lcd.lcd_id_buffer, FALSE );
-				update_id( s6e8ab0_lcd.lcd_id_buffer, &s6e8ab0_lcd );
-
-				printk(KERN_WARNING " It goes to ID unknown");
-				update_LCD_SEQ_by_id( &s6e8ab0_lcd );
-			}
-#endif
-
-
-#endif /* CONFIG_CMC624_P8LTE */
 		txAmount = ARRAY_SIZE(s6e8ab0_display_on_before_gamma_cmds);
 		txCnt = mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_display_on_before_gamma_cmds,
 				txAmount );    
@@ -856,24 +851,31 @@ static int lcd_on_seq(struct msm_fb_data_type *mfd)
 		}
 		s6e8ab0_lcd.lcd_gamma = s6e8ab0_lcd.stored_gamma;
 		
-		// set elvss
-		lcd_apply_elvss(mfd, s6e8ab0_lcd.stored_elvss, &s6e8ab0_lcd);
-		s6e8ab0_lcd.lcd_elvss = s6e8ab0_lcd.stored_elvss;
-
-		// set acl 
-		if( s6e8ab0_lcd.enabled_acl ) acl_level	= s6e8ab0_lcd.stored_acl;
-		else acl_level = 0;
-		lcd_apply_acl( mfd, acl_level, TRUE );
-		s6e8ab0_lcd.lcd_acl = acl_level; 
-		LOG_FINISH();
-
 		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_display_on_after_gamma_cmds,
 				ARRAY_SIZE(s6e8ab0_display_on_after_gamma_cmds));    
 
 		s6e8ab0_lcd.lcd_state.initialized = TRUE;
-		s6e8ab0_lcd.lcd_state.display_on = TRUE;
+		s6e8ab0_lcd.lcd_state.display_on =  state_lcd_on = TRUE;
 		s6e8ab0_lcd.lcd_state.powered_up = TRUE;
 
+
+		// set elvss
+		lcd_set_elvss(mfd, &s6e8ab0_lcd);
+		s6e8ab0_lcd.lcd_elvss = s6e8ab0_lcd.stored_elvss;
+
+		VREGOUT_SET[1] = s6e8ab0_lcd.lcd_id_buffer[0];
+		VREGOUT_SET[2] = s6e8ab0_lcd.lcd_id_buffer[1];		
+		VREGOUT_SET[3] = s6e8ab0_lcd.lcd_id_buffer[2];
+		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_wxga_display_on,
+				ARRAY_SIZE(s6e8ab0_wxga_display_on));  
+
+		// set acl 
+		if( s6e8ab0_lcd.enabled_acl )
+		{
+			s6e8ab0_lcd.stored_acl = s6e8ab0_lcd.lcd_gamma; //bl level
+			lcd_set_acl(mfd, &s6e8ab0_lcd);
+		}
+		LOG_FINISH();
 		DPRINT("%s - : gamma=%d, ACl=%d, Elvss=%d\n", __func__, s6e8ab0_lcd.lcd_gamma, s6e8ab0_lcd.lcd_acl, s6e8ab0_lcd.lcd_elvss );
 
 failed_tx_lcd_on_seq:
@@ -882,9 +884,16 @@ failed_tx_lcd_on_seq:
 			DPRINT("%s : tx FAILED\n", __func__ );
 		}
 
-		set_lcd_esd_ignore( FALSE );
-	}
+#ifdef CONFIG_CMC624_P8LTE
+		if(p8lte_has_cmc624())
+		{
+			sec_esd_enable(); // esd driver
+			cmc_esd_enable(); // esd driver
+		}
+#endif		
+
 	mutex_unlock(&(s6e8ab0_lcd.lock));
+	}
 
 	return ret;
 }
@@ -893,7 +902,11 @@ static int lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 
-	DPRINT("%s\n", __func__);
+#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
+	DPRINT("[%s] + MAPPING_TBL_AUTO_BRIGHTNESS\n", __func__);
+#else
+	DPRINT("[%s] +\n", __func__);
+#endif
 
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
@@ -911,6 +924,7 @@ static int lcd_on(struct platform_device *pdev)
 //	readCmd(mfd, DTYPE_GEN_READ, 0x0A, 0x00, 8, 1 );
 //	readCmd(mfd, DTYPE_GEN_READ, 0x0D, 0x00, 8, 1 );
 //	readCmd(mfd, DTYPE_GEN_READ, 0x0E, 0x00, 8, 1 );
+	DPRINT("[%s] -\n", __func__);
 	return 0;
 }
 
@@ -925,14 +939,21 @@ static int lcd_off_seq(struct msm_fb_data_type *mfd)
 
 	DPRINT("%s\n", __func__);
 
+#ifdef CONFIG_CMC624_P8LTE
+	if(p8lte_has_cmc624())
+	{
+		 sec_esd_disable();
+		 cmc_esd_disable();
+	}
+#endif
 	mutex_lock(&(s6e8ab0_lcd.lock));
-	set_lcd_esd_ignore( TRUE );
+//	set_lcd_esd_ignore( TRUE );
 	mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_display_off_cmds,
 			ARRAY_SIZE(s6e8ab0_display_off_cmds));
-	s6e8ab0_lcd.lcd_state.display_on = FALSE;
+	s6e8ab0_lcd.lcd_state.display_on = state_lcd_on = FALSE;
 	s6e8ab0_lcd.lcd_state.initialized = FALSE;
 	s6e8ab0_lcd.lcd_state.powered_up = FALSE;
-	set_lcd_esd_ignore( FALSE );
+//	set_lcd_esd_ignore( FALSE );
 	mutex_unlock(&(s6e8ab0_lcd.lock));
 
 	//gpio_set_value(GPIO_S6E8AB0_RESET, 0);
@@ -949,6 +970,8 @@ static int lcd_off(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct fb_info *info;
 	unsigned short *bits;
+	if(!lcd_esd_refresh)	
+	{	
 	DPRINT("%s : Draw Black screen.\n", __func__);	
 	info = registered_fb[0];
 	bits = (unsigned short *)(info->screen_base);
@@ -957,6 +980,7 @@ static int lcd_off(struct platform_device *pdev)
 #else
 	memset(bits, 0x00, 1280*800*4*2);
 #endif
+	}
 #if 0 // for recovery ICS (andre.b.kim)
 	DPRINT("%s : to be early_suspend. return.\n", __func__);
 	return 0;
@@ -1005,10 +1029,20 @@ static void lcd_gamma_apply( struct msm_fb_data_type *mfd, int srcGamma)
 	mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_gamma_update_cmd, 1);
 }
 
+
+
 static void lcd_gamma_smartDimming_apply( struct msm_fb_data_type *mfd, int srcGamma)
 {
 	int gamma_lux;
 	int i;
+
+	DPRINT("[%s] +\n", __func__);
+
+#if 1
+	if(srcGamma >= MAX_GAMMA_VALUE)	srcGamma = MAX_GAMMA_VALUE-1;
+	if(srcGamma < 0) srcGamma = 0;
+	DSI_CMD_SmartDimming_GAMMA.payload = GAMMA_SmartDimming_COND_SET_table[srcGamma];
+#else
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
     gamma_lux = candela_table[srcGamma];
@@ -1029,6 +1063,8 @@ static void lcd_gamma_smartDimming_apply( struct msm_fb_data_type *mfd, int srcG
 		if( (int)GAMMA_SmartDimming_COND_SET[25] < 0x70 && GAMMA_SmartDimming_COND_SET[24] == 0 ) GAMMA_SmartDimming_COND_SET[24] =1;
 	}
 #endif 	
+#endif
+
 #if 0 // don't need log 
 	char pBuffer[256];
 	pBuffer[0] = 0;
@@ -1038,12 +1074,10 @@ static void lcd_gamma_smartDimming_apply( struct msm_fb_data_type *mfd, int srcG
 	}
 	DPRINT( "SD: %03d %s\n", gamma_lux, pBuffer );
 #endif 
-#if 0
 	mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &DSI_CMD_SmartDimming_GAMMA,	1);
-#else
-	mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &DSI_CMD_SM2_GAMMA,	1);
-#endif
 	mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_gamma_update_cmd, 1);
+
+
 	LOG_ADD( " SDIMMING(%d=%dcd)", srcGamma, gamma_lux );
 }
 
@@ -1053,25 +1087,23 @@ static void lcd_gamma_ctl(struct msm_fb_data_type *mfd, struct lcd_setting *lcd)
 	int gamma_level;
 
 	gamma_level = s6e8ab0_lcd.stored_gamma;
-	if( s6e8ab0_lcd.lcd_brightness_table[gamma_level].lux != s6e8ab0_lcd.lcd_brightness_table[s6e8ab0_lcd.lcd_gamma].lux )
+	if(s6e8ab0_lcd.lcd_gamma != gamma_level)
 	{
 
 		if( s6e8ab0_lcd.isSmartDimming )
 		{
 			mutex_lock(&(s6e8ab0_lcd.lock));
 			lcd_gamma_smartDimming_apply( mfd, gamma_level );
-			mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_gamma_update_cmd, 1);
 			mutex_unlock(&(s6e8ab0_lcd.lock));
 		} 
 		else {
-		mutex_lock(&(s6e8ab0_lcd.lock));
+			mutex_lock(&(s6e8ab0_lcd.lock));
 			lcd_gamma_apply( mfd, gamma_level );
-		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_gamma_update_cmd, 1);
-		mutex_unlock(&(s6e8ab0_lcd.lock));
+			mutex_unlock(&(s6e8ab0_lcd.lock));
 		}
 
 		s6e8ab0_lcd.lcd_gamma = gamma_level;
-		
+		/*
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
         LOG_ADD(" gamma_ctl(%d->%d(lcd),%dcd)", gamma_level, s6e8ab0_lcd.lcd_gamma, 
         candela_table[s6e8ab0_lcd.lcd_gamma] );
@@ -1080,13 +1112,13 @@ static void lcd_gamma_ctl(struct msm_fb_data_type *mfd, struct lcd_setting *lcd)
 			s6e8ab0_lcd.lcd_brightness_table[s6e8ab0_lcd.lcd_gamma].strID,
 			s6e8ab0_lcd.lcd_brightness_table[s6e8ab0_lcd.lcd_gamma].lux );
 		
-#endif
-    	}
-    	else
-    	{
+#endif*/
+	}
+	else
+	{
 		s6e8ab0_lcd.lcd_gamma = gamma_level;
-//		DPRINT("lcd_gamma_ctl %d -> %d(lcd)\n", gamma_level, s6e8ab0_lcd.lcd_gamma );
-    	}
+		//DPRINT("lcd_gamma_ctl %d -> %d(lcd)\n", gamma_level, s6e8ab0_lcd.lcd_gamma );
+	}
 
 	return;
 
@@ -1097,14 +1129,17 @@ static void lcd_set_brightness(struct msm_fb_data_type *mfd, int gamma_level)
 	//TODO: lock
        //spin_lock_irqsave(&bl_ctrl_lock, irqflags);
 
-       s6e8ab0_lcd.stored_gamma = gamma_level;
-       s6e8ab0_lcd.stored_elvss= gamma_level;
-       s6e8ab0_lcd.stored_acl = gamma_level;
-
-	lcd_gamma_ctl(mfd, &s6e8ab0_lcd);	
+   s6e8ab0_lcd.stored_gamma = gamma_level;
+   s6e8ab0_lcd.stored_elvss= gamma_level;
+   s6e8ab0_lcd.stored_acl = gamma_level;
+   s6e8ab0_lcd.goal_brightness = gamma_level;
+   
+	lcd_gamma_ctl(mfd, &s6e8ab0_lcd);
 	lcd_set_elvss(mfd, &s6e8ab0_lcd);
-	lcd_set_acl(mfd, &s6e8ab0_lcd);
-	
+	if(s6e8ab0_lcd.enabled_acl && 
+		((!s6e8ab0_lcd.lcd_acl &&  s6e8ab0_lcd.stored_acl > 1) ||
+		(s6e8ab0_lcd.lcd_acl &&  s6e8ab0_lcd.stored_acl < 2)) )lcd_set_acl(mfd, &s6e8ab0_lcd);
+
 #if !defined(CONFIG_HAS_EARLYSUSPEND)
 	if (s6e8ab0_lcd.lcd_gamma <= LCD_OFF_GAMMA_VALUE) {
 		lcd_off_seq( mfd );	// brightness = 0 -> LCD Off 
@@ -1168,6 +1203,8 @@ static void set_backlight(struct msm_fb_data_type *mfd)
 	int gamma_level;
 	static int pre_bl_level = 0;
 
+	DPRINT("[%s] (%d)+\n", __func__, bl_level);
+
 	// brightness tuning
 //	bl_level = 201; // 240cd
 //	bl_level = 211; // 250cd	
@@ -1191,15 +1228,14 @@ static void set_backlight(struct msm_fb_data_type *mfd)
 		if(s6e8ab0_lcd.lcd_gamma != gamma_level)
 		{
 			LOG_START();
-	       	LOG_ADD(" brightness!!!(%d,g=%d,s=%d)",bl_level,gamma_level,s6e8ab0_lcd.stored_gamma);
 			lcd_set_brightness(mfd, gamma_level);
 			LOG_FINISH();
 		}
 		else
 		{
-			LOG_START();
-			lcd_set_brightness(mfd, gamma_level);
-			LOG_CLEAR();
+		//	LOG_START();
+		//	lcd_set_brightness(mfd, gamma_level);
+		//	LOG_CLEAR();
 		}
 	}
 	else
@@ -1212,6 +1248,7 @@ static void set_backlight(struct msm_fb_data_type *mfd)
 	}
 
 	pre_bl_level = bl_level;
+	DPRINT("[%s] -\n", __func__);
 
 }
 
@@ -1253,125 +1290,162 @@ void unset_lcd_MaxLimit()
 }
 //////////
 
-#define GET_NORMAL_ELVSS_ID(i) (s6e8ab0_lcd.lcd_elvss_table[i].cmd->payload[GET_NORMAL_ELVSS_ID_ADDRESS])
-#define GET_EACH_ELVSS_ID(i) (lcd_elvss_delta_table[i])
-static void lcd_apply_elvss(struct msm_fb_data_type *mfd, int srcElvss, struct lcd_setting *lcd)
+u8 get_offset_brightness(u32 brightness)
 {
-	int	calc_elvss;
-	char	update_elvss;
+	u8 offset = 0;
+
+	switch (brightness) {
+	case 0 ... 7:
+		if(s6e8ab0_lcd.factory_id_elvssType == lcd_id_elvss_each )offset = ELVSS_OFFSET_MIN; // 100cd ~
+		else if((s6e8ab0_lcd.factory_id_elvssType == lcd_id_elvss_normal ))offset = ELVSS_OFFSET_DYN_MIN;
+		break;
+	case 8 ... 12:
+		offset = ELVSS_OFFSET_1; //150 ~ 100cd
+		break;
+	case 13 ... 17:
+		offset = ELVSS_OFFSET_2; //200 ~ 150cd
+		break;
+	case 18 ...  23:
+		offset = ELVSS_OFFSET_MAX; //250 ~ 200cd
+		break;
+	default:
+		offset = ELVSS_OFFSET_MAX;
+		break;
+	}
+	return offset;
+}
+
+static  int lcd_apply_elvss(struct msm_fb_data_type *mfd, int srcElvss, struct lcd_setting *lcd)
+{
+	int i = 0;
+	static char elvss_cmd[3] = {0,};
+	static char elvss_cmd_dynamic[6] = {0,};
+	
+	static struct dsi_cmd_desc s6e8aa0_elvss_cmd = 
+	{ DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(elvss_cmd), elvss_cmd};
+	static struct dsi_cmd_desc s6e8aa0_elvss_table_dynamic[] = 
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0,   sizeof(ELVSS_DYNAMIC), ELVSS_DYNAMIC}, 
+	{ DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(elvss_cmd_dynamic), elvss_cmd_dynamic}};
+
+	if (!srcElvss) {
+		printk("[ERROR:LCD]:%s:get_elvss_value() failed\n", __func__);
+		return -1;
+	}
+	DPRINT("[%s] +\n", __func__);
 
 	if( lcd->factory_id_elvssType == lcd_id_elvss_each )
 	{
-			calc_elvss = s6e8ab0_lcd.eachElvss_value+ s6e8ab0_lcd.eachElvss_vector +GET_EACH_ELVSS_ID(srcElvss);
-			if( calc_elvss > LCD_ELVSS_RESULT_LIMIT ) calc_elvss = LCD_ELVSS_RESULT_LIMIT;
-			update_elvss = (char) calc_elvss | 0x80; //0x80 = indentity of elvss;
-			EACH_ELVSS_COND_SET[EACH_ELVSS_COND_UPDATE_POS] = update_elvss;
+		elvss_cmd[0] = 0xb1;
+		elvss_cmd[1] = 0x84;
+		elvss_cmd[2] = srcElvss;
+
+		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_elvss_cmd),	1);
+	//	printk("huggac : apply elvss : %x\n", srcElvss);
+	}
+
+	if( lcd->factory_id_elvssType == lcd_id_elvss_normal )
+	{
+		elvss_cmd_dynamic[i] = 0xb2; // addresss
+		for(i = 1; i < 6 ; i++)elvss_cmd_dynamic[i] = srcElvss; //data
+
+		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_elvss_table_dynamic),	1);			
+	}
+	
+}
+
+u8 old_elvss_ref = 0;
+static  int lcd_set_elvss(struct msm_fb_data_type *mfd, struct lcd_setting *lcd)
+{
+
+	u8 ref = 0;
+	u8 elvss_limit_min, elvss_limit_max;
+
+	if( lcd->factory_id_elvssType == lcd_id_elvss_each )// id[2] != 0x44
+	{
+		ref = (lcd->eachElvss_value + 0x80);// + 0x80
+		if (lcd->eachElvss_limit == 0x00) 
+			{
+				elvss_limit_max = DYNAMIC_ELVSS_MAX_VALUE_32;
+				elvss_limit_min = DYNAMIC_ELVSS_MIN_VALUE;
+			}
+		else if (lcd->eachElvss_limit == 0x01)
+			{
+				elvss_limit_max = DYNAMIC_ELVSS_MAX_VALUE_24;
+				elvss_limit_min = DYNAMIC_ELVSS_MIN_VALUE;
+			}
+		else {
+			printk("[ERROR:ELVSS]:%s undefined elvss limit value :%x\n", __func__, lcd->eachElvss_limit);
+			return 0;
+			}
+		ref += get_offset_brightness(s6e8ab0_lcd.stored_elvss); //0x80 + 0x0c~0x04
 		
-			mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(lcd_each_elvss_table[0]), 1);
-			// elvss is always ON, It's not need update-cmd.
+		if(old_elvss_ref == ref)return 0; 
+		else old_elvss_ref = ref;
 
-			s6e8ab0_lcd.lcd_elvss = srcElvss;
-			LOG_ADD(" ELVSS(%d->%d,%x+%x:%x)", srcElvss, s6e8ab0_lcd.lcd_elvss, 
-				s6e8ab0_lcd.eachElvss_value, GET_EACH_ELVSS_ID(srcElvss), update_elvss);
+		printk("%s : elvss bl-level : %d, bl-ref : %x\n", __func__, s6e8ab0_lcd.stored_elvss,ref);
+
+		if (ref < elvss_limit_min)	   ref = elvss_limit_min;
+		else if (ref > elvss_limit_max)ref = elvss_limit_max;		
+
 	}
 
-	if( lcd->factory_id_elvssType == lcd_id_elvss_normal )
+	else if( lcd->factory_id_elvssType == lcd_id_elvss_normal ) // id[2] == 0x44
 	{
-			mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_lcd.lcd_elvss_table[srcElvss].cmd,	1);
-			// elvss is always ON, It's not need update-cmd.
-
-			s6e8ab0_lcd.lcd_elvss = srcElvss;
-			LOG_ADD(" ELVSS(%d->%d,%x)", srcElvss, s6e8ab0_lcd.lcd_elvss,
-				GET_NORMAL_ELVSS_ID(srcElvss));
-	}
-}
-
-static void lcd_set_elvss(struct msm_fb_data_type *mfd, struct lcd_setting *lcd)
-{
-	int elvss_level;
-
-
-	elvss_level = s6e8ab0_lcd.stored_elvss; // gamma level 
-	if( lcd->factory_id_elvssType == lcd_id_elvss_each )
-	{
-		if( GET_EACH_ELVSS_ID(s6e8ab0_lcd.lcd_elvss) == GET_EACH_ELVSS_ID(elvss_level) )
-		{
-			s6e8ab0_lcd.lcd_elvss = s6e8ab0_lcd.stored_elvss;
-		}
-		else
-		{
-			mutex_lock(&(s6e8ab0_lcd.lock));
-			lcd_apply_elvss( mfd, elvss_level, &s6e8ab0_lcd );
-			mutex_unlock(&(s6e8ab0_lcd.lock));
-
-		}
+		ref = get_offset_brightness(s6e8ab0_lcd.stored_elvss);
 	}
 
-	if( lcd->factory_id_elvssType == lcd_id_elvss_normal )
-	{
-		if(GET_NORMAL_ELVSS_ID(s6e8ab0_lcd.lcd_elvss) == GET_NORMAL_ELVSS_ID(elvss_level) ) // if same as LCD
-		{
-			s6e8ab0_lcd.lcd_elvss = s6e8ab0_lcd.stored_elvss;
-		}
-		else
-		{
-			mutex_lock(&(s6e8ab0_lcd.lock));
-			lcd_apply_elvss( mfd, elvss_level, &s6e8ab0_lcd );
-		// elvss is always ON, It's not need update-cmd.
-		mutex_unlock(&(s6e8ab0_lcd.lock));
+//	mutex_lock(&(s6e8ab0_lcd.lock));
+	lcd_apply_elvss( mfd, ref, &s6e8ab0_lcd );
+//	mutex_unlock(&(s6e8ab0_lcd.lock));	
 
-		s6e8ab0_lcd.lcd_elvss = s6e8ab0_lcd.stored_elvss;
-		}
-	}
+	return 0;
 }
 
 
-
-
-static void lcd_apply_acl(struct msm_fb_data_type *mfd, unsigned int srcAcl, boolean nowOffNeedOn)
-{
-#if 1 // Q1 : Not ACL-OFF by brightness
-	if( s6e8ab0_lcd.lcd_acl_table[srcAcl].lux == 0 )
-	{
-		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_acl_off_cmd, 1);
-		LOG_ADD( " ACL(OFF:%s,%d)", s6e8ab0_lcd.lcd_acl_table[srcAcl].strID, s6e8ab0_lcd.lcd_acl_table[srcAcl].lux);
-	}
-	else
-#endif 	
-	{
-		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, s6e8ab0_lcd.lcd_acl_table[srcAcl].cmd, 1);
-		if( nowOffNeedOn || s6e8ab0_lcd.lcd_acl_table[s6e8ab0_lcd.lcd_acl].lux == 0 )
-		{
-			mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &s6e8ab0_acl_on_cmd, 1);
-			LOG_ADD( " ACL(ON:%s,%d)", s6e8ab0_lcd.lcd_acl_table[srcAcl].strID, s6e8ab0_lcd.lcd_acl_table[srcAcl].lux);
-		}
-		else
-		{
-			LOG_ADD( " ACL(%s,%d)", s6e8ab0_lcd.lcd_acl_table[srcAcl].strID, s6e8ab0_lcd.lcd_acl_table[srcAcl].lux);
-		}
-	}
-}
+const unsigned char *ACL_CUTOFF_TABLE[2] = {
+	SEQ_ACL_OFF,
+	SEQ_ACL_CUTOFF_40,
+};
 
 static void lcd_set_acl(struct msm_fb_data_type *mfd, struct lcd_setting *lcd)
 {
-	unsigned int acl_level;
+	static struct dsi_cmd_desc s6e8aa0_seq_acl_off = 
+	{ DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(SEQ_ACL_OFF), SEQ_ACL_OFF};
+	static struct dsi_cmd_desc s6e8aa0_seq_acl_on = 
+	{ DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(SEQ_ACL_ON), SEQ_ACL_ON};
+	static struct dsi_cmd_desc s6e8aa0_acl_cutoff_table = 
+	{ DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(SEQ_ACL_CUTOFF_40), SEQ_ACL_CUTOFF_40};
 
-	if( s6e8ab0_lcd.enabled_acl )	acl_level = s6e8ab0_lcd.stored_acl;
-	else acl_level = 0;
+/*
+	unsigned int 			enabled_acl; // enable
+	unsigned int 			stored_acl; // bl level
+	unsigned int 			lcd_acl; //current 40%/off status
+*/
+	if (lcd->enabled_acl) {
+		switch (lcd->stored_acl) //bl level
+			{
+			case 0 ... 1: // 30cd ~ 40cd 
+				if (lcd->lcd_acl != 0) {  // 40%
+					mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_seq_acl_off),	1); 
+					lcd->lcd_acl = 0;					
+					}
+					break;
+					
+			default: // more than 40cd  
+				if (lcd->lcd_acl != 40) {  // not 40% 
+					mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_seq_acl_on),	1);
+					mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_acl_cutoff_table),	1);				
+					lcd->lcd_acl = 40;					
+					}
+					break;
+			}
+	} 
 	
-	if( s6e8ab0_lcd.lcd_acl_table[s6e8ab0_lcd.lcd_acl].lux == s6e8ab0_lcd.lcd_acl_table[acl_level].lux) // if same as LCD
-	{
-		s6e8ab0_lcd.lcd_acl = acl_level;
+	else {
+		mipi_dsi_cmds_tx(mfd, &s6e8ab0_tx_buf, &(s6e8aa0_seq_acl_off),	1);
+		lcd->lcd_acl = 0;
 	}
-	else
-	{
-		mutex_lock(&(s6e8ab0_lcd.lock));
-		lcd_apply_acl(mfd, acl_level, FALSE );
-		// acl is always ON, It's not need update-cmd.
-		mutex_unlock(&(s6e8ab0_lcd.lock));
-
-		s6e8ab0_lcd.lcd_acl = acl_level;
-	}
+	printk("%s acl_enable:%d , bl-level:%d, cur_acl:%d\n",__func__, lcd->enabled_acl, lcd->stored_acl, lcd->lcd_acl);	
 }
 
 
@@ -1778,11 +1852,29 @@ static void late_resume(struct early_suspend *h)
 {
 	DPRINT("%s\n", __func__);
 	lcd_on_seq(pMFD);
+//	set_lcd_esd_ignore( FALSE );
  return;
 }
 #endif
 
 
+
+#ifdef CONFIG_CMC624_P8LTE
+static struct class *amoled_class;
+struct device *amoled_dev;
+
+static ssize_t lcdtype_show(struct device *dev, struct 
+device_attribute *attr, char *buf)
+{
+	char temp[15];
+	sprintf(temp, "SMD_AMS767KC01\n");
+	strcat(buf, temp);
+	return strlen(buf);
+}
+
+static DEVICE_ATTR(lcdtype, 0664,
+		lcdtype_show, NULL);
+#endif
 
 static int __devinit lcd_probe(struct platform_device *pdev)
 {
@@ -1818,7 +1910,7 @@ if(p8lte_has_cmc624())
 		if( lcd_Gamma22_Meterial13_table[default_gamma_value].lux >= DEFAULT_CANDELA_VALUE ) break;
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-    for( default_gamma_value = 0; default_gamma_value <= MAX_GAMMA_VALUE; default_gamma_value++)
+    for( default_gamma_value = 0; default_gamma_value < MAX_GAMMA_VALUE; default_gamma_value++)
     	if( candela_table[default_gamma_value]>= DEFAULT_CANDELA_VALUE ) break;
 #endif
 
@@ -1829,8 +1921,8 @@ if(p8lte_has_cmc624())
 	s6e8ab0_lcd.enabled_acl= 1;
 	s6e8ab0_lcd.stored_acl= default_gamma_value;
 	s6e8ab0_lcd.goal_brightness = default_gamma_value;
-	s6e8ab0_lcd.lcd_acl = -1;
-	s6e8ab0_lcd.lcd_state.display_on = false;
+	s6e8ab0_lcd.lcd_acl = 40;
+	s6e8ab0_lcd.lcd_state.display_on = state_lcd_on = false;
 	s6e8ab0_lcd.lcd_state.initialized= false;
 	s6e8ab0_lcd.lcd_state.powered_up= false;
 	s6e8ab0_lcd.factory_id_line	= lcd_id_unknown;
@@ -1970,6 +2062,22 @@ int mipi_s6e8ab0_wxga_device_register(struct msm_panel_info *pinfo,
 		  "%s: platform_device_register failed!\n", __func__);
 		goto err_device_put;
 	}
+
+#ifdef CONFIG_CMC624_P8LTE
+	/*  Prepare sysfs node for acl on/off  */
+	amoled_class = class_create(THIS_MODULE, "amoled");
+	if(IS_ERR(amoled_class)) {
+		printk("Failed to create class(amoled_class)!!\n");
+		ret = -1;
+	}
+
+	/*  P8LTE has not cmc623, fake device for TouchWIZ Platform */
+	amoled_dev = device_create(amoled_class, NULL, 0, NULL, "dev");
+	if (IS_ERR(amoled_dev))
+		printk("[LCD] Failed to create device(amoled_dev)!\n");
+	if (device_create_file(amoled_dev, &dev_attr_lcdtype) < 0)
+		printk("[LCD] Failed to create device file(%s)!\n", dev_attr_lcdtype.attr.name);
+#endif
 
 	return 0;
 

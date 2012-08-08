@@ -4892,26 +4892,15 @@ msmsdcc_runtime_suspend(struct device *dev)
 	unsigned long flags;
 	int rc = 0;
 
-
 	if (host->plat->is_sdio_al_client)
 		return 0;
-	pr_debug("%s: %s: start\n", mmc_hostname(mmc), __func__);
-	if((host->pdev_id == 4))
-	{
-		printk("SDCC CH 0 : msmsdcc_runtime_suspend WLAN SKIP Suspend \n");
-                spin_lock_irqsave(&host->lock, flags);
-                writel(0, host->base + MMCIMASK0);
-                if (host->clks_on) {
-                        clk_disable(host->clk);
-                        if (!IS_ERR(host->pclk))
-                                clk_disable(host->pclk);
-                        host->clks_on = 0;
-                }
-                spin_unlock_irqrestore(&host->lock, flags);
 
-		return 0;
+	if (host->pdev_id == 4) {
+		host->mmc->pm_flags |= MMC_PM_KEEP_POWER;
+		printk(KERN_INFO "%s: Enter WIFI suspend\n", __func__);
 	}
 
+	pr_debug("%s: %s: start\n", mmc_hostname(mmc), __func__);
 	if (mmc) {
 		host->sdcc_suspending = 1;
 		mmc->suspend_task = current;
@@ -4978,25 +4967,11 @@ msmsdcc_runtime_resume(struct device *dev)
 	if (host->plat->is_sdio_al_client)
 		return 0;
 
-	pr_debug("%s: %s: start\n", mmc_hostname(mmc), __func__);
-	if((host->pdev_id == 4))
-	{
-		printk("*SDCC CH 4 : msmsdcc_runtime_resume WLAN SKIP Resume \n");
-                spin_lock_irqsave(&host->lock, flags);
-                if (!host->clks_on) {
-                                        if (!IS_ERR_OR_NULL(host->dfab_pclk))
-                                                clk_enable(host->dfab_pclk);
-                                        if (!IS_ERR(host->pclk))
-                                                clk_enable(host->pclk);
-                                        clk_enable(host->clk);
-                        host->clks_on = 1;
-                }
-                writel(host->mci_irqenable, host->base + MMCIMASK0);
-                spin_unlock_irqrestore(&host->lock, flags);
-	
-		return 0;
+	if (host->pdev_id == 4) {
+		printk(KERN_INFO "%s: Enter WIFI resume\n", __func__);
 	}
 
+	pr_debug("%s: %s: start\n", mmc_hostname(mmc), __func__);
 	if (mmc) {
 		if (mmc->card && mmc_card_sdio(mmc->card) &&
 				mmc_card_keep_power(mmc)) {

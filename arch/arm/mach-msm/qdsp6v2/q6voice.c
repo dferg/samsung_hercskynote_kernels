@@ -52,7 +52,9 @@
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)|| defined(CONFIG_KOR_MODEL_SHV_E160L)
 #define CONFIG_VPCM_INTERFACE_ON_SVLTE2
 #endif
-#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) \
+|| defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) \
+|| defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_JPN_MODEL_SC_05D)
 #define CONFIG_VPCM_INTERFACE_ON_CSFB
 #endif
 
@@ -2629,7 +2631,8 @@ static void voice_auddev_cb_function(u32 evt_id,
 		mutex_lock(&v->lock);
 		//printk("%s AUDDEV_EVT_START_VOICE \n", __func__);
 
-#if defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_KOR_MODEL_SHV_E120L) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) //kks_111020 // Qualcomm Gon's workaround code to solve the sound mute problem after subsystem reset(SSR) during voice call(QC case 645569)
+#if defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_KOR_MODEL_SHV_E120L) || defined (CONFIG_KOR_MODEL_SHV_E160S) || defined (CONFIG_KOR_MODEL_SHV_E160K) \
+|| defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D) //kks_111020 // Qualcomm Gon's workaround code to solve the sound mute problem after subsystem reset(SSR) during voice call(QC case 645569)
 		if( (v->voc_state == VOC_RUN) && (NULL == voice_get_apr_mvm())) 
 		{
 			v->voc_state = VOC_RELEASE;

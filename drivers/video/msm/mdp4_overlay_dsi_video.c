@@ -471,7 +471,8 @@ static void mdp4_overlay_dsi_video_dma_busy_wait(struct msm_fb_data_type *mfd)
 	if (need_wait) {
 		/* wait until DMA finishes the current job */
 		pr_debug("%s: pending pid=%d\n", __func__, current->pid);
-		wait_for_completion(&mfd->dma->comp);
+		wait_for_completion_timeout(&mfd->dma->comp,
+			msecs_to_jiffies(VSYNC_PERIOD*2));
 	}
 	pr_debug("%s: done pid=%d\n", __func__, current->pid);
 }

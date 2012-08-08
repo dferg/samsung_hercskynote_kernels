@@ -51,13 +51,8 @@ static int __init mipi_video_s6e8ab0_wxga_pt_init(void)
 	pinfo.wait_cycle = 0; 
 	pinfo.bpp = 24; 
 
-#if defined(S6E8AB0_WXGA_60HZ_490MBPS)
 	pinfo.lcdc.h_back_porch = 210;//128;//128; //128;//5; //64; 
 	pinfo.lcdc.h_front_porch = 210;//128;//128; //128;//6; //64; 
-#else
-	pinfo.lcdc.h_back_porch = 134;		// quincy
-	pinfo.lcdc.h_front_porch = 134;		// quincy 
-#endif
 	pinfo.lcdc.h_pulse_width = 65; //64; //16; 
 
 	pinfo.lcdc.v_back_porch = 3; //5; //3;
@@ -101,11 +96,7 @@ static int __init mipi_video_s6e8ab0_wxga_pt_init(void)
 	pinfo.mipi.stream = 0; /* dma_p */ 
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW; 
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW; 
-#if defined(S6E8AB0_WXGA_60HZ_490MBPS)
 	pinfo.mipi.frame_rate = 60;
-#else
-	pinfo.mipi.frame_rate = 58;
-#endif 	
 
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db; 
 
