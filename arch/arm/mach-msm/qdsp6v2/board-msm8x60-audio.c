@@ -76,6 +76,8 @@
 #include "timpani_profile_p5lte_kt.h"
 #elif defined(CONFIG_KOR_MODEL_SHV_E140L)  //P5LTE-LGU
 #include "timpani_profile_p5lte_lgt.h"
+#elif defined(CONFIG_KOR_MODEL_SHV_E150S)  //P5LTE-SKT
+#include "timpani_profile_p8lte_skt.h"
 #else
 #include "timpani_profile_celox_kor.h"
 #endif

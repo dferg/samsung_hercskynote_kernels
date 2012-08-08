@@ -39,24 +39,19 @@
 #include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
-#include <linux/power_supply.h>
 
 #include "sii9234_driver.h"
 
 #ifdef CONFIG_MHL_SWING_LEVEL
 #include <linux/ctype.h>
 #endif
-#define CONFIG_MHL_D3_SUPPORT 1
+
 /* enable debug msg */
 #ifdef pr_debug
 #undef pr_debug
 #define pr_debug pr_info
 #endif
 
-extern int isDeskdockconnected; 
-extern void FSA9480_CheckAndHookAudioDock(int value, int onoff); 
-int fsa9480_mhl_chg_status_cb(void);
-  
 static u8 sii9234_tmds_control(struct sii9234_data *sii9234, bool enable);
 static bool cbus_command_request(struct sii9234_data *sii9234,
 				 enum cbus_command command,
@@ -109,43 +104,6 @@ static CLASS_ATTR(swing, 0664,
 		sii9234_swing_test_show, sii9234_swing_test_store);
 #endif
 
-int fsa9480_mhl_chg_status_cb(void)
-{
-	struct power_supply *psy = power_supply_get_by_name("battery");
-	union power_supply_propval value;
-	int ret;
-	if (!psy) { 
-		pr_err("%s: psy is null!!\n", __func__);
-		return;
-	}
-
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
-	if (ret < 0) {
-		pr_err("%s: failed to get voltage now\n", __func__);
-		return;
-	}
-
-	switch(value.intval) {
-	case POWER_SUPPLY_STATUS_CHARGING:
-		pr_err("%s: POWER_SUPPLY_STATUS_CHARGING %d\n", __func__, value.intval);
-		break;
-	case POWER_SUPPLY_STATUS_DISCHARGING:
-		pr_err("%s: POWER_SUPPLY_STATUS_DISCHARGING %d\n", __func__, value.intval);
-		break;
-	case POWER_SUPPLY_STATUS_NOT_CHARGING:
-		pr_err("%s: POWER_SUPPLY_STATUS_NOT_CHARGING %d\n", __func__, value.intval);
-		break;
-	case POWER_SUPPLY_STATUS_FULL:
-		pr_err("%s: POWER_SUPPLY_STATUS_FULL %d\n", __func__, value.intval);
-		break;
-	default:
-		pr_err("%s: unknown value %d\n", __func__, value.intval);
-		break;
-	}
-
-	return value.intval;
-}
-
 u8 mhl_onoff_ex(bool onoff)
 {
 	struct sii9234_data *sii9234 = dev_get_drvdata(sii9244_mhldev);
@@ -173,19 +131,13 @@ u8 mhl_onoff_ex(bool onoff)
 
 		if (sii9234->pdata->hw_reset)
 			sii9234->pdata->hw_reset();
-#if defined(CONFIG_MHL_D3_SUPPORT) 
- 		sii9234->power_mode =MHL_POWER_MODE_OFF; 
-#endif 
+
 		sii9234_detection_callback();
 	} else {
 		sii9234_cancel_callback();
 
 		if (sii9234->pdata->hw_onoff)
 			sii9234->pdata->hw_onoff(0);
-#if defined(CONFIG_MHL_D3_SUPPORT) 
- 		sii9234->power_mode =MHL_POWER_MODE_OFF; 
-#endif 
-
 	}
 
 	return sii9234->rgnd;
@@ -1166,24 +1118,6 @@ static int sii9234_detection_callback(void)
 	mhl_tx_clear_reg(sii9234, MHL_TX_DISC_CTRL5_REG, (1<<1) | (1<<0));
 	release_usb_id_switch_open(sii9234);
 /*end of this*/
-#if defined(CONFIG_MHL_D3_SUPPORT) 
- 	/*Go to D3 Mode Transition from D3->D0 When Rground Measures 1K*/ 
- 	if (sii9234->power_mode == MHL_POWER_MODE_OFF) { 
- 		pr_debug("sii9234: Go to D3 and waiting for RGND measurement\n"); 
- 		/* Force upstream HPD to 0 when not in MHL mode */ 
- 		mhl_tx_clear_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<5)); 
- 		mhl_tx_set_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<4)); 
- 		hdmi_rx_write_reg(sii9234, 0x01, 0x03); 
- 		tpi_read_reg(sii9234, 0x3D, &value); 
- 		value &= ~BIT0; 
- 		tpi_write_reg(sii9234, 0x3D, value); 
- 		sii9234->power_mode =MHL_POWER_MODE_D3; 
- 		enable_irq(sii9234->pdata->mhl_tx_client->irq); 
- 		mutex_unlock(&sii9234->lock); 
- 		return handled;			 
- 	}		 
-#endif 
-
 	pr_debug("sii9234: waiting for RGND measurement\n");
 	enable_irq(sii9234->pdata->mhl_tx_client->irq);
 
@@ -1194,7 +1128,7 @@ static int sii9234_detection_callback(void)
 	ret = wait_event_timeout(sii9234->wq,
 				 ((sii9234->rgnd != RGND_UNKNOWN) ||
 				  mhl_state_is_error(sii9234->state)),
-				 msecs_to_jiffies(T_WAIT_TIMEOUT_RGND_INT*1.5));
+				 msecs_to_jiffies(T_WAIT_TIMEOUT_RGND_INT));
 
 	mutex_lock(&sii9234->lock);
 	if (ret == 0 || mhl_state_is_error(sii9234->state))
@@ -1208,7 +1142,7 @@ static int sii9234_detection_callback(void)
 	pr_debug("sii9234: waiting for detection\n");
 	ret = wait_event_timeout(sii9234->wq,
 				 sii9234->state != STATE_DISCONNECTED,
-				 msecs_to_jiffies(T_WAIT_TIMEOUT_DISC_INT*2));
+				 msecs_to_jiffies(T_WAIT_TIMEOUT_DISC_INT));
 	mutex_lock(&sii9234->lock);
 	if (ret == 0)
 		goto unhandled;
@@ -1255,12 +1189,8 @@ static int sii9234_detection_callback(void)
 unhandled:
 	pr_info("sii9234: Detection failed");
 	if (sii9234->state == STATE_DISCONNECTED) {
+		sii9234->pdata->power_state = 0;
 		pr_cont(" (timeout)");
-		mutex_unlock(&sii9234->lock);
-		if (sii9234->rgnd == RGND_UNKNOWN)
-	 		mhl_onoff_ex(0); 
- 		return handled; 
-
 	} else if (sii9234->state == STATE_DISCOVERY_FAILED)
 		pr_cont(" (discovery failed)");
 	else if (sii9234->state == STATE_CBUS_LOCKOUT)
@@ -1661,20 +1591,6 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 			cbus_intr1, cbus_intr2);
 
 	if (intr4 & RGND_READY_INT) {
-#if defined(CONFIG_MHL_D3_SUPPORT) 
- 		if (sii9234->power_mode == MHL_POWER_MODE_D3)  { 
- 			pr_debug("sii9234_irq: RGND READY\n"); 
- 			INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback); 
- 			disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq); 
-  
- 			if (sii9234->pdata->hw_reset) 
- 				sii9234->pdata->hw_reset(); 
-			sii9234->power_mode = MHL_POWER_MODE_D0; 
- 			schedule_work(&sii9234->redetect_work); 
- 			goto err_exit; 
- 		} 
-#endif 
-
 		ret = mhl_tx_read_reg(sii9234, MHL_TX_STAT2_REG, &value);
 		if (ret < 0) {
 			dev_err(&sii9234->pdata->mhl_tx_client->dev,
@@ -1716,13 +1632,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 		};
 
 		if (sii9234->rgnd != RGND_1K) {
-			sii9234->power_mode = MHL_POWER_MODE_OFF; 
-			INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback);
-			disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
-				if (sii9234->pdata->hw_reset)
-					sii9234->pdata->hw_reset();
-			schedule_work(&sii9234->redetect_work);
-		//	mhl_poweroff = 1; /*Power down mhl chip */
+			mhl_poweroff = 1; /*Power down mhl chip */
 			goto err_exit;
 		}
 	}
@@ -1833,25 +1743,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 				sii9234_tmds_control(sii9234, false);
 				force_usb_id_switch_open(sii9234);
 				release_usb_id_switch_open(sii9234);
-				mhl_hpd_handler(false);
-				msleep(	2000); 
-				if (fsa9480_mhl_chg_status_cb() == POWER_SUPPLY_STATUS_DISCHARGING)
- 				{ 
 				mhl_poweroff = 1; /*Power down mhl chip */
-				} else {
-#if defined(CONFIG_MHL_D3_SUPPORT) 
- 					sii9234->power_mode = MHL_POWER_MODE_OFF;  
-#endif 
- 					mhl_hpd_handler(false); 
- 					INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback); 
- 					disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq); 
- 			 
- 					if (sii9234->pdata->hw_reset) 
- 						sii9234->pdata->hw_reset(); 
-  
- 					schedule_work(&sii9234->redetect_work); 
- 				} 
-
 				goto err_exit;
 			}
 		}

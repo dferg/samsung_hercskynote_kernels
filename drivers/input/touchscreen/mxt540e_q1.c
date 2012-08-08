@@ -52,7 +52,10 @@
 #define PRESS_MSG_MASK			0x40
 #define RELEASE_MSG_MASK		0x20
 #define MOVE_MSG_MASK			0x10
+#define VECTOR_MSG_MASK			0x08
+#define AMP_MSG_MASK			0x04
 #define SUPPRESS_MSG_MASK		0x02
+#define UNGRIP_MSG_MASK			0x01
 
 /* Version */
 #define MXT540E_VER_10			0x10
@@ -797,8 +800,8 @@ set_lcd_esd_ignore(1);
 		
 		input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
 		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-		input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].w);
+		input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].z);
+		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].w);
 		
 		#if defined(CONFIG_SHAPE_TOUCH)
 		input_report_abs(data->input_dev, ABS_MT_COMPONENT, data->fingers[i].component);
@@ -904,8 +907,8 @@ static void report_input_data_torelease(struct mxt540e_data *data)
 			
 			input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-			input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].w);
+			input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].z);
+			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].w);
 			}
 #else
 		input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
@@ -1081,8 +1084,8 @@ static void report_input_data(struct mxt540e_data *data)
 			
 			input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-			input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].w);
+			input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].z);
+			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].w);
 			
 			#if defined(CONFIG_SHAPE_TOUCH)
 			input_report_abs(data->input_dev, ABS_MT_COMPONENT, data->fingers[i].component);
@@ -1521,7 +1524,7 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 				data->finger_mask |= 1U << id;
 				data->fingers[id].state = MXT540E_STATE_RELEASE;
 			} else if ((msg[1] & DETECT_MSG_MASK) &&
-				(msg[1] & (PRESS_MSG_MASK | MOVE_MSG_MASK))) {
+				(msg[1] & (PRESS_MSG_MASK | MOVE_MSG_MASK | VECTOR_MSG_MASK))) {
 #ifdef TOUCH_CPU_LOCK				
 				if (touch_cpu_lock_status == 0) {
 #ifdef CONFIG_S5PV310_HI_ARMCLK_THAN_1_2GHZ
@@ -3181,7 +3184,7 @@ static int __devinit mxt540e_probe(struct i2c_client *client, const struct i2c_d
 tsp_reinit:;
 	input_dev = NULL;
 	touch_is_pressed = 0;
-    printk("[TSP] mxt540e_probe START\n");
+    	printk("[TSP] mxt540e_probe START\n");
      
 	if (!pdata) {
 		dev_err(&client->dev, "missing platform data\n");
@@ -3224,8 +3227,8 @@ tsp_reinit:;
 
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->min_x, pdata->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->min_y, pdata->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, pdata->min_z, pdata->max_z, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_PRESSURE, pdata->min_w, pdata->max_w, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_PRESSURE, pdata->min_z, pdata->max_z, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, pdata->min_w, pdata->max_w, 0, 0);
 #else	    
  	set_bit(EV_ABS, input_dev->evbit);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->min_x, pdata->max_x, 0, 0);

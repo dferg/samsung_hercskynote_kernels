@@ -628,7 +628,7 @@ static int m5mo_set_preview_size(int width, int height)
 	if (m5mo_ctrl->settings.zoom) {
 		m5mo_set_zoom(m5mo_ctrl->settings.zoom);
 	}
-	
+#if 0	//for LP11 state
 	/* change to monitor mode */
 	m5mo_set_mode(M5MO_MONITOR_MODE);
 
@@ -637,6 +637,7 @@ static int m5mo_set_preview_size(int width, int height)
 		cam_err("M5MO_INT_MODE isn't issued, %#x",int_factor);
 		return -ETIMEDOUT;
 	}
+#endif
 	return 0;
 }
 

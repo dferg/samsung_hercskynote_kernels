@@ -35,6 +35,7 @@
 
 #include "cypress-touchkey.h"
 #include <linux/regulator/consumer.h>
+#include <linux/mfd/pmic8058.h>
 
 /*
 Melfas touchkey register
@@ -610,7 +611,7 @@ static void touchkey_auto_calibration(int autocal_on_off)
 static void melfas_touchkey_early_suspend(struct early_suspend *h)
 {
     int index =0;
-#if defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_USA_MODEL_SGH_I717)   || defined (CONFIG_USA_MODEL_SGH_T989D) 
+#if defined(CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_USA_MODEL_SGH_I717)    
     int ret = 0;
     signed char int_data[] ={0x80};
 #endif    
@@ -624,7 +625,7 @@ static void melfas_touchkey_early_suspend(struct early_suspend *h)
     }
 
     disable_irq(IRQ_TOUCHKEY_INT);
-#if defined (CONFIG_USA_MODEL_SGH_I717)|| defined (CONFIG_USA_MODEL_SGH_T989D)
+#if defined (CONFIG_USA_MODEL_SGH_I717)
     ret = cancel_work_sync(&touchkey_work);
     if (ret) {
 	    printk(KERN_DEBUG "[Touchkey] enable_irq ret = %d\n", ret);
@@ -873,7 +874,8 @@ if(touchled_cmd_reversed) {
 
 #if defined (CONFIG_USA_MODEL_SGH_I717) || defined (CONFIG_KOR_MODEL_SHV_E160L)\
 	|| defined (CONFIG_USA_MODEL_SGH_T769)|| defined(CONFIG_USA_MODEL_SGH_I577)|| defined(CONFIG_CAN_MODEL_SGH_I577R)\
-	|| defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)
+	|| defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)|| defined(CONFIG_USA_MODEL_SGH_I727)\
+	|| defined(CONFIG_USA_MODEL_SGH_T989) 
 		enable_irq(IRQ_TOUCHKEY_INT);
 		touchkey_enable = 1;
 		msleep(50);
@@ -1068,9 +1070,10 @@ static void init_hw(void)
 		struct pm_gpio cfg;
 	};
 
+#if	defined (CONFIG_USA_MODEL_SGH_I727)
 	struct pm8058_gpio_cfg touchkey_int_cfg = 
 	{
-		13,
+	  PM8058_GPIO_PM_TO_SYS(12), // id-1		
 		{
 			.direction      = PM_GPIO_DIR_IN,
 			.pull           = PM_GPIO_PULL_NO,//PM_GPIO_PULL_NO,
@@ -1079,6 +1082,19 @@ static void init_hw(void)
 			.inv_int_pol    = 0,
 		},
 	};
+#else
+	struct pm8058_gpio_cfg touchkey_int_cfg = 
+	{
+		13,
+		{
+			.direction		= PM_GPIO_DIR_IN,
+			.pull			= PM_GPIO_PULL_NO,//PM_GPIO_PULL_NO,
+			.vin_sel		= 2,
+			.function		= PM_GPIO_FUNC_NORMAL,
+			.inv_int_pol	= 0,
+		},
+	};
+#endif
 
 	#if defined(CONFIG_KOR_MODEL_SHV_E160L)
     msleep(200);
@@ -1223,7 +1239,7 @@ static ssize_t touch_recommend_read(struct device *dev, struct device_attribute 
 		data[1] = 0x00;
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
         if (get_hw_rev() >=0x0a)
-                data[1] = 0x09;
+                data[1] = 0x12;
 		else
                 data[1] = 0x07;
 #elif defined(CONFIG_USA_MODEL_SGH_I757)  || defined(CONFIG_CAN_MODEL_SGH_I757M)    
@@ -2250,7 +2266,7 @@ static int __init touchkey_init(void)
 	}
 	
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
-	if (((data[1] < 0x07) && (data[2] == 0x15))|| ((((data[1] == 0x0) && (data[2] == 0x0) )||((data[1] == 0xff) && (data[2] == 0xff) ))&& ((get_hw_rev() >=0x05 )&& (get_hw_rev()<0x0a))))
+	 if (((data[1] < 0x07) && (data[2] == 0x15))|| ((((data[1] == 0x0) && (data[2] == 0x0) )||((data[1] == 0xff) && (data[2] == 0xff) ))&& ((get_hw_rev() >=0x05 )&& (get_hw_rev()<0x0a))))
 {
 		printk("%s : update 727 tkey...\n",__func__);	
 		extern int ISSP_main(int touchkey_pba_rev);
@@ -2268,7 +2284,7 @@ static int __init touchkey_init(void)
 		get_touchkey_firmware(data);
 		printk("%s change to F/W version: 0x%x, Module version:0x%x\n", __FUNCTION__, data[1], data[2]);
 	}
-		else if (((data[1] < 0x09) && (data[2] == 0x18))|| ((((data[1] == 0x0) && (data[2] == 0x0) )||((data[1] == 0xff) && (data[2] == 0xff) ))&& (get_hw_rev() >=0x0a )))
+		else if (((data[1] == 0x09) && (data[2] == 0x18))|| ((((data[1] == 0x0) && (data[2] == 0x0) )||((data[1] == 0xff) && (data[2] == 0xff) ))&& (get_hw_rev() >=0x0a )))
 {
 		printk("%s : update 727 tkey...\n",__func__);	
 		extern int ISSP_main(int touchkey_pba_rev);
@@ -2286,6 +2302,7 @@ static int __init touchkey_init(void)
 		get_touchkey_firmware(data);
 		printk("%s change to F/W version: 0x%x, Module version:0x%x\n", __FUNCTION__, data[1], data[2]);
 	}
+
 #elif defined (CONFIG_USA_MODEL_SGH_I717)
 	if (((data[1] != 0x04) && (data[2] <= 0x2))|| ((((data[1] == 0x0) && (data[2] == 0x0) )||((data[1] == 0xff) && (data[2] == 0xff) ))))
     {

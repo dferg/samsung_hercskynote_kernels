@@ -1096,6 +1096,13 @@ static inline void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_EXT_FEATURES, sizeof(cp), &cp);
 }
 
+static void hci_cc_le_test_end(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_le_test_end *rp = (void *) skb->data;
+	BT_DBG("hci_cc_le_test_end : %s status 0x%x, num_pkts 0x%x(%d)", hdev->name, rp->status, rp->num_pkts, rp->num_pkts);
+	mgmt_le_test_end_complete(hdev, rp->status, rp->num_pkts);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -2362,6 +2369,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 	/* monitoring of the RSSI of the link between two Bluetooth devices */
 	case HCI_OP_READ_RSSI:
 		hci_cc_read_rssi(hdev, skb);
+		break;
+
+	case HCI_OP_LE_TEST_END:
+		hci_cc_le_test_end(hdev, skb);
 		break;
 
 	default:

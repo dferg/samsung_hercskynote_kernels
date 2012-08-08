@@ -49,6 +49,7 @@
 static struct i2c_client *fg_i2c_client;
 struct max17042_chip *max17042_chip_data;
 extern int check_jig_on(void);
+extern int get_jig_gpio_to_sys(void);
 
 static int fg_i2c_read(struct i2c_client *client, u8 reg, u8 *data, u8 length)
 {
@@ -165,6 +166,16 @@ static void fg_test_print(void)
 	temp2 = temp / 1000000;
 	average_vcell += (temp2 << 4);
 
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
+	pr_info("AVG_VCELL(%d)\n", average_vcell);
+
+	pr_info("FULLCAP(%d), VFSOC_REG(%d)\n", fg_read_register(FULLCAP_REG)/2, fg_read_register(VFSOC_REG)/2);
+	pr_info("REMCAP_REP(%d), REMCAP_MIX(%d), REMCAP_AV(%d)\n", 
+		fg_read_register(REMCAP_REP_REG)/2, fg_read_register(REMCAP_MIX_REG)/2, fg_read_register(REMCAP_AV_REG)/2);
+
+	reg_data = fg_read_register(CGAIN_REG);
+	pr_info("CGAIN_REG(0x%04x)\n", reg_data);
+#else
 	pr_info("%s : AVG_VCELL(%d), data(0x%04x)\n", __func__, average_vcell, (data[1]<<8) | data[0]);
 
 	reg_data = fg_read_register(FULLCAP_REG);
@@ -182,9 +193,6 @@ static void fg_test_print(void)
 	reg_data = fg_read_register(VFSOC_REG);
 	pr_info("%s : VFSOC_REG(%d), data(0x%04x)\n", __func__, reg_data/2, reg_data);
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
-	reg_data = fg_read_register(CGAIN_REG);
-	pr_info("%s : CGAIN_REG(%d), data(0x%04x)\n", __func__, reg_data/2, reg_data);
 #endif
 }
 
@@ -357,7 +365,10 @@ static int fg_read_temp(void)
 static int fg_read_soc(void)
 {
 	struct i2c_client *client = fg_i2c_client;
-//	struct max17042_chip *chip = i2c_get_clientdata(client);
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
+	struct max17042_chip *chip = i2c_get_clientdata(client);
+	u32 soc_lsb = 0;
+#endif
 	u8 data[2];
 	u32 soc = 0;
 
@@ -368,6 +379,10 @@ static int fg_read_soc(void)
 
 	soc = data[1];
 
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
+	soc_lsb = (data[0] * 100) / 256;
+	chip->info.psoc = (soc * 100) + soc_lsb;
+#endif
 //	if (!(chip->info.pr_cnt % PRINT_COUNT))
 		pr_info("%s : SOC(%d), data(0x%04x)\n", __func__, soc, (data[1]<<8) | data[0]);
 
@@ -389,7 +404,7 @@ static int fg_read_vfsoc(void)
 
 static int fg_read_current(void)
 {
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
 	struct i2c_client *client = fg_i2c_client;
 	struct max17042_chip *chip = i2c_get_clientdata(client);
 	u8 data[2];
@@ -679,7 +694,7 @@ void fg_periodic_read(void)
 	pr_info("[MAX17042] %d/%d/%d %02d:%02d,",
 		tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min);
 
-#if 0
+#if 1
 	for (i = 0; i < 16; i++) {
 		for (reg = 0; reg < 0x10; reg++) {
 			data[reg] = fg_read_register(reg + i * 0x10);
@@ -979,6 +994,9 @@ void fg_check_vf_fullcap_range(void)
 		}
 	}
 
+	/* delay for register setting (dQacc, dPacc) */
+	if (print_flag)
+		msleep(300);
 	chip->info.previous_vffullcap = fg_read_register(FULLCAP_NOM_REG);
 
 	if (print_flag)
@@ -991,6 +1009,7 @@ int fg_check_cap_corruption(void)
 {
 	struct i2c_client *client = fg_i2c_client;
 	struct max17042_chip *chip = i2c_get_clientdata(client);
+	int designcap;
 	int vfsoc = fg_read_vfsoc();
 	int repsoc = fg_read_soc();
 	int mixcap = fg_read_register(REMCAP_MIX_REG);
@@ -1004,6 +1023,11 @@ int fg_check_cap_corruption(void)
 	/* If usgin Jig or low batt compensation flag is set, then skip checking. */
 	if (check_jig_on()) {
 		pr_info("%s : Return by Using Jig(%d)\n", __func__, check_jig_on());
+        mutex_lock(&chip->fg_lock);
+        designcap = fg_read_register(DESIGNCAP_REG);
+        fg_write_register(DESIGNCAP_REG, designcap-1);
+        mutex_unlock(&chip->fg_lock);
+
 		return 0;
 	}
 
@@ -1289,6 +1313,44 @@ int p5_low_batt_compensation(int fg_soc, int fg_vcell, int fg_current)
 		fg_avg_current = fg_read_avg_current();
 		fg_min_current = min(fg_avg_current, fg_current);
 
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
+		if (fg_min_current < -2500) {
+			if (fg_soc >= 1 && fg_vcell < get_low_batt_threshold(5, 1, fg_min_current))
+				add_low_batt_comp_cnt(5, 1);
+			else if (fg_soc >= 4 && fg_vcell < get_low_batt_threshold(5, 3, fg_min_current))
+				add_low_batt_comp_cnt(5, 3);
+			else
+				bCntReset = 1;
+		} else if (fg_min_current >= -2500 && fg_min_current < -1500) {
+			if (fg_soc >= 1 && fg_vcell < get_low_batt_threshold(4, 1, fg_min_current))
+				add_low_batt_comp_cnt(4, 1);
+			else if (fg_soc >= 4 && fg_vcell < get_low_batt_threshold(4, 3, fg_min_current))
+				add_low_batt_comp_cnt(4, 3);
+			else
+				bCntReset = 1;
+		} else if (fg_min_current >= -1500 && fg_min_current < -600) {
+			if (fg_soc >= 1 && fg_vcell < get_low_batt_threshold(3, 1, fg_min_current))
+				add_low_batt_comp_cnt(3, 1);
+			else if (fg_soc >= 4 && fg_vcell < get_low_batt_threshold(3, 3, fg_min_current))
+				add_low_batt_comp_cnt(3, 3);
+			else
+				bCntReset = 1;
+		} else if (fg_min_current >= -600 && fg_min_current < -200) {
+			if (fg_soc >= 1 && fg_vcell < get_low_batt_threshold(2, 1, fg_min_current))
+				add_low_batt_comp_cnt(2, 1);
+			else if (fg_soc >= 4 && fg_vcell < get_low_batt_threshold(2, 3, fg_min_current))
+				add_low_batt_comp_cnt(2, 3);
+			else
+				bCntReset = 1;
+		} else if (fg_min_current >= -200 && fg_min_current < 0) {
+			if (fg_soc >= 1 && fg_vcell < get_low_batt_threshold(1, 1, fg_min_current))
+				add_low_batt_comp_cnt(1, 1);
+			else if (fg_soc >= 4 && fg_vcell < get_low_batt_threshold(1, 3, fg_min_current))
+				add_low_batt_comp_cnt(1, 3);
+			else
+				bCntReset = 1;
+		}
+#else
 		if (fg_min_current < -2500) {
 			if (fg_soc >= 2 && fg_vcell < get_low_batt_threshold(5, 1, fg_min_current))
 				add_low_batt_comp_cnt(5, 1);
@@ -1325,6 +1387,7 @@ int p5_low_batt_compensation(int fg_soc, int fg_vcell, int fg_current)
 			else
 				bCntReset = 1;
 		}
+#endif
 
 		if (check_low_batt_comp_condtion(&new_level)) {
 			fg_low_batt_compensation(new_level);
@@ -1444,7 +1507,7 @@ int get_fuelgauge_value(int data)
 		ret = fg_read_vfsoc();
 		break;
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
 	case FG_FULLCAP:
 		ret = fg_read_register(FULLCAP_REG);
 		break;
@@ -1482,7 +1545,7 @@ int get_fuelgauge_value(int data)
 	return ret;
 }
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
 int set_fuelgauge_value(int data, u16 value)
 {
 	int ret = 0;
@@ -1531,7 +1594,7 @@ static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
 static ssize_t max17042_show_property(struct device *dev,
 				    struct device_attribute *attr, char *buf);
 
@@ -1573,6 +1636,10 @@ enum {
 static ssize_t max17042_show_property(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct max17042_chip *chip = container_of(psy,
+						  struct max17042_chip,
+						  battery);
 	int i = 0;
 	const ptrdiff_t off = attr - sec_max17042_attrs;
 	int val;
@@ -1639,7 +1706,8 @@ static ssize_t max17042_show_property(struct device *dev,
 	case MAX17042_CGAIN:
 		val = fg_read_register(CGAIN_REG);
 		if (val >= 0) 
-			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%x\n", val);
+			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%x, psoc = %d\n",
+					val, chip->info.psoc);
 		else
 			i = -EINVAL;
 		break;
@@ -1694,10 +1762,26 @@ static int max17042_remove(struct i2c_client *client)
 	return 0;
 }
 
+static irqreturn_t max17042_irq_handler(int irq, void *handle)
+{
+	int designcap;
+	struct max17042_chip *chip = i2c_get_clientdata(handle);
+
+	if (check_jig_on()) {
+		mutex_lock(&chip->fg_lock);
+		designcap = fg_read_register(DESIGNCAP_REG);
+		fg_write_register(DESIGNCAP_REG, designcap-1);
+		mutex_unlock(&chip->fg_lock);
+		printk("%s : Jig On!(%d)\n, DesignCap = %X", __func__, check_jig_on(),designcap);
+	}
+	return IRQ_HANDLED;
+}
+
 static int max17042_probe(struct i2c_client *client,  const struct i2c_device_id *id)
 {
 	struct max17042_chip *chip;
 	int ret = 0;
+	int fg_irq;
 
 	if (!client->dev.platform_data) {
 		pr_err("%s : No platform data\n", __func__);
@@ -1753,10 +1837,18 @@ static int max17042_probe(struct i2c_client *client,  const struct i2c_device_id
 		return ret;
 	}
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
 	/* create max17042 attributes */
 	max17042_create_attrs(chip->battery.dev);
 #endif
+
+	printk("max17042_probe IRQ register");
+	fg_irq = gpio_to_irq(get_jig_gpio_to_sys());
+
+	ret = request_threaded_irq(fg_irq, NULL, max17042_irq_handler, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "jig_on", client);
+	if (ret) {
+		pr_info("%s : failed to request thread irq(fg_irq) ret=%d\n", __func__, ret);
+	}
 
 	return 0;
 }

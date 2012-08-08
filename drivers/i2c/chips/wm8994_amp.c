@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(wm8994_reg_write);
 //------------------------------------------------
 // Definition external function prototype.
 //------------------------------------------------
-#if defined(CONFIG_TARGET_SERIES_P5LTE) && defined(CONFIG_TARGET_LOCALE_KOR)
+#if (defined(CONFIG_TARGET_SERIES_P5LTE) || defined(CONFIG_TARGET_SERIES_P8LTE)) && defined(CONFIG_TARGET_LOCALE_KOR)
 /*
  * ONLY FOR P5_LTE_KOR SKT/KT/LGU
  */

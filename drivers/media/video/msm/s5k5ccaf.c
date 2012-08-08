@@ -38,7 +38,7 @@
 
 #include "sec_cam_dev.h"
 
-#if defined(CONFIG_TARGET_SERIES_P5LTE)
+#if (defined(CONFIG_TARGET_SERIES_P5LTE) || defined(CONFIG_TARGET_SERIES_P8LTE))
 #include "s5k5ccaf_regs_p5.h"
 #elif defined(CONFIG_MACH_P8_LTE) && defined(CONFIG_TARGET_LOCALE_KOR_SKT)
 #include "s5k5ccgx_regs_p8_skt.h"

@@ -434,6 +434,13 @@ static int mtp_send_signal(int value)
 	info.si_code = SI_QUEUE;
 	info.si_int = value;
 	rcu_read_lock();
+
+	if (!current->nsproxy) {
+		printk(KERN_DEBUG "process has gone\n");
+		rcu_read_unlock();
+		return -ENODEV;
+	}
+
 	t = pid_task(find_vpid(mtp_pid), PIDTYPE_PID);
 	if (t == NULL) {
 		printk(KERN_DEBUG "no such pid\n");
@@ -712,8 +719,10 @@ static ssize_t interrupt_write(struct file *fd,
 	DEBUG_MTPB("[%s] \tline = [%d]\n", __func__, __LINE__);
 	req = dev->notify_req;
 
-	if (!req)
+	if (!req) {
 		printk(KERN_ERR "[%s]Alloc has failed\n", __func__);
+		return -ENOMEM;
+	}
 
 	if (_lock(&dev->wintfd_excl)) {
 		printk(KERN_ERR "write failed on interrupt endpoint\n");
@@ -721,6 +730,7 @@ static ssize_t interrupt_write(struct file *fd,
 	}
 
 	if (copy_from_user(req->buf, buf, count)) {
+		_unlock(&dev->wintfd_excl);
 		printk(KERN_ERR "[%s]copy from user has failed\n", __func__);
 		return -EIO;
 	}
@@ -731,6 +741,7 @@ static ssize_t interrupt_write(struct file *fd,
 	ret = usb_ep_queue(dev->int_in, req, GFP_ATOMIC);
 
 	if (ret < 0) {
+		_unlock(&dev->wintfd_excl);
 		printk(KERN_ERR "[%s]usb_ep_queue failed\n", __func__);
 		return -EIO;
 	}
@@ -743,7 +754,7 @@ static long  mtpg_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 {
 	struct mtpg_dev		*dev;
 	struct usb_composite_dev *cdev;
-	struct usb_request	*req ;
+	struct usb_request	*req;
 	int status = 0;
 	int size = 0;
 	int ret_value = 0;
@@ -852,6 +863,11 @@ static long  mtpg_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 	case SET_ZLP_DATA:
 		/*req->zero = 1;*/
 		req = mtpg_req_get(dev, &dev->tx_idle);
+		if (!req) {
+			printk(KERN_DEBUG "[%s] Failed to get ZLP_DATA\n",
+						 __func__);
+			return -EAGAIN;
+		}
 		req->length = 0;
 		printk(KERN_DEBUG "[%s]ZLP_DATA data=%d\tline=[%d]\n",
 						 __func__, size, __LINE__);

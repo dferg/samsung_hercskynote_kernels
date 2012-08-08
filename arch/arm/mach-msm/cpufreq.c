@@ -96,12 +96,12 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 			return 0;
 		else
 			freqs.new = policy->max;
-	} 
+	}
 #ifdef CONFIG_SEC_DVFS
-	else if (lower_limit_freq || upper_limit_freq) 
+	else if (lower_limit_freq || upper_limit_freq)
 	{
 		freqs.new = new_freq;
-		
+
 		if (lower_limit_freq && new_freq < lower_limit_freq)
 			freqs.new = lower_limit_freq;
 
@@ -111,12 +111,12 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 		if (freqs.new == freqs.old)
 			return 0;
 	}
-#endif	  
+#endif
 	else
 		freqs.new = new_freq;
 	freqs.cpu = policy->cpu;
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	ret = acpuclk_set_rate(policy->cpu, new_freq, SETRATE_CPUFREQ);
+	ret = acpuclk_set_rate(policy->cpu, freqs.new, SETRATE_CPUFREQ);
 	if (!ret)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
@@ -364,6 +364,11 @@ static int __init msm_cpufreq_register(void)
 
 #ifdef CONFIG_SMP
 	msm_cpufreq_wq = create_workqueue("msm-cpufreq");
+
+	if (unlikely(!msm_cpufreq_wq)) {
+		printk(KERN_ERR "Failed to create msm-cpufreq workqueue\n");
+		return -EFAULT;
+	}
 #endif
 
 	register_pm_notifier(&msm_cpufreq_pm_notifier);

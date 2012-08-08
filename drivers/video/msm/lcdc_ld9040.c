@@ -73,10 +73,8 @@
 #if defined(SMART_DIMMING) // smartdimming
 #include "smart_dimming_ea8868.h"
 #endif
-#define LCDC_DEBUG 1
- #if defined(CONFIG_USA_MODEL_SGH_T989D)
- #define LCDC_DEBUG 0
- #endif
+#define LCDC_DEBUG
+
 //#define LCDC_19GAMMA_ENABLE
 
 #ifdef LCDC_DEBUG

@@ -83,8 +83,8 @@
 	defined(CONFIG_CAN_MODEL_SGH_I577R) || \
 	defined(CONFIG_CAN_MODEL_SGH_I757M)
 #if defined(CONFIG_PMIC8058_XOADC_CAL)
-#define CURRENT_OF_FULL_CHG_UI		2780	/* 278mA */
-#define CURRENT_OF_FULL_CHG		2780	/* 278mA */
+#define CURRENT_OF_FULL_CHG_UI		2600    /* 260mA */
+#define CURRENT_OF_FULL_CHG		2600    /* 260mA */
 #define RCOMP0_TEMP			20	/* 'C */
 #else
 #define CURRENT_OF_FULL_CHG_UI		2300	/* 278mA */

@@ -36,7 +36,7 @@
 #include "sec_cam_pmic.h"
 
 
-#if defined(CONFIG_TARGET_SERIES_P5LTE)
+#if (defined(CONFIG_TARGET_SERIES_P5LTE) || defined(CONFIG_TARGET_SERIES_P8LTE))
 #include "sec_s5k5bafx_reg_p5.h"
 #else
 #include "s5k5bafx_regs.h"

@@ -407,7 +407,7 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n",
 			__func__, reg, data);
 #if defined (CONFIG_TARGET_LOCALE_USA)
-		set_data = 0x4d;
+		set_data = 0x55;
 #else
 		set_data = 0xd5;
 #endif			

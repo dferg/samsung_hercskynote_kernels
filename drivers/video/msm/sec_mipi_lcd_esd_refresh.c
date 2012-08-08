@@ -98,7 +98,7 @@ void set_lcd_esd_forced_ignore( boolean src )
 }	
 
 
-#ifdef CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL
+#if defined(CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL) || defined(CONFIG_FB_MSM_MIPI_S6E8AB0_WXGA_PANEL)
 
 void lcd_esd_seq( struct sec_esd_info *pSrc )
 {

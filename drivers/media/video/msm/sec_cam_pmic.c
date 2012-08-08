@@ -76,7 +76,7 @@ printk("%s: system_rev %d\n", __func__, system_rev);
 
 	
 //VT_CORE_1.5V(sub)
-#if defined(CONFIG_TARGET_LOCALE_USA_ATT) || defined(CONFIG_TARGET_LOCALE_EUR_OPEN) || defined(CONFIG_TARGET_LOCALE_KOR)
+#if defined(CONFIG_TARGET_LOCALE_USA) || defined(CONFIG_TARGET_LOCALE_KOR) 
 
 #if defined(CONFIG_MACH_P8_LTE) && defined(CONFIG_TARGET_LOCALE_KOR_SKT)
 	if(system_rev>0x00)
