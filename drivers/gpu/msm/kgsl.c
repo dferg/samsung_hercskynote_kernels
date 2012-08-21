@@ -1662,8 +1662,19 @@ static long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 	return result;
 
  error_put_file_ptr:
-	if (entry->priv_data)
-		fput(entry->priv_data);
+	switch (entry->memtype) {
+		case KGSL_MEM_ENTRY_PMEM:
+		case KGSL_MEM_ENTRY_ASHMEM:
+			if (entry->priv_data)
+				fput(entry->priv_data);
+			break;    
+		case KGSL_MEM_ENTRY_ION:
+				ion_unmap_dma(kgsl_ion_client, entry->priv_data);
+				ion_free(kgsl_ion_client, entry->priv_data);
+				break;
+		default:
+				break;
+	}
 
 error:
 	kfree(entry);

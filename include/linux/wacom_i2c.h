@@ -55,6 +55,7 @@
 #if !defined(WACOM_SLEEP_WITH_PEN_SLP)
 #define WACOM_SLEEP_WITH_PEN_LDO_EN
 #endif
+
 /*PDCT Signal*/
 #if defined(CONFIG_USA_MODEL_SGH_I717)
 #define PDCT_NOSIGNAL 1
@@ -148,9 +149,9 @@ struct wacom_g5_platform_data {
 	int max_y;
 	int max_pressure;
 	int min_pressure;
-	#ifdef WACOM_PDCT_WORK_AROUND
+#ifdef WACOM_PDCT_WORK_AROUND
 	int gpio_pendct;
-	#endif
+#endif
 	int (*init_platform_hw)(void);
 	int (*exit_platform_hw)(void);
 	int (*suspend_platform_hw)(void);
