@@ -21,7 +21,8 @@
 	QXGA: 2048 x 1536
 ********************************************************************************************/
 
-#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU)
+#if defined(CONFIG_TARGET_LOCALE_KOR_SKT) || defined(CONFIG_TARGET_LOCALE_KOR_KT) || defined(CONFIG_TARGET_LOCALE_KOR_LGU) || defined (CONFIG_TARGET_LOCALE_USA) \
+	|| defined(CONFIG_TARGET_LOCALE_JPN_NTT)
 #define	S5K5CCAF_DEBUG	0
 #else
 #define	S5K5CCAF_DEBUG	1
@@ -83,6 +84,7 @@
 #define	S5K5CCGX_PREVIEW_528x432	5	/* 528*432 */
 
 #define S5K5CCGX_5_FPS			5
+#define S5K5CCGX_8_FPS			8
 #define S5K5CCGX_15_FPS			15
 #define S5K5CCGX_30_FPS			30
 #define S5K5CCGX_60_FPS			60
@@ -182,10 +184,10 @@
 #define PCAM_AF_2ND_CHECK_STATUS	7
 #endif
 
-#define S5K5CCGX_AF_MODE_INFINITY		0
+#define S5K5CCGX_AF_MODE_AUTO		0
 #define S5K5CCGX_AF_MODE_MACRO		1
-#define S5K5CCGX_AF_MODE_AUTO		2
-
+#define S5K5CCGX_AF_MODE_INFINITY		2
+#define S5K5CCGX_AF_MODE_FIXED		3
 
 #define S5K5CCGX_AF_STOP		0
 #define S5K5CCGX_AF_START		1
@@ -241,7 +243,7 @@
 #define S5K5CCGX_DTP_OFF		0
 #define S5K5CCGX_DTP_ON			1
 
-
+#define S5K5CCGX_MODE_INIT		0
 #define S5K5CCGX_MODE_PREVIEW		1
 #define S5K5CCGX_MODE_CAPTURE		2	
 #define S5K5CCGX_MODE_DTP		3
@@ -309,6 +311,9 @@ struct s5k5ccaf_ctrl {
 	int vtcall_mode;	
 	int sensor_mode;
 	int app_mode;
+#if defined(CONFIG_TARGET_SERIES_P8LTE)
+	int first_af_running;
+#endif
 };                                                               
 
 #endif

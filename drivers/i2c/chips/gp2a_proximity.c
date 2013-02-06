@@ -17,7 +17,7 @@
  * MA  02110-1301, USA.
  */
 
-#include <linux/interrupt.h>
+#include <linux/interrupt.h>  
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/fs.h>
@@ -116,11 +116,19 @@ static u8 gp2a_original_image[8] =
 	0x04,
 	0x01,
 #else
+#if defined(CONFIG_KOR_MODEL_SHV_E150S) || defined(CONFIG_JPN_MODEL_SC_01E)
+	0x00,  
+	0x00,  
+	0x40,  
+	0x04,
+	0x03,
+#else
 	0x00,  
 	0x08,  
 	0x40,  
 	0x04,
 	0x03,
+#endif //E150S
 #endif //PROX_MODE_A	
 };
 
@@ -177,8 +185,6 @@ proximity_delay_store(struct device *dev,
 
     data->delay = delay;
 
-    input_report_abs(input_data, ABS_CONTROL_REPORT, (data->enabled<<16) | delay);
-
     return count;
 }
 
@@ -209,6 +215,11 @@ proximity_enable_store(struct device *dev, struct device_attribute *attr, const 
         return count;
     }
 
+#if defined(CONFIG_JPN_MODEL_SC_05D)
+    if (data)
+        mutex_lock(&data->enable_mutex);
+#endif
+
     if (data->enabled && !value) { 			/* Proximity power off */
         disable_irq(IRQ_GP2A_INT);
 
@@ -236,26 +247,35 @@ proximity_enable_store(struct device *dev, struct device_attribute *attr, const 
 		input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 		input_sync(data->input_dev);
 		gprintk("[PROX] Start proximity = %d\n",input); //Temp
+#ifndef defined(CONFIG_JPN_MODEL_SC_05D)
 		spin_lock_irqsave(&prox_lock, flags);
+#endif
 		input = 0x03;
 		opt_i2c_write((u8)(REGS_OPMOD),&input);
 
-        enable_irq(IRQ_GP2A_INT);
+                enable_irq(IRQ_GP2A_INT);
+#ifndef defined(CONFIG_JPN_MODEL_SC_05D)
 		spin_unlock_irqrestore(&prox_lock, flags);
+#endif
     }
 
+#if defined(CONFIG_JPN_MODEL_SC_05D)
+    if (data)
+        mutex_unlock(&data->enable_mutex);
+#endif
+
 	data->enabled = value;
-    input_report_abs(input_data, ABS_CONTROL_REPORT, (value<<16) | data->delay);
     return count;
 }
 
 static ssize_t proximity_wake_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
     struct input_dev *input_data = to_input_dev(dev);
+	struct gp2a_data *data = input_get_drvdata(input_data);
     static int cnt = 1;
 
-    input_report_abs(input_data, ABS_WAKE, cnt++);
-
+    input_report_abs(data->input_dev, ABS_WAKE, cnt++);
+	input_sync(data->input_dev);
     return count;
 }
 
@@ -304,7 +324,7 @@ static ssize_t proximity_avg_show(struct device *dev, struct device_attribute *a
 
 static ssize_t proximity_avg_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	return proximity_enable_store(dev, attr, buf, size);
+	return size;
 }
 
 static DEVICE_ATTR(delay, S_IRUGO|S_IWUSR|S_IWGRP,   proximity_delay_show, proximity_delay_store);
@@ -383,7 +403,11 @@ static void gp2a_work_func_prox(struct work_struct *work)
     }
     else
     {
+#if defined(CONFIG_KOR_MODEL_SHV_E150S) || defined(CONFIG_JPN_MODEL_SC_01E)
+		reg = 0x20;
+#else
 		reg = 0x27;
+#endif
       opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
     }
 
@@ -555,6 +579,15 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	if(gp2a->power_on)
 		gp2a->power_on();
 
+	/* init i2c */
+	opt_i2c_init();
+	/* Check if the device is there or not. */
+	err = opt_i2c_read(0x00, &value, 2);
+	if (err != 0) {
+		pr_err("%s: check i2c line or prox/als sensor chip\n", __func__);
+		goto error_setup_reg;
+	}
+
 	mutex_init(&gp2a->enable_mutex);
 	mutex_init(&gp2a->data_mutex);
 
@@ -584,8 +617,6 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	/* wake lock init */
 	wake_lock_init(&prx_wake_lock, WAKE_LOCK_SUSPEND, "prx_wake_lock");
 	spin_lock_init(&prox_lock);
-	/* init i2c */
-	opt_i2c_init();
 
 	if(opt_i2c_client == NULL)
 	{
@@ -665,6 +696,7 @@ error_setup_reg:
 	if(gp2a->power_off)
 		gp2a->power_off();
 	kfree(gp2a);
+	pr_err("%s: failed\n", __func__);
 	return err;
 }
 

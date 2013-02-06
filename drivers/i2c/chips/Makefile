@@ -15,6 +15,10 @@ ifdef CONFIG_USA_MODEL_SGH_I717
 obj-$(CONFIG_SENSORS_YDA165)	+= yda165_integ.o
 else ifdef CONFIG_USA_MODEL_SGH_I577
 obj-$(CONFIG_SENSORS_YDA165)	+= yda165_integ.o
+else ifdef CONFIG_USA_MODEL_SGH_T769
+obj-$(CONFIG_SENSORS_YDA165)	+= yda165_integ.o
+else ifdef CONFIG_EUR_MODEL_GT_P7320
+obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
 else ifdef CONFIG_USA_MODEL_SGH_I957
 obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
 else ifdef CONFIG_KOR_MODEL_SHV_E140S
@@ -22,6 +26,12 @@ obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
 else ifdef CONFIG_KOR_MODEL_SHV_E140K
 obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
 else ifdef CONFIG_KOR_MODEL_SHV_E140L
+obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
+else ifdef CONFIG_KOR_MODEL_SHV_E150S
+obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
+else ifdef CONFIG_JPN_MODEL_SC_01E
+obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
+else ifdef CONFIG_JPN_MODEL_SC_01D
 obj-$(CONFIG_WM8994_AMP)        += wm8994_amp.o
 else
 obj-$(CONFIG_SENSORS_YDA165)    += yda165.o

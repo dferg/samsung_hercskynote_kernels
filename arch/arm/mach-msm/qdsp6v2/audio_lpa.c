@@ -708,6 +708,9 @@ void q6_audlpa_out_cb(uint32_t opcode, uint32_t token,
 		break;
 	case ASM_SESSION_CMDRSP_GET_SESSION_TIME:
 		break;
+	case RESET_EVENTS:
+		reset_device();
+		break;
 	default:
 		break;
 	}
@@ -1006,6 +1009,8 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case AUDIO_DEREGISTER_PMEM: {
 			struct msm_audio_pmem_info info;
 			pr_debug("%s: AUDIO_DEREGISTER_PMEM\n", __func__);
+			if(arg==NULL)
+				return -1;
 			if (copy_from_user(&info, (void *) arg, sizeof(info)))
 				rc = -EFAULT;
 			else

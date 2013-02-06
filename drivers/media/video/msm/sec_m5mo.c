@@ -101,6 +101,7 @@ static const struct m5mo_frmsizeenum m5mo_picture_sizes[] = {
 	{ M5MO_CAPTURE_HD4MP,	2560,	1440,	0x1C }, // 16:9
 	{ M5MO_CAPTURE_3MP,	2048,	1536,	0x1B }, // 4:3
 	{ M5MO_CAPTURE_W2MP,	2048,	1232,	0x2C }, // 5:3
+	{ M5MO_CAPTURE_1MP,	1280,	960,	0x14 }, // 4:3
 	{ M5MO_CAPTURE_HD1MP,	1280,	720,	0x10 }, // 16:9
 	{ M5MO_CAPTURE_WVGA,	800,	480,	0x0A }, //5:3
 	{ M5MO_CAPTURE_VGA,	640,	480,	0x09 }, //4:3
@@ -363,7 +364,7 @@ static irqreturn_t m5mo_isp_isr(int irq, void *dev_id)
 
 static u32 m5mo_wait_interrupt(unsigned int timeout)
 {
-	cam_info("m5mo_wait_interrupt :E");
+	cam_info(" m5mo_wait_interrupt :E");
 
 	if (wait_event_interruptible_timeout(m5mo_ctrl->isp.wait, m5mo_ctrl->isp.issued == 1,
 		msecs_to_jiffies(timeout)) == 0) {
@@ -375,7 +376,7 @@ static u32 m5mo_wait_interrupt(unsigned int timeout)
 
 	m5mo_readb(M5MO_CATEGORY_SYS, M5MO_SYS_INT_FACTOR, &m5mo_ctrl->isp.int_factor);
 
-	cam_info("m5mo_wait_interrupt:	X: 0x%x", m5mo_ctrl->isp.int_factor);
+	cam_info(" m5mo_wait_interrupt:	X: 0x%x", m5mo_ctrl->isp.int_factor);
 	return m5mo_ctrl->isp.int_factor;
 }
 
@@ -628,7 +629,9 @@ static int m5mo_set_preview_size(int width, int height)
 	if (m5mo_ctrl->settings.zoom) {
 		m5mo_set_zoom(m5mo_ctrl->settings.zoom);
 	}
-	
+
+// param_mode -> preview size -> [LP11 state] ( mipi mode )-> monitor_mode
+#if 0 // for LP11 state
 	/* change to monitor mode */
 	m5mo_set_mode(M5MO_MONITOR_MODE);
 
@@ -637,6 +640,7 @@ static int m5mo_set_preview_size(int width, int height)
 		cam_err("M5MO_INT_MODE isn't issued, %#x",int_factor);
 		return -ETIMEDOUT;
 	}
+#endif
 	return 0;
 }
 
@@ -1538,7 +1542,8 @@ static int m5mo_set_touch_auto_focus(int val)
 				M5MO_LENS_AF_TOUCH_POSY, m5mo_ctrl->focus.pos_y);
 		CHECK_ERR(err);
 	}
-	else {	
+	else {
+	
 		if (m5mo_ctrl->focus.center) {
 			CAM_DEBUG("center: focus_mode = %d", m5mo_ctrl->focus.mode);
 			if (m5mo_ctrl->focus.mode == FOCUS_MODE_TOUCH_MACRO) {
@@ -1765,6 +1770,7 @@ static void m5mo_init_param(void)
 	m5mo_ctrl->settings.preview_size.height = 480;
 	m5mo_ctrl->settings.check_dataline = 0;
 	m5mo_ctrl->settings.fps = 30;
+	m5mo_ctrl->settings.started = 0;
 
 	m5mo_ctrl->isp.bad_fw = 0;
 	m5mo_ctrl->isp.issued = 0;
@@ -1809,7 +1815,7 @@ static int m5mo_start(void)
 
 	cam_info("set antibanding");
 
-#if defined (CONFIG_JPN_MODEL_SC_03D)
+#if defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_HKTW_MODEL_GT_N7005)
 	/* set auto flicker - 50Hz */
 	err = m5mo_writeb(M5MO_CATEGORY_AE, M5MO_AE_FLICKER, 0x01);
 #else
@@ -1885,6 +1891,10 @@ static long m5mo_preview_mode(void)
 	}
 	/* AE/AWB Unlock */
 	m5mo_set_lock(0);
+	if (!m5mo_ctrl->settings.started) { //ae/awb delay
+		m5mo_ctrl->settings.started = 1;
+		msleep(80); 	
+	}
 	
 	if (m5mo_ctrl->settings.check_dataline) {
 		m5mo_check_dataline(m5mo_ctrl->settings.check_dataline);
@@ -2823,6 +2833,15 @@ static int m5mo_i2c_probe(struct i2c_client *client, const struct i2c_device_id 
 			dev_attr_camera_fw.attr.name);
 	}
 
+#if defined (CONFIG_USA_MODEL_SGH_I757)
+#define TORCH_EN		62
+#define TORCH_SET		63
+	gpio_tlmm_config(GPIO_CFG(TORCH_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	gpio_tlmm_config(GPIO_CFG(TORCH_SET, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+
+	gpio_set_value_cansleep(TORCH_EN, 0);
+	gpio_set_value_cansleep(TORCH_SET, 0);
+#endif
 	return 0;
 
 probe_failure:
