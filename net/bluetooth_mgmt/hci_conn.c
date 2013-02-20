@@ -228,10 +228,10 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 		/* Retransmission Effort */
 		cp.retrans_effort = RE_LINK_QUALITY;
 	} else {
-	cp.max_latency    = cpu_to_le16(0xffff);
+		cp.max_latency    = cpu_to_le16(0x000A);
 		cp.pkt_type = cpu_to_le16(conn->pkt_type);
-	cp.voice_setting  = cpu_to_le16(hdev->voice_setting);
-	cp.retrans_effort = 0xff;
+		cp.voice_setting  = cpu_to_le16(hdev->voice_setting);
+		cp.retrans_effort = RE_POWER_CONSUMP;
 	}
 	hci_send_cmd(hdev, HCI_OP_SETUP_SYNC_CONN, sizeof(cp), &cp);
 }
@@ -544,8 +544,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *d = list_entry(p, struct hci_dev, list);
 
-		if (!test_bit(HCI_UP, &d->flags) ||
-				test_bit(HCI_RAW, &d->flags))
+		if (!test_bit(HCI_UP, &d->flags) || test_bit(HCI_RAW, &d->flags))
 			continue;
 
 		/* Simple routing:
@@ -586,8 +585,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type,
 
 	if (type == LE_LINK) {
 		struct adv_entry *entry;
-/* SSBT :: KJH + * to check le connection & stored key,
- * if there is stored key, use addr_type. */
+/* SSBT :: KJH + * to check le connection & stored key, if there is stored key, use addr_type. */
 		struct smp_ltk *ltk;
 
 		le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);

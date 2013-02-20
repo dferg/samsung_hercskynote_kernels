@@ -55,6 +55,10 @@
 #if !defined(WACOM_SLEEP_WITH_PEN_SLP)
 #define WACOM_SLEEP_WITH_PEN_LDO_EN
 #endif
+/*PDCT Signal*/
+#define PDCT_NOSIGNAL 1
+#define PDCT_DETECT_PEN 0
+#define WACOM_PDCT_WORK_AROUND
 
 //#define BOARD_P4ADOBE
 //#define BOARD_Q1OMAP4430
@@ -118,16 +122,6 @@ struct wacom_features{
 	int firm_update_status;
 };
 
-static struct wacom_features wacom_feature_EMR = {
- 16128,
- 8448,
- 256,
- COM_QUERY,
- {0, },
- 0x10,
- 0,
-};
-
 struct wacom_g5_callbacks {
 	int (*check_prox)(struct wacom_g5_callbacks *);
 };
@@ -142,7 +136,7 @@ struct wacom_g5_platform_data {
 	int max_y;
 	int max_pressure;
 	int min_pressure;
-
+	int gpio_pendct;
 	int (*init_platform_hw)(void);
 	int (*exit_platform_hw)(void);
 	int (*suspend_platform_hw)(void);
@@ -160,6 +154,12 @@ struct wacom_i2c {
   struct early_suspend early_suspend;
    struct mutex lock;
   int irq;
+#ifdef WACOM_PDCT_WORK_AROUND
+	int irq_pdct;
+	bool rdy_pdct;
+#endif
+  u16 last_x;
+  u16 last_y;
   int pen_pdct;
   int gpio;
   int irq_flag;

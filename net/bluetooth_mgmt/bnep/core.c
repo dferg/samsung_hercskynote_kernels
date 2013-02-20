@@ -125,7 +125,7 @@ static inline void bnep_set_default_proto_filter(struct bnep_session *s)
 #endif
 
 static int bnep_ctrl_set_netfilter(struct bnep_session *s,
-								__be16 *data, int len)
+					__be16 *data, int len)
 {
 	int n;
 
@@ -164,7 +164,7 @@ static int bnep_ctrl_set_netfilter(struct bnep_session *s,
 		bnep_send_rsp(s, BNEP_FILTER_NET_TYPE_RSP, BNEP_SUCCESS);
 	} else {
 		bnep_send_rsp(s, BNEP_FILTER_NET_TYPE_RSP,
-							BNEP_FILTER_LIMIT_REACHED);
+				BNEP_FILTER_LIMIT_REACHED);
 	}
 #else
 	bnep_send_rsp(s, BNEP_FILTER_NET_TYPE_RSP, BNEP_FILTER_UNSUPPORTED_REQ);

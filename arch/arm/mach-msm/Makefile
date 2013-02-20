@@ -1,3 +1,4 @@
+CFLAGS_scm.o :=$(call as-instr,.arch_extension sec,-DREQUIRES_SEC=1)
 
 # replace board-msm8x60.o and gpiomux-8x60.o with own model's ones
 
@@ -19,14 +20,6 @@ endif
 ifdef CONFIG_TARGET_SERIES_P5LTE
 BOARD_OBJ_NAME:=board-msm8x60_p5lte.o
 GPIOMUX_OBJ_NAME:=gpiomux-8x60_p5lte.o
-endif
-ifdef CONFIG_TARGET_SERIES_P4LTE
-BOARD_OBJ_NAME:=board-msm8x60_p4lte.o
-GPIOMUX_OBJ_NAME:=gpiomux-8x60_p4lte.o
-endif
-ifdef CONFIG_TARGET_SERIES_P8LTE
-BOARD_OBJ_NAME:=board-msm8x60_p8lte.o
-GPIOMUX_OBJ_NAME:=gpiomux-8x60_p8lte.o
 endif
 
 obj-y += io.o dma.o memory.o
@@ -101,6 +94,7 @@ obj-$(CONFIG_MSM_PIL_QDSP6V3) += pil-q6v3.o
 obj-$(CONFIG_MSM_PIL_QDSP6V4) += pil-q6v4.o
 obj-$(CONFIG_MSM_PIL_RIVA) += pil-riva.o
 obj-$(CONFIG_MSM_PIL_TZAPPS) += pil-tzapps.o
+obj-$(CONFIG_MSM_PIL_VIDC) += pil-vidc.o
 obj-$(CONFIG_MSM_PIL_MODEM) += pil-modem.o
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_ARCH_FSM9XXX) += sirc-fsm9xxx.o
@@ -210,7 +204,6 @@ ifdef CONFIG_MSM_SUBSYSTEM_RESTART
 	obj-$(CONFIG_ARCH_MSM8X60) += modem-8660.o lpass-8660.o
 endif
 
-obj-$(CONFIG_SAMSUNG_8X60_TABLET) += tablet_switch.o
 obj-$(CONFIG_USB_SWITCH_FSA9480)   += sec_switch.o
 obj-$(CONFIG_MSM_SYSMON_COMM) += sysmon.o
 obj-$(CONFIG_MSM_MODEM_8960) += modem-8960.o
@@ -238,7 +231,7 @@ obj-$(CONFIG_MACH_MSM8X60_SURF) += $(BOARD_OBJ_NAME)
 obj-$(CONFIG_MACH_MSM8X60_FFA) += $(BOARD_OBJ_NAME)
 obj-$(CONFIG_MACH_MSM8X60_FLUID) += $(BOARD_OBJ_NAME)
 obj-$(CONFIG_MACH_MSM8X60_DRAGON) += $(BOARD_OBJ_NAME)
-obj-$(CONFIG_MACH_MSM8X60_FUSION) += $(BOARD_OBJ_NAME) mdm.o
+obj-$(CONFIG_MACH_TYPE_MSM8X60_FUSION) += $(BOARD_OBJ_NAME) mdm.o
 obj-$(CONFIG_MACH_MSM8X60_FUSN_FFA) += $(BOARD_OBJ_NAME) mdm.o
 obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
@@ -338,11 +331,7 @@ obj-$(CONFIG_MSM_SHOW_RESUME_IRQ) += msm_show_resume_irq.o
 obj-$(CONFIG_BT_MSM_PINTEST)  += btpintest.o
 obj-$(CONFIG_MSM_FAKE_BATTERY) += fish_battery.o
 obj-$(CONFIG_MSM_RPC_VIBRATOR) += msm_vibrator.o
-ifdef CONFIG_SAMSUNG_8X60_TABLET
-obj-$(CONFIG_MSM_NATIVE_RESTART) += restart_tablet.o
-else
 obj-$(CONFIG_MSM_NATIVE_RESTART) += restart.o
-endif
 
 obj-$(CONFIG_MSM_PROC_COMM_REGULATOR) += proccomm-regulator.o
 ifdef CONFIG_MSM_PROC_COMM_REGULATOR
@@ -356,14 +345,10 @@ obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
 obj-$(CONFIG_MSM_CACHE_ERP) += cache_erp.o
 obj-$(CONFIG_MSM_CACHE_DUMP) += msm_cache_dump.o
+obj-$(CONFIG_SEC_DEBUG)		+= sec_debug.o sec_getlog.o sec_gaf.o
+
+obj-$(CONFIG_SEC_LOG_LAST_KMSG) += sec_last_log.o
 
 ifdef CONFIG_BT_BCM4330
 obj-$(CONFIG_BT_BCM4330) += board-bluetooth-bcm4330.o
 endif
-
-ifdef CONFIG_SAMSUNG_8X60_TABLET
-obj-$(CONFIG_SEC_DEBUG)		+= sec_debug_tablet.o sec_getlog.o sec_gaf.o
-else
-obj-$(CONFIG_SEC_DEBUG)		+= sec_debug.o sec_getlog.o sec_gaf.o
-endif
-

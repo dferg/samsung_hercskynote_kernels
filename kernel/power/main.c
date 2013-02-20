@@ -323,6 +323,7 @@ static unsigned long apps_min_freq = MIN_FREQ_LIMIT;
 static unsigned long apps_max_freq = MAX_FREQ_LIMIT;
 static unsigned long thermald_max_freq = MAX_FREQ_LIMIT;
 
+static unsigned long mhl_min_freq = MIN_FREQ_LIMIT;
 static unsigned long touch_min_freq = MAX_TOUCH_LIMIT;
 static unsigned long unicpu_max_freq = MAX_UNICPU_LIMIT;
 
@@ -335,8 +336,7 @@ static int verify_cpufreq_target(unsigned int target)
 	if (table == NULL)
 		return -EFAULT;
 
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) 
-	{
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		if (table[i].frequency < MIN_FREQ_LIMIT || table[i].frequency > MAX_FREQ_LIMIT)
 			continue;
 		
@@ -349,7 +349,6 @@ static int verify_cpufreq_target(unsigned int target)
 
 int set_freq_limit(unsigned long id, unsigned int freq)
 {
-	int ret = 0;
 	unsigned int min = MIN_FREQ_LIMIT;
 	unsigned int max = MAX_FREQ_LIMIT;
 	unsigned int cur = 0;	
@@ -370,6 +369,8 @@ int set_freq_limit(unsigned long id, unsigned int freq)
 	/* update freq for apps/thermald */
 	if (id == DVFS_APPS_MIN_ID)
 		apps_min_freq = freq;
+	else if (id == DVFS_MHL_ID)
+		mhl_min_freq = freq;
 	else if (id == DVFS_APPS_MAX_ID)
 		apps_max_freq = freq;
 	else if (id == DVFS_THERMALD_ID)
@@ -378,6 +379,8 @@ int set_freq_limit(unsigned long id, unsigned int freq)
 	/* set min - apps */
 	if (dvfs_id & DVFS_APPS_MIN_ID && min < apps_min_freq)
 		min = apps_min_freq;
+	if (dvfs_id & DVFS_MHL_ID && min < mhl_min_freq)
+		min = mhl_min_freq;
 	if (dvfs_id & DVFS_TOUCH_ID && min < touch_min_freq)
 		min = touch_min_freq;
 
@@ -397,18 +400,16 @@ int set_freq_limit(unsigned long id, unsigned int freq)
 	set_min_lock(min);
 	set_max_lock(max);
 
-	printk("%s: 0x%x %d, min %d, max %d\n", __FUNCTION__, id, freq, min, max);
+	printk("%s: 0x%lx %d, min %d, max %d\n", __FUNCTION__, id, freq, min, max);
 
 	/* need to update now */
 	if (id & UPDATE_NOW_BITS)
 	{
 		int cpu;
 
-		for_each_online_cpu(cpu) 
-		{
+		for_each_online_cpu(cpu) {
 			cur = cpufreq_quick_get(cpu);
-			if (cur)
-			{
+			if (cur) {
 				struct cpufreq_policy policy;
 				policy.cpu = cpu;
 				
@@ -495,8 +496,7 @@ static ssize_t cpufreq_table_show(struct kobject *kobj,
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) ;
 	count = i;
 
-	for (i = count-1; i >= 0; i--) 
-	{
+	for (i = count-1; i >= 0; i--) {
 		freq = table[i].frequency;
 
 		if (freq < MIN_FREQ_LIMIT || freq > MAX_FREQ_LIMIT)

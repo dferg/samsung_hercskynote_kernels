@@ -1076,6 +1076,10 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	SCSI_LOG_IOCTL(1, printk("sd_ioctl: disk=%s, cmd=0x%x\n",
 						disk->disk_name, cmd));
 
+	error = scsi_verify_blk_ioctl(bdev, cmd);
+	if (error < 0)
+		return error;
+
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
 	 * else try and use this device.  Also, if error recovery fails, it
@@ -1098,7 +1102,7 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 			error = scsi_ioctl(sdp, cmd, p);
 			break;
 		default:
-			error = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, p);
+			error = scsi_cmd_blk_ioctl(bdev, mode, cmd, p);
 			if (error != -ENOTTY)
 				break;
 			error = scsi_ioctl(sdp, cmd, p);
@@ -1268,6 +1272,11 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 			   unsigned int cmd, unsigned long arg)
 {
 	struct scsi_device *sdev = scsi_disk(bdev->bd_disk)->device;
+	int ret;
+
+	ret = scsi_verify_blk_ioctl(bdev, cmd);
+	if (ret < 0)
+		return -ENOIOCTLCMD;
 
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
@@ -1279,8 +1288,6 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 		return -ENODEV;
 	       
 	if (sdev->host->hostt->compat_ioctl) {
-		int ret;
-
 		ret = sdev->host->hostt->compat_ioctl(sdev, cmd, (void __user *)arg);
 
 		return ret;
@@ -2528,8 +2535,7 @@ static void sd_scanpartition_async(void *data, async_cookie_t cookie)
 	bdev->bd_invalidated = 1;
 	err = blkdev_get(bdev, FMODE_READ, NULL);
 	if (err < 0) {
-		sd_printk(KERN_NOTICE, sdkp,
-			"maybe no media, delete partition\n");
+		sd_printk(KERN_NOTICE, sdkp, "no media, delete partition\n");
 		disk_part_iter_init(&piter, gd, DISK_PITER_INCL_EMPTY);
 		while ((part = disk_part_iter_next(&piter)))
 			delete_partition(gd, part->partno);
@@ -2757,8 +2763,7 @@ static int sd_probe(struct device *dev)
 		sdkp->th = kthread_create(sd_media_scan_thread,
 						sdkp, "sd-media-scan");
 		if (IS_ERR(sdkp->th)) {
-			dev_warn(dev,
-			"Unable to start the device-scanning thread\n");
+			pr_err("Unable to start the device-scanning thread\n");
 			complete(&sdkp->scanning_done);
 		}
 	}
@@ -2797,7 +2802,7 @@ static int sd_remove(struct device *dev)
 	struct scsi_disk *sdkp;
 
 	sdkp = dev_get_drvdata(dev);
-
+	scsi_autopm_get_device(sdkp->device);
 #ifdef CONFIG_USB_HOST_NOTIFY
 	sdkp->disk->media_present = 0;
 	sd_printk(KERN_INFO, sdkp, "%s\n", __func__);
@@ -2808,9 +2813,6 @@ static int sd_remove(struct device *dev)
 		sd_printk(KERN_NOTICE, sdkp, "scan thread kill success\n");
 	}
 #endif
-
-	scsi_autopm_get_device(sdkp->device);
-
 	async_synchronize_full();
 	blk_queue_prep_rq(sdkp->device->request_queue, scsi_prep_fn);
 	blk_queue_unprep_rq(sdkp->device->request_queue, NULL);

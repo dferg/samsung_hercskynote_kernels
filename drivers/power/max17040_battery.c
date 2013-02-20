@@ -44,34 +44,37 @@
 #define MAX17040_CMD_MSB	0xFE
 #define MAX17040_CMD_LSB	0xFF
 
-#define MAX17040_LONG_DELAY		5000 /* msec */
+#define MAX17040_LONG_DELAY	5000 /* msec */
 #define LOG_DELTA_VOLTAGE	(150 * 1000) /* 150 mV */
-#define MAX17040_FAST_DELAY		500 /* msec */
-#define FAST_LOG_COUNT		60	/* 30 sec */
+#define MAX17040_FAST_DELAY	500 /* msec */
+#define FAST_LOG_COUNT		60 /* 30 sec */
 
 /* fuelgauge tuning */
 /* SOC accuracy depends on RCOMP and Adjusted SOC Method(below values) */
 /* you should fix these values for your MODEL */
 #if defined(CONFIG_KOR_MODEL_SHV_E110S)
-#define EMPTY_COND_SOC 		100
-#define EMPTY_SOC 			20
-//#define FULL_SOC		9450
+#define EMPTY_COND_SOC		100
+#define EMPTY_SOC		20
+/* #define FULL_SOC		9450 */
 #define FULL_SOC_DEFAULT	9350
 #define FULL_SOC_LOW		9250
 #define FULL_SOC_HIGH		9680
 #define FULL_KEEP_SOC		30
-#elif defined(CONFIG_KOR_MODEL_SHV_E120S) ||  defined(CONFIG_KOR_MODEL_SHV_E120K)
-#define EMPTY_COND_SOC 		100
-#define EMPTY_SOC 			20
-//#define FULL_SOC		9450
+#elif defined(CONFIG_KOR_MODEL_SHV_E120S) || \
+	defined(CONFIG_KOR_MODEL_SHV_E120K)
+#define EMPTY_COND_SOC		100
+#define EMPTY_SOC		20
+/* #define FULL_SOC		9450 */
 #define FULL_SOC_DEFAULT	9350
 #define FULL_SOC_LOW		9250
 #define FULL_SOC_HIGH		9680
 #define FULL_KEEP_SOC		30
-#elif defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
-#define EMPTY_COND_SOC 		100
-#define EMPTY_SOC 			20
-//#define FULL_SOC		9450
+#elif defined(CONFIG_KOR_MODEL_SHV_E160S) || \
+	defined(CONFIG_KOR_MODEL_SHV_E160K) || \
+	defined(CONFIG_KOR_MODEL_SHV_E160L)
+#define EMPTY_COND_SOC		100
+#define EMPTY_SOC		20
+/* #define FULL_SOC		9450 */
 #define FULL_SOC_DEFAULT	9450
 #define FULL_SOC_LOW		9350
 #define FULL_SOC_HIGH		9780
@@ -79,9 +82,9 @@
 #elif defined(CONFIG_USA_MODEL_SGH_I717)
 #define EMPTY_COND_SOC		100
 #define EMPTY_SOC		0
-//#define FULL_SOC		9450
-#define FULL_SOC_DEFAULT	9600
-#define FULL_SOC_LOW		9600
+/* #define FULL_SOC		9450 */
+#define FULL_SOC_DEFAULT	9460
+#define FULL_SOC_LOW		9460
 #define FULL_SOC_HIGH		9630
 #define FULL_KEEP_SOC		30
 #define RCOMP_2ND		0xF01F
@@ -90,38 +93,46 @@
 	defined(CONFIG_CAN_MODEL_SGH_I577R)
 #define EMPTY_COND_SOC		100
 #define EMPTY_SOC		20
-//#define FULL_SOC		9450
+/* #define FULL_SOC		9450 */
 #define FULL_SOC_DEFAULT	9510
 #define FULL_SOC_LOW		9510
 #define FULL_SOC_HIGH		9540
 #define FULL_KEEP_SOC		30
-#elif defined(CONFIG_USA_MODEL_SGH_T989) || \
-	defined(CONFIG_USA_MODEL_SGH_I727)
+#elif defined(CONFIG_USA_MODEL_SGH_T989)
 #define EMPTY_COND_SOC		100
 #define EMPTY_SOC		50
-//#define FULL_SOC		9400
-#define FULL_SOC_DEFAULT	9400
-#define FULL_SOC_LOW		9400
-#define FULL_SOC_HIGH		9430
+/* #define FULL_SOC		9630 */
+#define FULL_SOC_DEFAULT	9630
+#define FULL_SOC_LOW		9630
+#define FULL_SOC_HIGH		9680
 #define FULL_KEEP_SOC		30
+#elif defined(CONFIG_USA_MODEL_SGH_I727)
+#define EMPTY_COND_SOC          100
+#define EMPTY_SOC               50
+/* #define FULL_SOC             9400 */
+#define FULL_SOC_DEFAULT        9400
+#define FULL_SOC_LOW            9400
+#define FULL_SOC_HIGH           9430
+#define FULL_KEEP_SOC           30
 
 #else
 #define EMPTY_COND_SOC		100
 #define EMPTY_SOC		20
-//#define FULL_SOC		9450
+/* #define FULL_SOC		9450 */
 #define FULL_SOC_DEFAULT	9350
 #define FULL_SOC_LOW		9250
 #define FULL_SOC_HIGH		9680
 #define FULL_KEEP_SOC		30
 #endif
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) ||  defined(CONFIG_KOR_MODEL_SHV_E160K)
+#if defined(CONFIG_KOR_MODEL_SHV_E160S) || \
+	defined(CONFIG_KOR_MODEL_SHV_E160K)
 #define ADJUST_SOC_OFFSET
 #endif
 
 /* default disable : TBT */
 /* #define ADJUST_RCOMP_WITH_TEMPER */
-#define RCOMP0_TEMP 	20 /* 'C */
+#define RCOMP0_TEMP	20 /* 'C */
 
 static ssize_t sec_fg_show_property(struct device *dev,
 				    struct device_attribute *attr, char *buf);
@@ -185,33 +196,35 @@ static int max17040_write_reg(struct i2c_client *client, int reg, u8 value)
 	int ret;
 
 	mutex_lock(&chip->mutex);
-	
+
 	ret = i2c_smbus_write_byte_data(client, reg, value);
 
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 
 	mutex_unlock(&chip->mutex);
-	
+
 	return ret;
 }
 
+#ifndef FG_MAX17048_ENABLED
 static int max17040_read_reg(struct i2c_client *client, int reg)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 	int ret;
 
 	mutex_lock(&chip->mutex);
-	
+
 	ret = i2c_smbus_read_byte_data(client, reg);
 
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 
 	mutex_unlock(&chip->mutex);
-	
+
 	return ret;
 }
+#endif
 
 static void max17040_get_vcell(struct i2c_client *client)
 {
@@ -243,7 +256,7 @@ static void max17040_get_soc(struct i2c_client *client)
 
 	unsigned int soc, psoc;
 	int temp_soc;
-	static int fg_zcount = 0;
+	static int fg_zcount;
 
 #ifdef FG_MAX17048_ENABLED
 	int data;
@@ -258,9 +271,12 @@ static void max17040_get_soc(struct i2c_client *client)
 	psoc = msb * 100 + (lsb * 100) / 256;
 	chip->raw_soc = psoc;
 
-	if(psoc > EMPTY_COND_SOC) {
-		//temp_soc = ((psoc - EMPTY_SOC)*10000)/(FULL_SOC - EMPTY_SOC);
-		temp_soc = ((psoc - EMPTY_SOC)*10000)/(chip->full_soc - EMPTY_SOC);
+	if (psoc > EMPTY_COND_SOC) {
+		/*
+		temp_soc = ((psoc - EMPTY_SOC)*10000)/(FULL_SOC - EMPTY_SOC);
+		*/
+		temp_soc = ((psoc - EMPTY_SOC)*10000) /
+				(chip->full_soc - EMPTY_SOC);
 
 #ifdef ADJUST_SOC_OFFSET
 		if (temp_soc < 2100)
@@ -277,14 +293,14 @@ static void max17040_get_soc(struct i2c_client *client)
 
 	} else
 		temp_soc = 0;
-	
+
 	soc = temp_soc/100;
 	soc = min(soc, (uint)100);
 
-	if(soc == 0) {
+	if (soc == 0) {
 		fg_zcount++;
-		if(fg_zcount >= 3) {
-			printk("[fg] real 0%%\n");
+		if (fg_zcount >= 3) {
+			pr_info("[fg] real 0%%\n");
 			soc = 0;
 			fg_zcount = 0;
 		} else
@@ -300,7 +316,10 @@ static void max17040_get_soc(struct i2c_client *client)
 
 	chip->soc = soc;
 
-	//printk("%s: SOC = %d, RAW_SOC = %d\n", __func__, chip->soc, chip->raw_soc);
+	/*
+	printk("%s: SOC = %d, RAW_SOC = %d\n",
+			__func__, chip->soc, chip->raw_soc);
+	*/
 }
 
 static void max17040_get_version(struct i2c_client *client)
@@ -308,11 +327,13 @@ static void max17040_get_version(struct i2c_client *client)
 	u8 msb;
 	u8 lsb;
 
-	printk("%s : \n", __func__);
-
 #ifdef FG_MAX17048_ENABLED
 	int data;
+#endif
 
+	pr_info("%s :\n", __func__);
+
+#ifdef FG_MAX17048_ENABLED
 	data = max17048_read_word_reg(client, MAX17040_VER_MSB);
 	msb = data & 0xff;
 	lsb = (data >> 8) & 0xff;
@@ -329,7 +350,6 @@ static u16 max17040_get_rcomp(struct i2c_client *client)
 	u8 lsb;
 	u16 ret = 0;
 
-	//printk("%s : \n", __func__);
 #ifdef FG_MAX17048_ENABLED
 	int data;
 
@@ -342,7 +362,6 @@ static u16 max17040_get_rcomp(struct i2c_client *client)
 #endif
 
 	ret = (u16)(msb<<8 | lsb);
-	//pr_info("MAX17040 Fuel-Gauge RCOMP 0x%x%x\n", msb, lsb);
 	pr_info("%s : current rcomp = 0x%x(%d)\n", __func__, ret, msb);
 
 	return ret;
@@ -351,15 +370,16 @@ static u16 max17040_get_rcomp(struct i2c_client *client)
 static void max17040_set_rcomp(struct i2c_client *client, u16 new_rcomp)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
-	
+
 	mutex_lock(&chip->mutex);
-	
-	//printk("%s : \n", __func__);
-	//pr_info("%s : new rcomp = 0x%x(%d)\n", __func__,
-	//				new_rcomp, new_rcomp>>8);
-	
+
+	/*
+	pr_info("%s : new rcomp = 0x%x(%d)\n", __func__,
+				new_rcomp, new_rcomp>>8);
+	*/
+
 	i2c_smbus_write_word_data(client, MAX17040_RCOMP_MSB,
-							swab16(new_rcomp));
+						swab16(new_rcomp));
 
 	mutex_unlock(&chip->mutex);
 }
@@ -393,14 +413,13 @@ static void max17040_adjust_fullsoc(struct i2c_client *client)
 
 	if (temp_soc < FULL_SOC_LOW) {
 		chip->full_soc = FULL_SOC_LOW;
-	} else if(temp_soc > FULL_SOC_HIGH) {
+	} else if (temp_soc > FULL_SOC_HIGH) {
 		chip->full_soc = (FULL_SOC_HIGH - FULL_KEEP_SOC);
 	} else {
-		if (temp_soc > (FULL_SOC_LOW + FULL_KEEP_SOC)) {
+		if (temp_soc > (FULL_SOC_LOW + FULL_KEEP_SOC))
 			chip->full_soc = temp_soc - FULL_KEEP_SOC;
-		} else {
+		else
 			chip->full_soc = FULL_SOC_LOW;
-		}
 	}
 
 	if (prev_full_soc != chip->full_soc)
@@ -416,15 +435,13 @@ static void max17040_work(struct work_struct *work)
 	max17040_get_vcell(chip->client);
 	max17040_get_soc(chip->client);
 
-	//printk("%s : %d, %d \n", __func__, chip->vcell, chip->soc);
-	
 	/* DEBUG : for RAM log */
 #ifdef CONFIG_SEC_DEBUG_FUELGAUGE_LOG
 	sec_debug_fuelgauge_log(chip->vcell, (unsigned short)chip->soc, 0);
 	if ((chip->fg_interval != MAX17040_FAST_DELAY) &&
 		((chip->prevcell > (chip->vcell + LOG_DELTA_VOLTAGE)) ||
 		(chip->vcell > (chip->prevcell + LOG_DELTA_VOLTAGE)))) {
-		printk("%s : fast ram logging\n", __func__);
+		pr_info("%s : fast ram logging\n", __func__);
 		chip->fg_interval = MAX17040_FAST_DELAY;
 		chip->fast_log_count = FAST_LOG_COUNT;
 	} else {
@@ -458,10 +475,10 @@ static enum power_supply_property max17040_battery_props[] = {
 };
 
 #define SEC_FG_ATTR(_name)			\
-{						            \
+{						\
 	.attr = { .name = #_name,		\
-		  .mode = 0664 },	\
-	.show = sec_fg_show_property,	\
+		  .mode = 0664 },		\
+	.show = sec_fg_show_property,		\
 	.store = sec_fg_store,			\
 }
 
@@ -562,15 +579,15 @@ static irqreturn_t max17040_int_work_func(int irq, void *max_chip)
 {
 	struct max17040_chip *chip = max_chip;
 
-	printk("%s\n", __func__);
-	
+	pr_info("%s\n", __func__);
+
 	wake_lock_timeout(&chip->lowbat_wake_lock, 20 * HZ);
-    max17040_get_soc(chip->client);
+	max17040_get_soc(chip->client);
 	max17040_get_soc(chip->client);
 	max17040_get_soc(chip->client);
 	max17040_get_vcell(chip->client);
 
-	if(chip->pdata->low_batt_cb)
+	if (chip->pdata->low_batt_cb)
 		chip->pdata->low_batt_cb();
 
 	return IRQ_HANDLED;
@@ -582,10 +599,10 @@ static void max17040_rcomp_update(struct i2c_client *client, int temp)
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 	int rcomp0 = 0;
 	int new_rcomp = 0;
-	
+
 	rcomp0 = (int)(chip->pdata->rcomp_value >> 8);
 	rcomp0 *= 10;
-	
+
 	if (temp < RCOMP0_TEMP) {
 		new_rcomp = (rcomp0 + 50*(RCOMP0_TEMP-temp))/10;
 		new_rcomp = max(new_rcomp, 0);
@@ -600,8 +617,8 @@ static void max17040_rcomp_update(struct i2c_client *client, int temp)
 		chip->new_rcomp = chip->pdata->rcomp_value;
 
 	if (chip->rcomp != chip->new_rcomp) {
-		pr_info("%s : 0x%x -> 0x%x (%d)\n", __func__,
-						chip->rcomp, chip->new_rcomp, chip->new_rcomp>>8);
+		pr_info("%s : 0x%x -> 0x%x (%d)\n", __func__, chip->rcomp,
+				chip->new_rcomp, chip->new_rcomp>>8);
 	}
 }
 #endif
@@ -652,12 +669,13 @@ static int max17040_set_property(struct power_supply *psy,
 {
 	struct max17040_chip *chip = container_of(psy,
 				struct max17040_chip, battery);
-	
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TEMP:
 		chip->temperature = val->intval;
 #ifdef ADJUST_RCOMP_WITH_TEMPER
-		pr_info("%s: current temperature = %d\n", __func__, chip->temperature);
+		pr_info("%s: current temperature = %d\n",
+				__func__, chip->temperature);
 		max17040_rcomp_update(chip->client, chip->temperature);
 #endif
 		break;
@@ -680,7 +698,7 @@ static int max17040_set_property(struct power_supply *psy,
 			max17040_get_rcomp(chip->client);
 			break;
 
-		default :
+		default:
 			return -EINVAL;
 		}
 		break;
@@ -708,8 +726,8 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	printk("%s: MAX17043 driver Loading! \n", __func__);
-	
+	pr_info("%s: MAX17043 driver Loading!\n", __func__);
+
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
@@ -718,7 +736,7 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	chip->pdata = client->dev.platform_data;
 
 	if (!chip->pdata) {
-		pr_err("%s: no fuel gauge platform data\n",	__func__);
+		pr_err("%s: no fuel gauge platform data\n", __func__);
 		goto err_kfree;
 	}
 
@@ -754,10 +772,11 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	}
 
 	wake_lock_init(&chip->lowbat_wake_lock, WAKE_LOCK_SUSPEND,
-										"fuelgague-lowbat");
+						"fuelgague-lowbat");
 
 	ret = request_threaded_irq(chip->client->irq, NULL,
-			max17040_int_work_func, IRQF_TRIGGER_FALLING, "max17040", chip);
+			max17040_int_work_func, IRQF_TRIGGER_FALLING,
+			"max17040", chip);
 	if (ret) {
 		pr_err("%s : Failed to request fuelgauge irq\n", __func__);
 		goto err_request_irq;
@@ -776,7 +795,7 @@ static int __devinit max17040_probe(struct i2c_client *client,
 		max17040_rcomp_update(client, itemp);
 	}
 	*/
-	
+
 	/* create fuelgauge attributes */
 	fuelgauge_create_attrs(chip->battery.dev);
 

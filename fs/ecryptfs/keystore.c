@@ -1762,8 +1762,8 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	size_t found_auth_tok;
 	size_t next_packet_is_auth_tok_packet;
 	struct list_head auth_tok_list;
-	struct ecryptfs_auth_tok *matching_auth_tok;
-	struct ecryptfs_auth_tok *candidate_auth_tok;
+	struct ecryptfs_auth_tok *matching_auth_tok = NULL;
+	struct ecryptfs_auth_tok *candidate_auth_tok = NULL;
 	char *candidate_auth_tok_sig;
 	size_t packet_size;
 	struct ecryptfs_auth_tok *new_auth_tok;
@@ -2183,7 +2183,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 {
 	size_t i;
 	size_t encrypted_session_key_valid = 0;
-	char session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES] = {0, };
+	char session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES];
 	struct scatterlist dst_sg[2];
 	struct scatterlist src_sg[2];
 	struct mutex *tfm_mutex = NULL;

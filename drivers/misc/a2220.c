@@ -1322,7 +1322,10 @@ int a2220_change_network_type(int network_type)
 
 static ssize_t chk_wakeup_a2220(void)
 {
-	int i,rc = 0, retry = 4;
+#ifdef CONFIG_USA_MODEL_SGH_I717
+	int i;
+#endif
+	int  rc = 0, retry = 4;
 
 #ifdef CONFIG_USA_MODEL_SGH_I577 /* Do not enable audience on I577 HW rev0.0 !!! */
 	printk("[AUDIENCE] %s : SKIP\n", __func__);
@@ -1376,7 +1379,7 @@ static ssize_t chk_wakeup_a2220(void)
 			rc=a2220_hw_reset(&img);		// Call if the Audience chipset is not responding after retrying 12 times
 		}
 		if(rc < 0)
-			printk(MODULE_NAME "%s ::  Audience HW Reset Failed\n");
+			printk("Audience HW Reset Failed\n");
 /*	
 #ifdef CONFIG_USA_MODEL_SGH_I717
 		rc = hpt_longCmd_execute(&hpt_init_macro, sizeof(hpt_init_macro));
@@ -1648,7 +1651,7 @@ int a2220_set_config(char newid, int mode)
 			rc=a2220_hw_reset(&img);		// Call if the Audience chipset is not responding after retrying 12 times
 			if(rc < 0)
 			{
-				printk(MODULE_NAME "%s ::  Audience HW Reset Failed\n");
+				printk(MODULE_NAME "%s ::  Audience HW Reset Failed\n",__func__);
 				return rc;
 			}
 		}
@@ -1927,14 +1930,10 @@ static int a2220_init_thread(void *data)
 	rc=a2220_bootup_init(&img);
 	return rc;
 }
-	static int
-#if defined(CONFIG_EUR_MODEL_GT_I9210)
-a2220_ioctl(struct file *file, unsigned int cmd,
+
+static long a2220_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
-#else
-a2220_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		unsigned long arg)
-#endif
+
 {
 	void __user *argp = (void __user *)arg;
 	struct a2220img img;
@@ -2067,11 +2066,7 @@ a2220_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 //lsj +
 int a2220_ioctl2(unsigned int cmd , unsigned long arg)
 {
-#if defined(CONFIG_EUR_MODEL_GT_I9210)
 	a2220_ioctl(NULL, cmd, arg);
-#else
-	a2220_ioctl(NULL, NULL, cmd, arg);
-#endif
 	return 0;
 }
 
@@ -2131,7 +2126,7 @@ static int a2220_probe(
 #elif defined(CONFIG_USA_MODEL_SGH_I717)
 		pr_debug(MODULE_NAME "%s : GPIO 33\n", __func__);
 		gpio_tlmm_config(GPIO_CFG(33,0,GPIO_CFG_OUTPUT,GPIO_CFG_NO_PULL,GPIO_CFG_2MA),GPIO_CFG_ENABLE); // 2MIC_PWDN
-		//gpio_tlmm_config(GPIO_CFG(34,0,GPIO_CFG_OUTPUT,GPIO_CFG_PULL_DOWN,GPIO_CFG_2MA),GPIO_CFG_ENABLE); // 2MIC_PWDN
+		//gpio_tlmm_config(GPIO_CFG(34,0,GPIO_CFG_OUTPUT,GPIO_CFG_PULL_DOWN,GPIO_CFG_2MA),GPIO_CFG_ENABLE); // 2MIC_PWDN#elif defined(CONFIG_USA_MODEL_SGH_I757)		pr_debug(MODULE_NAME "%s : GPIO 33\n", __func__);		gpio_tlmm_config(GPIO_CFG(33,0,GPIO_CFG_OUTPUT,GPIO_CFG_NO_PULL,GPIO_CFG_2MA),GPIO_CFG_ENABLE); // 2MIC_PWDN
 #else
 	if (pdata->gpio_a2220_wakeup) {
 		pr_debug(MODULE_NAME "%s : Wakeup GPIO %d\n", __func__, pdata->gpio_a2220_wakeup);
@@ -2337,8 +2332,8 @@ err_alloc_data_failed:
 
 static int a2220_remove(struct i2c_client *client)
 {
-	struct a2220_platform_data *p1026data = i2c_get_clientdata(client);
-	kfree(p1026data);
+	struct a2220_platform_data *p2220data = i2c_get_clientdata(client);
+	kfree(p2220data);
 
 	return 0;
 }

@@ -752,12 +752,12 @@ done:
 
 u32 send_voice_apr(u32 mode, void *buf, u32 opcode)
 {
-	s32				result;
-	u32				count = 0;
-	u32				bytes_returned = 0;
-	u32				payload_size;
-	u16				dest_port;
-	struct apr_hdr			voice_params;
+	s32	result;
+	u32	count = 0;
+	u32	bytes_returned = 0;
+	u32	payload_size;
+	u32	dest_port;
+	struct	apr_hdr	voice_params;
 	pr_debug("%s\n", __func__);
 
 	if (copy_from_user(&count, (void *)buf, sizeof(count))) {
@@ -986,7 +986,6 @@ static int __init rtac_init(void)
 	if (rtac_asm_buffer == NULL) {
 		pr_err("%s: Could not allocate payload of size = %d\n",
 			__func__, RTAC_BUF_SIZE);
-		kfree(rtac_adm_buffer);
 		goto nomem;
 	}
 
@@ -1004,8 +1003,6 @@ static int __init rtac_init(void)
 	if (rtac_voice_buffer == NULL) {
 		pr_err("%s: Could not allocate payload of size = %d\n",
 			__func__, RTAC_BUF_SIZE);
-		kfree(rtac_adm_buffer);
-		kfree(rtac_asm_buffer);
 		goto nomem;
 	}
 

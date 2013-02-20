@@ -39,26 +39,27 @@
 #include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
+#include <linux/power_supply.h>
+
 
 #include "sii9234_driver.h"
 
 #ifdef CONFIG_MHL_SWING_LEVEL
 #include <linux/ctype.h>
 #endif
-
 /* enable debug msg */
 #ifdef pr_debug
 #undef pr_debug
 #define pr_debug pr_info
 #endif
 
+int fsa9480_mhl_chg_status_cb(void);
 static u8 sii9234_tmds_control(struct sii9234_data *sii9234, bool enable);
 static bool cbus_command_request(struct sii9234_data *sii9234,
 				 enum cbus_command command,
 				 u8 offset, u8 data);
 static void cbus_command_response(struct sii9234_data *sii9234);
 static irqreturn_t sii9234_irq_thread(int irq, void *data);
-
 static struct cbus_packet cbus_pkt_buf[CBUS_PKT_BUF_COUNT];
 
 #ifdef CONFIG_MHL_SWING_LEVEL
@@ -75,7 +76,6 @@ static ssize_t sii9234_swing_test_store(struct device *dev,
 					const char *buf, size_t size)
 {
 	struct sii9234_data *sii9234 = dev_get_drvdata(sii9244_mhldev);
-
 	char temp[4] = { 0, };
 	const char *p = buf;
 	int data, clk;
@@ -104,6 +104,42 @@ static CLASS_ATTR(swing, 0664,
 		sii9234_swing_test_show, sii9234_swing_test_store);
 #endif
 
+int fsa9480_mhl_chg_status_cb(void)
+{
+	struct power_supply *psy = power_supply_get_by_name("battery");
+	union power_supply_propval value;
+	int ret;
+	if (!psy) {
+		pr_err("%s: psy is null!!\n", __func__);
+		return 0;
+	}
+
+	ret = psy->get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
+	if (ret < 0) {
+		pr_err("%s: failed to get voltage now\n", __func__);
+		return 0;
+	}
+
+	switch (value.intval) {
+	case POWER_SUPPLY_STATUS_CHARGING:
+		pr_err("%s: POWER_SUPPLY_STATUS_CHARGING %d\n", __func__, value.intval);
+		break;
+	case POWER_SUPPLY_STATUS_DISCHARGING:
+		pr_err("%s: POWER_SUPPLY_STATUS_DISCHARGING %d\n", __func__, value.intval);
+		break;
+	case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		pr_err("%s: POWER_SUPPLY_STATUS_NOT_CHARGING %d\n", __func__, value.intval);
+		break;
+	case POWER_SUPPLY_STATUS_FULL:
+		pr_err("%s: POWER_SUPPLY_STATUS_FULL %d\n", __func__, value.intval);
+		break;
+	default:
+		pr_err("%s: unknown value %d\n", __func__, value.intval);
+		break;
+	}
+	return value.intval;
+}
+
 u8 mhl_onoff_ex(bool onoff)
 {
 	struct sii9234_data *sii9234 = dev_get_drvdata(sii9244_mhldev);
@@ -131,17 +167,22 @@ u8 mhl_onoff_ex(bool onoff)
 
 		if (sii9234->pdata->hw_reset)
 			sii9234->pdata->hw_reset();
-
+#if defined(CONFIG_MHL_D3_SUPPORT)
+		sii9234->power_mode = MHL_POWER_MODE_OFF;
+#endif
 		sii9234_detection_callback();
 	} else {
 		sii9234_cancel_callback();
 
 		if (sii9234->pdata->hw_onoff)
 			sii9234->pdata->hw_onoff(0);
+#if defined(CONFIG_MHL_D3_SUPPORT)
+		sii9234->power_mode = MHL_POWER_MODE_OFF;
+#endif
 	}
-
 	return sii9234->rgnd;
 }
+
 EXPORT_SYMBOL(mhl_onoff_ex);
 
 static int mhl_tx_write_reg(struct sii9234_data *sii9234, unsigned int offset,
@@ -627,7 +668,6 @@ static void cbus_handle_msc_msg(struct sii9234_data *sii9234)
 {
 	u8 cmd_code, key;
 
-
 	mutex_lock(&sii9234->cbus_lock);
 	if (sii9234->state != STATE_ESTABLISHED) {
 		pr_debug("sii9234: invalid MHL state\n");
@@ -683,7 +723,7 @@ void mhl_path_enable(struct sii9234_data *sii9234, bool path_en)
 					sii9234->mhl_status_value.linkmode);
 }
 
-#if 0//not used
+#if 0/*not used*/
 static void cbus_handle_wrt_burst_recd(struct sii9234_data *sii9234)
 {
 	pr_debug("sii9234: CBUS WRT_BURST_RECD\n");
@@ -692,7 +732,7 @@ static void cbus_handle_wrt_burst_recd(struct sii9234_data *sii9234)
 
 static void cbus_handle_wrt_stat_recd(struct sii9234_data *sii9234)
 {
-	u8 status_reg0, status_reg1, value;
+	u8 status_reg0, status_reg1;
 
 	pr_debug("sii9234: CBUS WRT_STAT_RECD\n");
 
@@ -803,24 +843,31 @@ static int sii9234_power_init(struct sii9234_data *sii9234)
 
 	/* Force the SiI9234 into the D0 state. */
 	ret = tpi_write_reg(sii9234, TPI_DPD_REG, 0x3F);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_info("sii9234: %s: tpi i2c operation failure @ %d \n", __func__, __LINE__);
 		return ret;
+		}
 
 	/* Enable TxPLL Clock */
 	ret = hdmi_rx_write_reg(sii9234, HDMI_RX_TMDS_CLK_EN_REG, 0x01);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_info("sii9234: %s: hdmi i2c operation failure @ %d \n", __func__, __LINE__);
 		return ret;
+		}
 
 	/* Enable Tx Clock Path & Equalizer*/
 	ret = hdmi_rx_write_reg(sii9234, HDMI_RX_TMDS_CH_EN_REG, 0x15);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_info("sii9234: %s: hdmi i2c operaion failure @ %d \n", __func__, __LINE__);
 		return ret;
+		}
 
 	/* Power Up TMDS*/
 	ret = mhl_tx_write_reg(sii9234, 0x08, 0x35);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_info("sii9234: %s: mhl i2c operation failure @ %d \n", __func__, __LINE__);
 		return ret;
-
+		}
 	return 0;
 }
 
@@ -896,7 +943,17 @@ static void sii9234_power_down(struct sii9234_data *sii9234)
 	/*turn on&off hpd festure for only QCT HDMI*/
 	mhl_hpd_handler(false);
 }
-
+#if defined(CONFIG_MHL_D3_SUPPORT)
+static void vbus_watchdog_state_work(struct work_struct *work)
+{
+	struct sii9234_data *sii9234 = dev_get_drvdata(sii9244_mhldev);
+	if (!get_vbus_valid())
+				mhl_onoff_ex(0);
+		else
+		queue_delayed_work(sii9234->vbus_workqueue, &sii9234->d3_timer_work,
+						msecs_to_jiffies(2000));
+}
+#endif
 int rsen_state_timer_out(struct sii9234_data *sii9234)
 {
 	int ret = 0;
@@ -907,7 +964,7 @@ int rsen_state_timer_out(struct sii9234_data *sii9234)
 		goto err_exit;
 	sii9234->rsen = value & RSEN_STATUS;
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L)
+#if 0//defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 	pr_info("sii9234: jgk:%s() - ignore MHL_TX_SYSSTAT_REG\n", __func__);
 #else
 	if (value & RSEN_STATUS) {
@@ -935,7 +992,17 @@ int rsen_state_timer_out(struct sii9234_data *sii9234)
 
 err_exit:
 	/*turn off mhl and change usb_sel to usb*/
+#if defined(CONFIG_MHL_D3_SUPPORT)
+/*Go to D3 Mode Transition from D3->D0 When Rground Measures 1K*/
+	sii9234->power_mode = MHL_POWER_MODE_OFF;
+	INIT_WORK(&sii9234->redetect_work, (void *)sii9234_detection_callback);
+	disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
+	if (sii9234->pdata->hw_reset)
+		sii9234->pdata->hw_reset();
+	schedule_work(&sii9234->redetect_work);
+#else
 	mhl_onoff_ex(0);
+#endif
 	return ret;
 }
 
@@ -977,77 +1044,98 @@ static int sii9234_detection_callback(void)
 	sii9234->rsen = false;
 	memset(cbus_pkt_buf, 0x00, sizeof(cbus_pkt_buf));
 	ret = sii9234_power_init(sii9234);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	ret = sii9234_cbus_reset(sii9234);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	sii9234_hdmi_init(sii9234);
 
 	sii9234_mhl_tx_ctl_int(sii9234);
 
 	/* Enable HDCP Compliance safety*/
 	ret = mhl_tx_write_reg(sii9234, 0x2B, 0x01);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	/* CBUS discovery cycle time for each drive and float = 150us*/
 	ret = mhl_tx_read_reg(sii9234, MHL_TX_DISC_CTRL1_REG, &value);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	value &= ~(1<<3);
 	value |= (1<<2);
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL1_REG, value);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	/* Clear bit 6 (reg_skip_rgnd) */
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL2_REG,
 			(1<<7) /* Reserved Bit */ |
 			2 << ATT_THRESH_SHIFT |
 			DEGLITCH_TIME_50MS);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* Changed from 66 to 65 for 94[1:0] = 01 = 5k reg_cbusmhl_pup_sel */
 	/* 1.8V CBUS VTH & GND threshold */
 	/*To meet CTS 3.3.7.2 spec*/
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL5_REG, 0x77);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* set bit 2 and 3, which is Initiator Timeout */
 	ret = cbus_read_reg(sii9234, CBUS_LINK_CONTROL_2_REG, &value);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	value |= 0x0C;
 
 	ret = cbus_write_reg(sii9234, CBUS_LINK_CONTROL_2_REG, value);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_MHLTX_CTL6_REG, 0xA0);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* RGND & single discovery attempt (RGND blocking) */
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL6_REG, BLOCK_RGND_INT |
 			DVRFLT_SEL | SINGLE_ATT);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* Use VBUS path of discovery state machine*/
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL8_REG, 0);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	ret = mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL6_REG, USB_ID_OVR);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* To allow RGND engine to operate correctly.
 	 * When moving the chip from D2 to D0 (power up, init regs)
@@ -1058,14 +1146,18 @@ static int sii9234_detection_callback(void)
 	 * 93[5:4] = 00  reg_cbusidle_pup_sel[1:0] = open (default)
 	 */
 	ret = mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL3_REG, 0x86);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* change from CC to 8C to match 5K*/
 	/*To meet CTS 3.3.72 spec*/
 	ret = mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL4_REG, 0x8C);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* Force upstream HPD to 0 when not in MHL mode */
 	mhl_tx_clear_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<5));
@@ -1073,43 +1165,56 @@ static int sii9234_detection_callback(void)
 
 	/* Configure the interrupt as active high */
 	ret = mhl_tx_clear_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<2) | (1<<1));
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	msleep(25);
 
 	/* release usb_id switch */
 	ret = mhl_tx_clear_reg(sii9234, MHL_TX_DISC_CTRL6_REG, USB_ID_OVR);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
-
+}
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL1_REG, 0x27);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	sii9234_cbus_init(sii9234);
 
 	/* Enable Auto soft reset on SCDT = 0*/
 	ret = mhl_tx_write_reg(sii9234, 0x05, 0x04);
 
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	/* HDMI Transcode mode enable*/
 	ret = mhl_tx_write_reg(sii9234, 0x0D, 0x1C);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_INTR4_ENABLE_REG,
 			RGND_READY_MASK | CBUS_LKOUT_MASK |
 			MHL_DISC_FAIL_MASK | MHL_EST_MASK);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	ret = mhl_tx_write_reg(sii9234, MHL_TX_INTR1_ENABLE_REG,
 			       (1<<5) | (1<<6));
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 /* this point is very importand before megsure RGND impedance*/
 	force_usb_id_switch_open(sii9234);
@@ -1118,6 +1223,35 @@ static int sii9234_detection_callback(void)
 	mhl_tx_clear_reg(sii9234, MHL_TX_DISC_CTRL5_REG, (1<<1) | (1<<0));
 	release_usb_id_switch_open(sii9234);
 /*end of this*/
+#if defined(CONFIG_MHL_D3_SUPPORT)
+	/*Go to D3 Mode Transition from D3->D0 When Rground Measures 1K*/
+	if (sii9234->power_mode == MHL_POWER_MODE_OFF) {
+		pr_debug("sii9234: Go to D3 and waiting for RGND measurement\n");
+		/* Force upstream HPD to 0 when not in MHL mode */
+		mhl_tx_clear_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<5));
+		mhl_tx_set_reg(sii9234, MHL_TX_INT_CTRL_REG, (1<<4));
+		hdmi_rx_write_reg(sii9234, 0x01, 0x03);
+		ret = tpi_read_reg(sii9234, 0x3D, &value);
+		if (ret<0)	{
+			pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
+			goto unhandled;
+			}
+		value &= ~BIT0;
+		msleep(20);
+		ret = tpi_write_reg(sii9234, 0x3D, value);
+		if (ret<0)	{
+			pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
+			goto unhandled;
+			}
+		sii9234->power_mode = MHL_POWER_MODE_D3;
+		enable_irq(sii9234->pdata->mhl_tx_client->irq);
+		queue_delayed_work(sii9234->vbus_workqueue, &sii9234->d3_timer_work,
+						msecs_to_jiffies(2000));
+		mutex_unlock(&sii9234->lock);
+		return handled;
+	}
+#endif
+
 	pr_debug("sii9234: waiting for RGND measurement\n");
 	enable_irq(sii9234->pdata->mhl_tx_client->irq);
 
@@ -1128,32 +1262,41 @@ static int sii9234_detection_callback(void)
 	ret = wait_event_timeout(sii9234->wq,
 				 ((sii9234->rgnd != RGND_UNKNOWN) ||
 				  mhl_state_is_error(sii9234->state)),
-				 msecs_to_jiffies(T_WAIT_TIMEOUT_RGND_INT));
+				 msecs_to_jiffies(T_WAIT_TIMEOUT_RGND_INT*1.5));
 
 	mutex_lock(&sii9234->lock);
-	if (ret == 0 || mhl_state_is_error(sii9234->state))
+	if (ret == 0 || mhl_state_is_error(sii9234->state)) {
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
-	if (sii9234->rgnd != RGND_1K)
+	if (sii9234->rgnd != RGND_1K) {
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	mutex_unlock(&sii9234->lock);
 
 	pr_debug("sii9234: waiting for detection\n");
 	ret = wait_event_timeout(sii9234->wq,
 				 sii9234->state != STATE_DISCONNECTED,
-				 msecs_to_jiffies(T_WAIT_TIMEOUT_DISC_INT));
+				 msecs_to_jiffies(T_WAIT_TIMEOUT_DISC_INT*2));
 	mutex_lock(&sii9234->lock);
-	if (ret == 0)
+	if (ret == 0) {
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	if (sii9234->state == STATE_DISCOVERY_FAILED) {
 		handled = -1;
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
 	}
 
-	if (mhl_state_is_error(sii9234->state))
+	if (mhl_state_is_error(sii9234->state)) {
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	mutex_unlock(&sii9234->lock);
 	pr_info("sii9234: Established & start to moniter RSEN\n");
@@ -1164,6 +1307,7 @@ static int sii9234_detection_callback(void)
 
 	sii9234->claimed = true;
 
+	mutex_lock(&sii9234->lock);
 	ret = cbus_write_reg(sii9234,
 			CBUS_INTR1_ENABLE_REG,
 			MSC_RESP_ABORT_MASK |
@@ -1171,15 +1315,21 @@ static int sii9234_detection_callback(void)
 			MSC_REQ_DONE_MASK |
 			MSC_MSG_RECD_MASK |
 			CBUS_DDC_ABORT_MASK);
-	if (ret < 0)
+	if (ret < 0) {
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
 
 	ret = cbus_write_reg(sii9234,
 			CBUS_INTR2_ENABLE_REG,
 			WRT_STAT_RECD_MASK |
 			SET_INT_RECD_MASK);
-	if (ret < 0)
+	if (ret < 0){
+	pr_debug("sii9234: %s : unhandled dbg @ %d \n", __func__, __LINE__);
 		goto unhandled;
+}
+
+	mutex_unlock(&sii9234->lock);
 
 	if (sii9234->pdata->vbus_present)
 		sii9234->pdata->vbus_present(true);
@@ -1189,8 +1339,12 @@ static int sii9234_detection_callback(void)
 unhandled:
 	pr_info("sii9234: Detection failed");
 	if (sii9234->state == STATE_DISCONNECTED) {
-		sii9234->pdata->power_state = 0;
 		pr_cont(" (timeout)");
+		mutex_unlock(&sii9234->lock);
+#ifndef CONFIG_MHL_D3_SUPPORT
+		mhl_onoff_ex(0);
+#endif
+		return handled;
 	} else if (sii9234->state == STATE_DISCOVERY_FAILED)
 		pr_cont(" (discovery failed)");
 	else if (sii9234->state == STATE_CBUS_LOCKOUT)
@@ -1202,7 +1356,7 @@ unhandled:
 						 (sii9234->rgnd == RGND_1K)) {
 		pr_cont("Discovery failed but RGND_1K impedence"
 					" restart detection_callback");
-		INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback);
+		INIT_WORK(&sii9234->redetect_work, (void *)sii9234_detection_callback);
 		disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
 
 		if (sii9234->pdata->hw_reset)
@@ -1474,7 +1628,7 @@ static bool cbus_command_request(struct sii9234_data *sii9234,
 	if (command == CBUS_MSC_MSG)
 		sii9234->cbus_pkt.data[0] = offset;
 	else
-	        sii9234->cbus_pkt.data[0] = data;
+			sii9234->cbus_pkt.data[0] = data;
 
 	pr_debug("sii9234: cbus_command_request Sending MSC_MSG SubCommand=%d"
 				",key-code=%d\n", sii9234->cbus_pkt.offset,
@@ -1575,15 +1729,57 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 	u8 mhl_poweroff = 0;
 	void (*cbus_resp_callback)(struct sii9234_data *) = NULL;
 
+	if (!sii9234) {
+		pr_err("%s: sii9234 is NULL & skipp this rutine\n", __func__);
+		return IRQ_HANDLED;
+	}
+	msleep(30);
 	mutex_lock(&sii9234->lock);
-	mhl_tx_read_reg(sii9234, MHL_TX_INTR1_REG, &intr1);
-	mhl_tx_read_reg(sii9234, MHL_TX_INTR4_REG, &intr4);
 
-	mhl_tx_read_reg(sii9234, MHL_TX_INTR1_ENABLE_REG, &intr1_en);
-	mhl_tx_read_reg(sii9234, MHL_TX_INTR4_ENABLE_REG, &intr4_en);
+	ret = mhl_tx_read_reg(sii9234, MHL_TX_INTR1_REG, &intr1);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read MHL_TX_INTR1_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
+	ret = mhl_tx_read_reg(sii9234, MHL_TX_INTR4_REG, &intr4);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read MHL_TX_INTR4_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
 
-	cbus_read_reg(sii9234, CBUS_INT_STATUS_1_REG, &cbus_intr1);
-	cbus_read_reg(sii9234, CBUS_INT_STATUS_2_REG, &cbus_intr2);
+	ret = mhl_tx_read_reg(sii9234, MHL_TX_INTR1_ENABLE_REG, &intr1_en);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read MHL_TX_INTR1_ENABLE_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
+	ret = mhl_tx_read_reg(sii9234, MHL_TX_INTR4_ENABLE_REG, &intr4_en);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read MHL_TX_INTR4_ENABLE_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
+
+	ret = cbus_read_reg(sii9234, CBUS_INT_STATUS_1_REG, &cbus_intr1);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read CBUS_INT_STATUS_1_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
+	ret = cbus_read_reg(sii9234, CBUS_INT_STATUS_2_REG, &cbus_intr2);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "[ERROR] %s():%d read CBUS_INT_STATUS_2_REG failed !\n",
+		       __func__, __LINE__);
+		goto i2c_error_exit;
+	}
 
 	pr_debug("sii9234: irq %02x/%02x %02x/%02x %02x/%02x\n",
 			intr1, intr1_en,
@@ -1591,6 +1787,21 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 			cbus_intr1, cbus_intr2);
 
 	if (intr4 & RGND_READY_INT) {
+#if defined(CONFIG_MHL_D3_SUPPORT)
+		if (sii9234->power_mode == MHL_POWER_MODE_D3) {
+			pr_debug("sii9234_irq: RGND READY\n");
+			cancel_delayed_work(&sii9234->d3_timer_work);
+			INIT_WORK(&sii9234->redetect_work, (void *)sii9234_detection_callback);
+			disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
+
+			if (sii9234->pdata->hw_reset)
+				sii9234->pdata->hw_reset();
+			sii9234->power_mode = MHL_POWER_MODE_D0;
+			schedule_work(&sii9234->redetect_work);
+			goto err_exit;
+		}
+#endif
+
 		ret = mhl_tx_read_reg(sii9234, MHL_TX_STAT2_REG, &value);
 		if (ret < 0) {
 			dev_err(&sii9234->pdata->mhl_tx_client->dev,
@@ -1609,8 +1820,26 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 			about discovry failure
 			This point is add to fix that problem*/
 			mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL4_REG, 0x8C);
+			if (ret < 0) {
+				printk(KERN_ERR
+				       "[ERROR] %s():%d write MHL_TX_DISC_CTRL4_REG failed !\n",
+				       __func__, __LINE__);
+				goto i2c_error_exit;
+			}
 			mhl_tx_write_reg(sii9234, MHL_TX_DISC_CTRL5_REG, 0x77);
+			if (ret < 0) {
+				printk(KERN_ERR
+				       "[ERROR] %s():%d write MHL_TX_DISC_CTRL5_REG failed !\n",
+				       __func__, __LINE__);
+				goto i2c_error_exit;
+			}
 			mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL6_REG, 0x05);
+			if (ret < 0) {
+				printk(KERN_ERR
+				       "[ERROR] %s():%d write MHL_TX_DISC_CTRL6_REG failed !\n",
+				       __func__, __LINE__);
+				goto i2c_error_exit;
+			}
 			usleep_range(T_SRC_VBUS_CBUS_TO_STABLE * USEC_PER_MSEC,
 				T_SRC_VBUS_CBUS_TO_STABLE  * USEC_PER_MSEC);
 			/* end of this*/
@@ -1632,7 +1861,16 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 		};
 
 		if (sii9234->rgnd != RGND_1K) {
+#if defined(CONFIG_MHL_D3_SUPPORT)
+			sii9234->power_mode = MHL_POWER_MODE_OFF;
+			INIT_WORK(&sii9234->redetect_work, (void *)sii9234_detection_callback);
+			disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
+				if (sii9234->pdata->hw_reset)
+					sii9234->pdata->hw_reset();
+			schedule_work(&sii9234->redetect_work);
+#else
 			mhl_poweroff = 1; /*Power down mhl chip */
+#endif
 			goto err_exit;
 		}
 	}
@@ -1653,13 +1891,37 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 
 		/* discovery override */
 		ret = mhl_tx_write_reg(sii9234, MHL_TX_MHLTX_CTL1_REG, 0x10);
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "[ERROR] %s():%d write MHL_TX_MHLTX_CTRL1_REG failed !\n",
+			       __func__, __LINE__);
+			goto i2c_error_exit;
+		}
 
 		/* increase DDC translation layer timer (byte mode) */
-		cbus_write_reg(sii9234, 0x07, 0x32);
-		cbus_set_reg(sii9234, 0x44, 1<<1);
+		ret = cbus_write_reg(sii9234, 0x07, 0x32);
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "[ERROR] %s():%d cbus_write_reg failed !\n",
+			       __func__, __LINE__);
+			goto i2c_error_exit;
+		}
+		ret = cbus_set_reg(sii9234, 0x44, 1 << 1);
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "[ERROR] %s():%d cbus_set_reg failed !\n",
+			       __func__, __LINE__);
+			goto i2c_error_exit;
+		}
 
 		/* Keep the discovery enabled. Need RGND interrupt */
 		ret = mhl_tx_set_reg(sii9234, MHL_TX_DISC_CTRL1_REG, (1<<0));
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "[ERROR] %s():%d mhl_tx_set_reg failed !\n",
+			       __func__, __LINE__);
+			goto i2c_error_exit;
+		}
 
 		sii9234->state = STATE_ESTABLISHED;
 
@@ -1672,6 +1934,12 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 
 	if (intr1 & HPD_CHANGE_INT) {
 		ret = cbus_read_reg(sii9234, MSC_REQ_ABORT_REASON_REG, &value);
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "[ERROR] %s():%d cbus_read_reg failed !\n",
+			       __func__, __LINE__);
+			goto i2c_error_exit;
+		}
 
 		if (value & SET_HPD_DOWNSTREAM) {
 			pr_info("sii9234: hpd high\n");
@@ -1735,6 +2003,12 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 			msleep(T_SRC_RXSENSE_DEGLITCH);
 			ret = mhl_tx_read_reg(sii9234, MHL_TX_SYSSTAT_REG,
 								 &value);
+			if (ret < 0) {
+				printk(KERN_ERR
+					"[ERROR] %s() read MHL_TX_SYSSTAT_REG\n",
+					__func__);
+				goto i2c_error_exit;
+			}
 			pr_cont(" sys_stat: %x\n", value);
 
 			if ((value & RSEN_STATUS) == 0)	{
@@ -1743,7 +2017,23 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 				sii9234_tmds_control(sii9234, false);
 				force_usb_id_switch_open(sii9234);
 				release_usb_id_switch_open(sii9234);
+#if defined(CONFIG_MHL_D3_SUPPORT)
+				mhl_hpd_handler(false);
+				if (!get_vbus_valid()) {
+					mhl_poweroff = 1;
+					goto err_exit;
+				} else
+					sii9234->power_mode = MHL_POWER_MODE_OFF;
+
+					INIT_WORK(&sii9234->redetect_work, (void *)sii9234_detection_callback);
+					disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
+
+					if (sii9234->pdata->hw_reset)
+						sii9234->pdata->hw_reset();
+					schedule_work(&sii9234->redetect_work);
+#else
 				mhl_poweroff = 1; /*Power down mhl chip */
+#endif
 				goto err_exit;
 			}
 		}
@@ -1794,11 +2084,19 @@ err_exit:
 	pr_debug("sii9234: wake_up\n");
 	wake_up(&sii9234->wq);
 err_exit2:
-	mhl_tx_write_reg(sii9234, MHL_TX_INTR1_REG, intr1);
-	mhl_tx_write_reg(sii9234, MHL_TX_INTR4_REG, intr4);
+	ret = mhl_tx_write_reg(sii9234, MHL_TX_INTR1_REG, intr1);
+	if (ret < 0)
+		goto i2c_error_exit;
+	ret = mhl_tx_write_reg(sii9234, MHL_TX_INTR4_REG, intr4);
+	if (ret < 0)
+		goto i2c_error_exit;
 
-	cbus_write_reg(sii9234, CBUS_INT_STATUS_1_REG, cbus_intr1);
-	cbus_write_reg(sii9234, CBUS_INT_STATUS_2_REG, cbus_intr2);
+	ret = cbus_write_reg(sii9234, CBUS_INT_STATUS_1_REG, cbus_intr1);
+	if (ret < 0)
+		goto i2c_error_exit;
+	ret = cbus_write_reg(sii9234, CBUS_INT_STATUS_2_REG, cbus_intr2);
+	if (ret < 0)
+		goto i2c_error_exit;
 
 	mutex_unlock(&sii9234->lock);
 
@@ -1808,6 +2106,12 @@ err_exit2:
 	if (mhl_poweroff)
 		mhl_onoff_ex(0);
 
+	return IRQ_HANDLED;
+i2c_error_exit:
+	mutex_unlock(&sii9234->lock);
+	pr_info("%s(): i2c error exit\n", __func__);
+	pr_debug("sii9234: wake_up\n");
+	wake_up(&sii9234->wq);
 	return IRQ_HANDLED;
 }
 
@@ -1838,7 +2142,7 @@ static ssize_t sysfs_check_mhl_command(struct device *dev,
 
 }
 
-static CLASS_ATTR(test_result, 0664 , sysfs_check_mhl_command, NULL);
+static CLASS_ATTR(test_result, 0664 , (void *)sysfs_check_mhl_command, NULL);
 #endif /*MHL_SS_FACTORY*/
 
 #ifdef CONFIG_PM
@@ -1911,6 +2215,10 @@ static int __devinit sii9234_mhl_tx_i2c_probe(struct i2c_client *client,
 	mutex_init(&sii9234->lock);
 	mutex_init(&sii9234->cbus_lock);
 
+#if defined(CONFIG_MHL_D3_SUPPORT)
+	sii9234->vbus_workqueue = create_singlethread_workqueue("vbus_watchdog");
+	INIT_DELAYED_WORK(&sii9234->d3_timer_work, vbus_watchdog_state_work);
+#endif
 	i2c_set_clientdata(client, sii9234);
 	client->irq = sii9234->pdata->get_irq();
 	sii9244_mhldev = &client->dev;

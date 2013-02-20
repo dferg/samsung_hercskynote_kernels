@@ -24,7 +24,6 @@
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 
-#include <linux/kernel.h>
 
 /* MIPI	CSI	controller registers */
 #define	MIPI_PHY_CONTROL			0x00000000
@@ -478,11 +477,6 @@ static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 	CDBG("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
 	if (csibase != NULL)
 		msm_io_w(irq, csibase + MIPI_INTERRUPT_STATUS);
-#if 0 //=> Add from 
-		//bits 23:8 indicate word count 
-		irq = msm_io_r(csibase + 0x00000010); 
-		CDBG("%s MIPI_PROTOCOL_STATUS = 0x%x\n", __func__, irq); 
-#endif //=> Adde to 
 	return IRQ_HANDLED;
 }
 
@@ -708,9 +702,12 @@ int msm_camio_sensor_clk_on(struct platform_device *pdev)
 	rc = camdev->camera_gpio_on();
 	if (rc < 0)
 		return rc;
-#if defined (CONFIG_SENSOR_M5MO)
+#if !defined (CONFIG_SENSOR_ISX012)
 	// ldo on
-	sinfo->sensor_platform_info->sensor_power_control(1); //on
+	if (sinfo->sensor_platform_info->sensor_power_control(1)) {
+		pr_info("power on ldo fail\n");
+		
+	}
 
 	//  MCLK
 	rc = msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);  //MCLK ON
@@ -736,16 +733,19 @@ int msm_camio_sensor_clk_on(struct platform_device *pdev)
 #endif
 }
 
+
 int msm_camio_sensor_clk_off(struct platform_device *pdev)
 {
 	struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	unsigned int mclk_cfg;
+#if !defined (CONFIG_SENSOR_ISX012)
 	int rc = 0;
+#endif
 
 	pr_info("%s\n", __func__);
 
-#if defined (CONFIG_SENSOR_M5MO)
+#if !defined (CONFIG_SENSOR_ISX012)
 	//reset low
 	if (sinfo->sensor_platform_info->sensor_reset) {
 		gpio_set_value_cansleep(sinfo->sensor_platform_info->sensor_reset, 0);
@@ -757,7 +757,10 @@ int msm_camio_sensor_clk_off(struct platform_device *pdev)
 	gpio_tlmm_config(mclk_cfg, GPIO_CFG_ENABLE);	
 
 	// ldo off
-	sinfo->sensor_platform_info->sensor_power_control(0);
+	if (sinfo->sensor_platform_info->sensor_power_control(0)){
+		pr_info("power off ldo fail\n");
+		// false routine
+	}
 	
 	msm_camera_vreg_disable();
 	camdev->camera_gpio_off();
@@ -787,7 +790,7 @@ void msm_camio_sensor_reset(struct msm_camera_sensor_info *sinfo)
 	if (sinfo->sensor_platform_info->sensor_reset) {
 		gpio_set_value_cansleep(sinfo->sensor_platform_info->sensor_reset, 0);
 		msleep(3);
-	}
+}
 
 	// Disable MCLK 
 	mclk_cfg = GPIO_CFG(32, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA);
@@ -795,14 +798,21 @@ void msm_camio_sensor_reset(struct msm_camera_sensor_info *sinfo)
 	msleep(1);
 
 	// ldo off
-	sinfo->sensor_platform_info->sensor_power_control(0);
+	if (sinfo->sensor_platform_info->sensor_power_control(0)){
+		pr_info("power off ldo fail\n");
+		// false routine
+	}
+	
 	msleep(3);
 	
 //power on
 	//ldo on
-	sinfo->sensor_platform_info->sensor_power_control(1); //on
-	msleep(1);
+	if (sinfo->sensor_platform_info->sensor_power_control(1)) {
+		pr_info("power on ldo fail\n");
+		// false routine
+	}
 	
+	msleep(1);
 	//mclk on
 	mclk_cfg = GPIO_CFG(32, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA);
 	gpio_tlmm_config(mclk_cfg, GPIO_CFG_ENABLE);	

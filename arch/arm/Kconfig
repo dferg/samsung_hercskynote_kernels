@@ -904,13 +904,125 @@ endchoice
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
+source "arch/arm/mach-at91/Kconfig"
+
+source "arch/arm/mach-bcmring/Kconfig"
+
+source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-cns3xxx/Kconfig"
+
+source "arch/arm/mach-davinci/Kconfig"
+
+source "arch/arm/mach-dove/Kconfig"
+
+source "arch/arm/mach-ep93xx/Kconfig"
+
+source "arch/arm/mach-footbridge/Kconfig"
+
+source "arch/arm/mach-gemini/Kconfig"
+
+source "arch/arm/mach-h720x/Kconfig"
+
+source "arch/arm/mach-integrator/Kconfig"
+
+source "arch/arm/mach-iop32x/Kconfig"
+
+source "arch/arm/mach-iop33x/Kconfig"
+
+source "arch/arm/mach-iop13xx/Kconfig"
+
+source "arch/arm/mach-ixp4xx/Kconfig"
+
+source "arch/arm/mach-ixp2000/Kconfig"
+
+source "arch/arm/mach-ixp23xx/Kconfig"
+
+source "arch/arm/mach-kirkwood/Kconfig"
+
+source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-loki/Kconfig"
+
+source "arch/arm/mach-lpc32xx/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
 
+source "arch/arm/mach-mv78xx0/Kconfig"
+
+source "arch/arm/plat-mxc/Kconfig"
+
+source "arch/arm/mach-mxs/Kconfig"
+
+source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
 source "arch/arm/plat-nomadik/Kconfig"
 
+source "arch/arm/mach-nuc93x/Kconfig"
+
+source "arch/arm/plat-omap/Kconfig"
+
+source "arch/arm/mach-omap1/Kconfig"
+
+source "arch/arm/mach-omap2/Kconfig"
+
+source "arch/arm/mach-orion5x/Kconfig"
+
+source "arch/arm/mach-pxa/Kconfig"
+source "arch/arm/plat-pxa/Kconfig"
+
+source "arch/arm/mach-mmp/Kconfig"
+
+source "arch/arm/mach-realview/Kconfig"
+
+source "arch/arm/mach-sa1100/Kconfig"
+
+source "arch/arm/plat-samsung/Kconfig"
+source "arch/arm/plat-s3c24xx/Kconfig"
+source "arch/arm/plat-s5p/Kconfig"
+
+source "arch/arm/plat-spear/Kconfig"
+
+source "arch/arm/plat-tcc/Kconfig"
+
+if ARCH_S3C2410
+source "arch/arm/mach-s3c2400/Kconfig"
+source "arch/arm/mach-s3c2410/Kconfig"
+source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2416/Kconfig"
+source "arch/arm/mach-s3c2440/Kconfig"
+source "arch/arm/mach-s3c2443/Kconfig"
+endif
+
+if ARCH_S3C64XX
+source "arch/arm/mach-s3c64xx/Kconfig"
+endif
+
+source "arch/arm/mach-s5p64x0/Kconfig"
+
+source "arch/arm/mach-s5pc100/Kconfig"
+
+source "arch/arm/mach-s5pv210/Kconfig"
+
+source "arch/arm/mach-exynos4/Kconfig"
+
+source "arch/arm/mach-shmobile/Kconfig"
+
+source "arch/arm/mach-tegra/Kconfig"
+
+source "arch/arm/mach-u300/Kconfig"
+
+source "arch/arm/mach-ux500/Kconfig"
+
+source "arch/arm/mach-versatile/Kconfig"
+
+source "arch/arm/mach-vexpress/Kconfig"
+source "arch/arm/plat-versatile/Kconfig"
+
+source "arch/arm/mach-vt8500/Kconfig"
+
+source "arch/arm/mach-w90x900/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -1094,7 +1206,7 @@ config ARM_ERRATA_743622
 	depends on CPU_V7
 	help
 	  This option enables the workaround for the 743622 Cortex-A9
-	  (r2p0..r2p2) erratum. Under very rare conditions, a faulty
+	  (r2p*) erratum. Under very rare conditions, a faulty
 	  optimisation in the Cortex-A9 Store Buffer may lead to data
 	  corruption. This workaround sets a specific bit in the diagnostic
 	  register of the Cortex-A9 which disables the Store Buffer
@@ -1249,6 +1361,18 @@ config ARM_ERRATA_764369
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	depends on CACHE_L2X0
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
 
 endmenu
 
@@ -1439,7 +1563,7 @@ config AEABI
 config OABI_COMPAT
 	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
 	depends on AEABI && EXPERIMENTAL && !THUMB2_KERNEL
-	default y
+	default n
 	help
 	  This option preserves the old syscall interface along with the
 	  new (ARM EABI) one. It also provides a compatibility layer to

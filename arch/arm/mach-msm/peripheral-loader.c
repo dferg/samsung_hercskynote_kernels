@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -301,9 +301,11 @@ void pil_put(void *peripheral_handle)
 
 	mutex_lock(&pil->lock);
 	WARN(!pil->count, "%s: Reference count mismatch\n", __func__);
+
 	/* TODO: Peripheral shutdown support */
 	if (pil->count == 1)
 		goto unlock;
+
 	if (pil->count)
 		pil->count--;
 	if (pil->count == 0)

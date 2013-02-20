@@ -12,8 +12,11 @@
 
 struct smb328a_platform_data {
 	void 	(*hw_init)(void);
-	int		(*chg_intr_trigger)(int);
+	int	(*chg_intr_trigger)(int);
 };
+
+extern unsigned int get_hw_rev(void);
+extern unsigned int is_lpcharging_state(void);
 
 #endif
 

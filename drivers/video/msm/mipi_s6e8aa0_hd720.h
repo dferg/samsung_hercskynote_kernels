@@ -36,9 +36,9 @@ int mipi_s6e8aa0_hd720_device_register(struct msm_panel_info *pinfo,
 
 char* get_s6e8aa0_id_buffer( void );
 
+#define MAPPING_TBL_AUTO_BRIGHTNESS 
 #if defined (CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)
 #define MIPI_MBPS (480)
-#define MAPPING_TBL_AUTO_BRIGHTNESS 
 #else
 #define MIPI_MBPS (500)
 #endif

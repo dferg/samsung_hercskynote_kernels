@@ -50,6 +50,57 @@ bool epen_cpu_lock_status = 0;
 /* block wacom coordinate print */
 /* extern int sec_debug_level(void); */
 
+void forced_release(struct wacom_i2c *wac_i2c)
+{
+#if defined(CONFIG_SAMSUNG_KERNEL_DEBUG_USER)
+	printk(KERN_DEBUG "[E-PEN] %s\n", __func__);
+#endif
+	input_report_abs(wac_i2c->input_dev, ABS_X, wac_i2c->last_x);
+	input_report_abs(wac_i2c->input_dev, ABS_Y, wac_i2c->last_y);
+	input_report_abs(wac_i2c->input_dev, ABS_PRESSURE, 0);
+	input_report_key(wac_i2c->input_dev, BTN_STYLUS, 0);
+	input_report_key(wac_i2c->input_dev, BTN_TOUCH, 0);
+#if defined(WACOM_IRQ_WORK_AROUND) || defined(WACOM_PDCT_WORK_AROUND)
+	input_report_key(wac_i2c->input_dev, BTN_TOOL_RUBBER, 0);
+	input_report_key(wac_i2c->input_dev, BTN_TOOL_PEN, 0);
+	input_report_key(wac_i2c->input_dev, KEY_PEN_PDCT, 0);	
+#else
+	input_report_key(wac_i2c->input_dev, wac_i2c->tool, 0);
+#endif
+	input_sync(wac_i2c->input_dev);
+
+	wac_i2c->last_x = 0;
+	wac_i2c->last_y = 0;
+	wac_i2c->pen_prox = 0;
+	wac_i2c->pen_pressed = 0;
+	wac_i2c->side_pressed = 0;
+	wac_i2c->pen_pdct = PDCT_NOSIGNAL;
+
+#ifdef CONFIG_SEC_TOUCHSCREEN_DVFS_LOCK
+	set_dvfs_lock(wac_i2c, false);
+#endif
+
+}
+
+#ifdef WACOM_PDCT_WORK_AROUND
+void forced_hover(struct wacom_i2c *wac_i2c)
+{
+	/* To distinguish hover and pdct area, release */
+	if (wac_i2c->last_x != 0 || wac_i2c->last_y != 0) {
+		//printk(KERN_DEBUG "[E-PEN] release hover\n");
+		forced_release(wac_i2c);
+	}
+	wac_i2c->rdy_pdct = true;
+#if defined(CONFIG_SAMSUNG_KERNEL_DEBUG_USER)
+	printk(KERN_DEBUG "[E-PEN] %s\n", __func__);
+#endif
+	input_report_key(wac_i2c->input_dev, KEY_PEN_PDCT, 1);
+	input_sync(wac_i2c->input_dev);
+#ifdef CONFIG_SEC_TOUCHSCREEN_DVFS_LOCK
+	set_dvfs_lock(wac_i2c, true);
+#endif
+}
+#endif
 
 int wacom_i2c_test(struct wacom_i2c *wac_i2c)
 {
@@ -151,11 +202,11 @@ int wacom_i2c_query(struct wacom_i2c *wac_i2c)
 
 		wac_feature->fw_version = ((u16)data[7]<<8)+(u16)data[8];
 		if (wac_feature->fw_version != 0xFF && wac_feature->fw_version != 0xFFFF && wac_feature->fw_version != 0x0) {
-			break;
-		} else {
+				break;
+			} else {
 			printk(KERN_NOTICE "[E-PEN]: %X, %X, %X, %X, %X, %X, %X, %X, %X fw=0x%x\n",
 				data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], wac_feature->fw_version);
-		}
+			}
 
 		i++;
 	} while (i < query_limit);
@@ -364,7 +415,14 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 						 BTN_STYLUS, stylus);
 				input_report_key(wac_i2c->input_dev, BTN_TOUCH, prox);
 				input_report_key(wac_i2c->input_dev, wac_i2c->tool, 1);
+			if (wac_i2c->rdy_pdct) {
+				wac_i2c->rdy_pdct = false;
+				input_report_key(wac_i2c->input_dev, KEY_PEN_PDCT, 0);
+			}
 				input_sync(wac_i2c->input_dev);
+				wac_i2c->last_x = x;
+				wac_i2c->last_y = y;
+				
 #if defined(CONFIG_SAMSUNG_KERNEL_DEBUG_USER)
 				if(prox && !wac_i2c->pen_pressed)
 				{
@@ -425,6 +483,11 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 			/* enable emr device */
 			wacom_i2c_coord_average(0, 0, 0);
 
+#ifdef WACOM_PDCT_WORK_AROUND
+		if (wac_i2c->pen_pdct == PDCT_DETECT_PEN)
+			forced_hover(wac_i2c);
+		else
+#endif
 			if (wac_i2c->pen_prox) {
 				/* input_report_abs(wac->input_dev, ABS_X, x); */
 				/* input_report_abs(wac->input_dev, ABS_Y, y); */
@@ -432,7 +495,14 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 				input_report_key(wac_i2c->input_dev,
 						 BTN_STYLUS, 0);
 				input_report_key(wac_i2c->input_dev, BTN_TOUCH, 0);
-				input_report_key(wac_i2c->input_dev, wac_i2c->tool, 0);
+#if defined(WACOM_PDCT_WORK_AROUND)
+			input_report_key(wac_i2c->input_dev,
+				BTN_TOOL_RUBBER, 0);
+			input_report_key(wac_i2c->input_dev, BTN_TOOL_PEN, 0);
+			input_report_key(wac_i2c->input_dev, KEY_PEN_PDCT, 0);
+#else
+			input_report_key(wac_i2c->input_dev, wac_i2c->tool, 0);
+#endif
 				input_sync(wac_i2c->input_dev);
 
 #if defined(CONFIG_SAMSUNG_KERNEL_DEBUG_USER)
@@ -457,6 +527,8 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 			wac_i2c->pen_prox = 0;
 			wac_i2c->pen_pressed = 0;
 			wac_i2c->side_pressed = 0;
+			wac_i2c->last_x = 0;
+			wac_i2c->last_y = 0;
 
 #ifdef EPEN_CPU_LOCK
 

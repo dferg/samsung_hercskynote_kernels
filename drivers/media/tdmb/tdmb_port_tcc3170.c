@@ -51,10 +51,13 @@
 #include "tcbd_stream_parser.h"
 #include "tcc_fic_decoder.h"
 #include "tcbd_drv_ip.h"
+#include "tcc_fic_decoder.h"
 
 #include "tcbd_hal.h"
 
 /* #define TDMB_DEBUG_SCAN */
+
+static DEFINE_MUTEX(tcc3170_mutex);
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static bool scan_done;
@@ -138,6 +141,8 @@ static void tcc3170_power_off(void)
 {
 	DPRINTK("call TDMB_PowerOff !\n");
 
+	mutex_lock(&tcc3170_mutex);
+
 	if (tcc3170_pwr_on) {
 		tcc3170_on_air = false;
 
@@ -153,6 +158,9 @@ static void tcc3170_power_off(void)
 
 		tcc3170_pwr_on = false;
 	}
+
+	mutex_unlock(&tcc3170_mutex);
+
 }
 
 static bool tcc3170_power_on(void)
@@ -272,6 +280,7 @@ static s32 __set_frequency(unsigned long freqKHz, bool scan_mode)
 	u8 status;
 
 	tcbd_disable_irq(&tcc3170_device, 0);
+	tcc_fic_parser_init();
 	ret = tcbd_tune_frequency(&tcc3170_device, freqKHz, 1500);
 	if (ret < 0) {
 		DPRINTK("tcbd_tune_frequency fail %d\n", ret);
@@ -374,10 +383,16 @@ static void tcc3170_pull_data(void)
 	s8 irq_error;
 	static u8 buff_read[TCBD_MAX_THRESHOLD*2];
 
+	if (!tcc3170_pwr_on)
+		return;
+
+	mutex_lock(&tcc3170_mutex);
+
 	ret = tcbd_read_irq_status(&tcc3170_device, &irq_status, &irq_error);
+	ret |= tcbd_clear_irq(&tcc3170_device, irq_status);
 	ret |= tcbd_read_stream(&tcc3170_device, buff_read, &size);
 	if (ret == 0 && !irq_error) {
-		tcbd_split_stream(buff_read, size);
+		tcbd_split_stream(0, buff_read, size);
 	} else {
 		DPRINTK("### buffer is full, skip the data "
 			"(ret:%d, status=0x%02X, error=0x%02X)  ###\n",
@@ -388,26 +403,13 @@ static void tcc3170_pull_data(void)
 			tcc3170_device.selected_buff,
 			tcc3170_device.intr_threshold);
 		/*tcbd_reset_ip(device, TCBD_SYS_COMP_ALL, TCBD_SYS_COMP_EP);*/
-		tcbd_init_parser(NULL);
+		tcbd_init_parser(0, NULL);
 	}
-	ret = tcbd_read_irq_status(&tcc3170_device, &irq_status, &irq_error);
-	if (ret != 0 || irq_error != 0) {
-		DPRINTK("### buffer is full, skip the data "
-			"(ret:%d, status=0x%02X, error=0x%02X)  ###\n",
-				ret, irq_status, irq_error);
-		tcbd_init_stream_data_config(&tcc3170_device,
-			ENABLE_CMD_FIFO,
-			tcc3170_device.selected_buff,
-			tcc3170_device.intr_threshold);
-		/*tcbd_reset_ip(
-			device, TCBD_SYS_COMP_ALL, TCBD_SYS_COMP_EP);*/
-		tcbd_init_parser(NULL);
-
-	}
-	tcbd_clear_irq(&tcc3170_device, irq_status);
+	mutex_unlock(&tcc3170_mutex);
 }
 
 static s32 __stream_callback(
+	s32 _dev_idx,
 	u8 *_stream,
 	s32 _size,
 	u8 _subch_id,
@@ -453,7 +455,7 @@ static bool tcc3170_init(void)
 #else
 #error
 #endif
-	tcbd_init_parser(__stream_callback);
+	tcbd_init_parser(0, __stream_callback);
 
 	return true;
 }

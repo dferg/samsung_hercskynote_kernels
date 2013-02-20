@@ -97,12 +97,12 @@ static bool g_debug_switch = true;
 static bool g_debug_switch = false;
 #endif
 
-static const struct i2c_device_id melfas_touchkey_id[] = {
-	{"melfas_touchkey", 0},
+static const struct i2c_device_id sec_touchkey_id[] = {
+	{"sec_touchkey", 0},
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, melfas_touchkey_id);
+MODULE_DEVICE_TABLE(i2c, sec_touchkey_id);
 
 static void init_hw(void);
 static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device_id *id);
@@ -116,10 +116,10 @@ static int press_check = 0;
 
 struct i2c_driver touchkey_i2c_driver = {
 	.driver = {
-		.name = "melfas_touchkey_driver",
+		.name = "sec_touchkey_driver",
 		.owner	= THIS_MODULE,
 	},
-	.id_table = melfas_touchkey_id,
+	.id_table = sec_touchkey_id,
 	.probe = i2c_touchkey_probe,
 };
 
@@ -221,7 +221,7 @@ void touchkey_work_func(struct work_struct *p)
     int retry = 10;
 
     set_touchkey_debug('a');
-    printk("[TKEY] INPIN %d\n",gpio_get_value_cansleep(GPIO_TOUCHKEY));
+//    printk("[TKEY] INPIN %d\n",gpio_get_value_cansleep(GPIO_TOUCHKEY));
 
     ret = i2c_touchkey_read(KEYCODE_REG, data, 1);
     printk("[0]%d [1]%d [2]%d\n", data[0],data[1], data[2]);
@@ -334,7 +334,7 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)  // ks 79 - threaded
 
 #if defined (CONFIG_KOR_MODEL_SHV_E120L) || defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
 	if (data[0] & UPDOWN_EVENT_BIT) {
-		if(press_check == data[0] & KEYCODE_BIT){
+		if(press_check == (data[0] & KEYCODE_BIT)){
 			input_report_key(touchkey_driver->input_dev, touchkey_keycode[data[0] & KEYCODE_BIT], 0);
 			touchkey_pressed &= ~(1 << (data[0] & KEYCODE_BIT));
 			input_sync(touchkey_driver->input_dev);
@@ -439,13 +439,15 @@ static int touchkey_auto_calibration(int autocal_on_off)
 
 }
 
-static int melfas_touchkey_reboot(void)
+static int sec_touchkey_reboot(void)
 {
     int index =0;
     int ret = 0;
+#if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
     signed char int_data[] ={0x80};
+#endif
     touchkey_enable = 0;
-    printk(KERN_ERR "melfas_touchkey_reboot S\n");
+    printk(KERN_ERR "sec_touchkey_reboot S\n");
 
 
     disable_irq(IRQ_TOUCHKEY_INT);
@@ -567,22 +569,24 @@ static int melfas_touchkey_reboot(void)
 	if (get_hw_rev() >= 0x01)
 		ret = touchkey_auto_calibration(1/*on*/);
 #endif 
-	i2c_touchkey_write(&touchkey_led_status, 1);
-	printk(KERN_ERR "melfas_touchkey_reboot E\n");
+	i2c_touchkey_write((u8 *)&touchkey_led_status, 1);
+	printk(KERN_ERR "sec_touchkey_reboot E\n");
 	return 0;
 
 }
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void melfas_touchkey_early_suspend(struct early_suspend *h)
+static void sec_touchkey_early_suspend(struct early_suspend *h)
 {
     int index =0;
+#if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
     int ret = 0;
     signed char int_data[] ={0x80};
+#endif
     touchkey_enable = 0;
     set_touchkey_debug('S');
-    printk(KERN_DEBUG "melfas_touchkey_early_suspend\n");
+    printk(KERN_DEBUG "sec_touchkey_early_suspend\n");
 
     if (touchkey_enable < 0) {
         printk("---%s---touchkey_enable: %d\n", __FUNCTION__, touchkey_enable);
@@ -643,14 +647,14 @@ static void melfas_touchkey_early_suspend(struct early_suspend *h)
 
 }
 
-static void melfas_touchkey_early_resume(struct early_suspend *h)
+static void sec_touchkey_early_resume(struct early_suspend *h)
 {
 	int ret =0;
 	// int err = 0;
 	// int rc = 0;
 
 	set_touchkey_debug('R');
-	printk(KERN_DEBUG "[TKEY] melfas_touchkey_early_resume\n");
+	printk(KERN_DEBUG "[TKEY] sec_touchkey_early_resume\n");
 	if (touchkey_enable < 0) {
 		printk("[TKEY] %s touchkey_enable: %d\n", __FUNCTION__, touchkey_enable);
 		return;
@@ -708,7 +712,7 @@ static void melfas_touchkey_early_resume(struct early_suspend *h)
 			msleep(150);
 			if(!touchkey_enable )
 				touchkey_enable = 1; 
-			i2c_touchkey_write(&touchkey_led_status, 1);
+			i2c_touchkey_write((u8 *)&touchkey_led_status, 1);
 			printk("[TKEY] LED RESERVED !! LED returned on touchkey_led_status = %d\n", touchkey_led_status);
 	}
 #if  defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
@@ -730,7 +734,7 @@ static void melfas_touchkey_early_resume(struct early_suspend *h)
 			if(ret <0)
 			{
 				printk(KERN_ERR "Calibration failed. Touchkey reboot!! ret = %d\n",ret);
-				melfas_touchkey_reboot();
+				sec_touchkey_reboot();
 			}
 		}
 
@@ -740,7 +744,7 @@ static void melfas_touchkey_early_resume(struct early_suspend *h)
 			if(ret <0)
 			{
 				printk(KERN_ERR "Calibration failed. Touchkey reboot!! ret = %d\n",ret);
-				melfas_touchkey_reboot();
+				sec_touchkey_reboot();
 			}
 		}
 	#endif
@@ -755,7 +759,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 	int err = 0;
        int touch_auto_calibration_on_off = 0;
 	u8 data[6];
-	printk("[TKEY] melfas i2c_touchkey_probe\n");
+	printk("[TKEY] sec i2c_touchkey_probe\n");
 
 	touchkey_driver =
 	    kzalloc(sizeof(struct i2c_touchkey_driver), GFP_KERNEL);
@@ -766,7 +770,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 
 	touchkey_driver->client = client;
 	touchkey_driver->client->irq = IRQ_TOUCHKEY_INT;
-	strlcpy(touchkey_driver->client->name, "melfas-touchkey", I2C_NAME_SIZE);
+	strlcpy(touchkey_driver->client->name, "sec-touchkey", I2C_NAME_SIZE);
 
 	input_dev = input_allocate_device();
 
@@ -776,7 +780,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 	touchkey_driver->input_dev = input_dev;
 
 	input_dev->name = DEVICE_NAME;
-	input_dev->phys = "melfas-touchkey/input0";
+	input_dev->phys = "sec-touchkey/input0";
 	input_dev->id.bustype = BUS_HOST;
 
 #if  defined (CONFIG_KOR_MODEL_SHV_E120L)	
@@ -821,8 +825,8 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     //	touchkey_driver->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING + 1;
-    touchkey_driver->early_suspend.suspend = melfas_touchkey_early_suspend;
-    touchkey_driver->early_suspend.resume = melfas_touchkey_early_resume;
+    touchkey_driver->early_suspend.suspend = sec_touchkey_early_suspend;
+    touchkey_driver->early_suspend.resume = sec_touchkey_early_resume;
     register_early_suspend(&touchkey_driver->early_suspend);
 #endif
 
@@ -927,7 +931,7 @@ struct file_operations touchkey_update_fops = {
 
 static struct miscdevice touchkey_update_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "melfas_touchkey",
+	.name = "sec_touchkey",
 	.fops = &touchkey_update_fops,
 };
 
@@ -1093,7 +1097,7 @@ static ssize_t touch_led_control(struct device *dev, struct device_attribute *at
 		
 		if(g_debug_switch)
 			printk(KERN_DEBUG "touch_led_control int_data: %d  %d\n", int_data, data);
-		errnum = i2c_touchkey_write(&int_data, 1);
+		errnum = i2c_touchkey_write((u8 *)&int_data, 1);
 		if(errnum==-ENODEV) {
 			touchled_cmd_reversed = 1;
 		}		
@@ -1319,6 +1323,7 @@ static ssize_t touch_sensitivity_control(struct device *dev, struct device_attri
 	return size;
 }
 
+#if 0
 static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	/*TO DO IT */
@@ -1326,6 +1331,7 @@ static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_
 	count = sprintf(buf, "0x%x\n", FIRMWARE_VERSION);
 	return count;
 }
+#endif
 
 static ssize_t set_touchkey_update_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1632,7 +1638,7 @@ static int __init touchkey_init(void)
 		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_brightness.attr.name);
 	}
 
-	touchkey_wq = create_singlethread_workqueue("melfas_touchkey_wq");
+	touchkey_wq = create_singlethread_workqueue("sec_touchkey_wq");
 	if (!touchkey_wq)
 		return -ENOMEM;
 
@@ -1656,7 +1662,7 @@ static int __init touchkey_init(void)
 #endif
 
 	while (retry--) {
-		if (get_touchkey_firmware(data) == 0)	//melfas need delay for multiple read
+		if (get_touchkey_firmware(data) == 0)	//sec need delay for multiple read
 			break;
 		else
 			printk("[TKEY] f/w read fail retry %d\n", retry);
@@ -1737,7 +1743,7 @@ static int __init touchkey_init(void)
 	ret = i2c_add_driver(&touchkey_i2c_driver);
 
 	if (ret) {
-		printk ("melfas touch keypad registration failed, module not inserted.ret= %d\n", ret);
+		printk ("sec touch keypad registration failed, module not inserted.ret= %d\n", ret);
 	}
     printk("[TKEY] touchkey_init END \n");
 	return ret;
@@ -1757,4 +1763,4 @@ module_exit(touchkey_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("@@@");
-MODULE_DESCRIPTION("melfas touch keypad");
+MODULE_DESCRIPTION("sec touch keypad");

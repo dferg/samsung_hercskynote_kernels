@@ -510,6 +510,11 @@ int hci_dev_open(__u16 dev)
 
 	hci_req_lock(hdev);
 
+	if (test_bit(HCI_UNREGISTER, &hdev->flags)) {
+		ret = -ENODEV;
+		goto done;
+	}
+
 	if (hdev->rfkill && rfkill_blocked(hdev->rfkill)) {
 		ret = -ERFKILL;
 		goto done;
@@ -530,6 +535,19 @@ int hci_dev_open(__u16 dev)
 	if (hdev->open(hdev)) {
 		ret = -EIO;
 		goto done;
+	}
+
+	if (!skb_queue_empty(&hdev->cmd_q)) {
+		BT_ERR("command queue is not empty, purging");
+		skb_queue_purge(&hdev->cmd_q);
+	}
+	if (!skb_queue_empty(&hdev->rx_q)) {
+		BT_ERR("rx queue is not empty, purging");
+		skb_queue_purge(&hdev->rx_q);
+	}
+	if (!skb_queue_empty(&hdev->raw_q)) {
+		BT_ERR("raw queue is not empty, purging");
+		skb_queue_purge(&hdev->raw_q);
 	}
 
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
@@ -1563,6 +1581,8 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
+	set_bit(HCI_UNREGISTER, &hdev->flags);
+
 	write_lock_bh(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock_bh(&hci_dev_list_lock);
@@ -1904,10 +1924,6 @@ static int hci_send_frame(struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
-    // samsung bluetooth feature : add event for celox [
-    hci_notify(hdev, HCI_DEV_WRITE);  
-    // ]
-    
 	return hdev->send(skb);
 }
 

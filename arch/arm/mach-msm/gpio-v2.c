@@ -77,6 +77,7 @@ enum msm_tlmm_register {
 	SDC3_HDRV_PULL_CTL = 0x20a4,
 	SDC1_HDRV_PULL_CTL = 0x20a0,
 };
+
 #ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
 enum msm_tlmm_Spkr_Hdrv_register {
 	CODEC_SPKR_HDRV_PULL_CTL = 0x20a8,
@@ -124,12 +125,14 @@ struct irq_chip msm_gpio_irq_extn = {
 	.irq_set_wake	= NULL,
 	.irq_disable	= NULL,
 };
+
 #ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
 static const struct tlmm_field_cfg tlmm_codec_spkr_hdrv_cfgs[] = {
 	{CODEC_SPKR_HDRV_PULL_CTL,6}, /*CODEC_SPKR_SCK_HDRV */
 	{CODEC_SPKR_HDRV_PULL_CTL,3}, /*CODEC_SPKR_WS_HDRV */
 	{CODEC_SPKR_HDRV_PULL_CTL,0}, /*CODEC_SPKR_DOUT_HDRV */
 };
+
 static const struct tlmm_field_cfg tlmm_codec_spkr_pull_cfgs[] = {
 	{CODEC_SPKR_HDRV_PULL_CTL,11}, /*CODEC_SPKR_SCK_PULL */
 	{CODEC_SPKR_HDRV_PULL_CTL,9}, /*CODEC_SPKR_WS_PULL */
@@ -652,6 +655,7 @@ void msm_tlmm_set_spkr_pull(enum msm_tlmm_spkr_pull_tgt tgt, int drv_str)
 }
 EXPORT_SYMBOL(msm_tlmm_set_spkr_pull);
 #endif
+
 int gpio_tlmm_config(unsigned config, unsigned disable)
 {
 	uint32_t flags;

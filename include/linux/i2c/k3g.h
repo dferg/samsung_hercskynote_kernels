@@ -31,9 +31,8 @@ struct k3g_platform_data {
 	u8 negate_z;
 	int (*init)(void);
 	void (*exit)(void);
-	int (*power_on)(void);
-	int (*power_off)(void);
-	int (*get_irq)(void);
+	void (*power_on)(void);
+	void (*power_off)(void);
 };
 
 struct gyro_platform_data {

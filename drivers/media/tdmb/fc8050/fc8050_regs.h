@@ -34,11 +34,7 @@ extern "C" {
 
 /* X-TAL Frequency Configuration */
 /* #define FC8050_FREQ_XTAL  16384 */
-#ifdef CONFIG_KOR_MODEL_SHV_E140L
-#define FC8050_FREQ_XTAL  24576
-#else
 #define FC8050_FREQ_XTAL    19200
-#endif
 /* #define FC8050_FREQ_XTAL  24576 */
 /* #define FC8050_FREQ_XTAL  27000 */
 /* #define FC8050_FREQ_XTAL  38400 */

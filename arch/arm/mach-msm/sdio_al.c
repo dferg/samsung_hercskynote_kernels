@@ -494,11 +494,6 @@ module_param(debug_data_on, int, 0);
 static int debug_close_on = 1;
 module_param(debug_close_on, int, 0);
 
-#if defined(CONFIG_USA_OPERATOR_ATT) && (defined(CONFIG_TARGET_SERIES_P5LTE) || defined(CONFIG_TARGET_SERIES_P8LTE))
-int mdm_bootloader_done = 0;
-EXPORT_SYMBOL(mdm_bootloader_done);
-#endif
-
 /** The driver context */
 static struct sdio_al *sdio_al;
 
@@ -1484,9 +1479,6 @@ static void boot_worker(struct work_struct *work)
 done:
 	pr_debug(MODULE_NAME ":Boot Worker for card %d Exit!\n",
 		sdio_al_dev->host->index);
-#if defined(CONFIG_USA_OPERATOR_ATT) && (defined(CONFIG_TARGET_SERIES_P5LTE) || defined(CONFIG_TARGET_SERIES_P8LTE))
-	mdm_bootloader_done = 1;
-#endif
 }
 
 /**
@@ -1805,7 +1797,6 @@ static int sdio_al_bootloader_setup(void)
 		goto exit_err;
 	}
 
-#if 0		// test code : block version check... lewis.kim 2011.06.19
 	/* Upper byte has to be equal - no backward compatibility for unequal */
 	if ((bootloader_dev->sdioc_boot_sw_header->version >> 16) !=
 	    (sdio_al->pdata->peer_sdioc_boot_version_major)) {
@@ -1818,7 +1809,6 @@ static int sdio_al_bootloader_setup(void)
 		ret = -EIO;
 		goto exit_err;
 	}
-#endif
 
 	sdio_al_logi(bootloader_dev->dev_log, MODULE_NAME ": SDIOC BOOT SW "
 			"version 0x%x\n",
@@ -1989,8 +1979,8 @@ static int read_sdioc_software_header(struct sdio_al_device *sdio_al_dev,
 			ch->state = SDIO_CHANNEL_STATE_INVALID;
 		}
 
-		sdio_al_logi(sdio_al_dev->dev_log, MODULE_NAME ":Channel=%s, "
-				"state=%d\n", ch->name,	ch->state);
+//		sdio_al_logi(sdio_al_dev->dev_log, MODULE_NAME ":Channel=%s, "
+//				"state=%d\n", ch->name,	ch->state);
 	}
 
 	return 0;
@@ -3621,6 +3611,12 @@ static void msm_sdio_al_shutdown(struct platform_device *pdev)
 		}
 		sdio_al_dev = sdio_al->devices[i];
 
+		sdio_al_dev->bootloader_done = 1;
+		wake_up(&sdio_al_dev->wait_mbox);
+
+		sdio_al_logi(&sdio_al->gen_log, MODULE_NAME
+			"set bootloader_done event set...");
+
 		if (sdio_al_claim_mutex_and_verify_dev(sdio_al_dev, __func__))
 			return;
 
@@ -4364,11 +4360,7 @@ static int __init sdio_al_init(void)
 		goto exit;
 	}
 
-	ret = sdio_register_driver(&sdio_al_sdiofn_driver);
-	if (ret) {
-		pr_err(MODULE_NAME ": sdio_register_driver failed: %d\n", ret);
-		goto exit;
-	}
+	sdio_register_driver(&sdio_al_sdiofn_driver);
 
 	spin_lock_init(&sdio_al->gen_log.log_lock);
 

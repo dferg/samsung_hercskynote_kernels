@@ -65,8 +65,3 @@ endif
 obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)                += issp_driver_routines.o
 obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)                += issp_main.o
 obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)                += issp_routines.o
-
-ifeq ($(TARGET_BUILD_VARIANT), eng)
-KBUILD_CFLAGS		+= -DDEBUG_TKEY_I717
-endif
-

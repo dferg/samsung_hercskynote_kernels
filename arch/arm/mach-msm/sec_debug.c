@@ -165,20 +165,14 @@ unsigned int sec_dbg_buf_size	= 0;
 #ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 
 static struct task_info gExcpTaskLog[2][SCHED_LOG_MAX] __cacheline_aligned;
-static struct irq_log gExcpIrqLog[2][SCHED_LOG_MAX] __cacheline_aligned;
-static struct enterexit_log gExcpIrqEnterExitLog[2][SCHED_LOG_MAX] __cacheline_aligned;
-static struct timer_log gExcpTimerLog[2][SCHED_LOG_MAX] __cacheline_aligned;
+// static struct irq_log gExcpIrqLog[2][SCHED_LOG_MAX] __cacheline_aligned;
+// static struct enterexit_log gExcpIrqEnterExitLog[2][SCHED_LOG_MAX] __cacheline_aligned;
+// static struct timer_log gExcpTimerLog[2][SCHED_LOG_MAX] __cacheline_aligned;
 #ifdef CONFIG_SEC_DEBUG_DCVS_LOG
 static struct dcvs_debug gExcpDcvsLog[DCVS_LOG_MAX] __cacheline_aligned;
 #endif
-#ifdef CONFIG_SEC_DEBUG_FUELGAUGE_LOG
-static struct fuelgauge_debug gExcpFGLog[FG_LOG_MAX] __cacheline_aligned;
-#endif
-#ifdef CONFIG_SEC_DEBUG_MDP_LOG
-static struct mdp_log gExcpMDPLog[MDP_LOG_MAX] __cacheline_aligned;
-#endif
 #ifdef CONFIG_SEC_DEBUG_POWERCOLLAPSE_LOG
-static struct powercollapse_log gExcpPowerCollapseLog[POWERCOLLAPSE_LOG_MAX] __cacheline_aligned;
+// static struct powercollapse_log gExcpPowerCollapseLog[POWERCOLLAPSE_LOG_MAX] __cacheline_aligned;
 #endif
 #ifdef CONFIG_SEC_DEBUG_SDIO_LOG
 static struct sdio_log gExcpSDIOLog[SDIO_LOG_MAX] __cacheline_aligned;
@@ -227,10 +221,16 @@ struct sec_debug_nocache{
 #ifdef CONFIG_SEC_DEBUG_REGRW_LOG
 	struct regrw_log gExcpRegRWLog[2][REGRW_LOG_MAX] ;
 #endif
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+	struct workq_info gExcpWorkqLog[2][SCHED_LOG_MAX];
+#endif
 	atomic_t gExcpTaskLogIdx[2];
 	atomic_t gExcpIrqLogIdx[2];
 	atomic_t gExcpIrqEnterExitLogIdx[2];
 	atomic_t gExcpTimerLogIdx[2];
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+	atomic_t gExcpWorkqLogIdx[2];
+#endif
 #ifdef CONFIG_SEC_DEBUG_DCVS_LOG
 	atomic_t gExcpDcvsLogIdx;	
 #endif
@@ -541,6 +541,7 @@ static void sec_debug_set_upload_magic(unsigned magic)
 static int sec_debug_normal_reboot_handler(struct notifier_block *nb,
 					    unsigned long l, void *p)
 {
+	enable = 0; /* can't go to 'Ramdump Mode' */
 	sec_debug_set_upload_magic(0x0);
 
 	return 0;
@@ -629,6 +630,7 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 #endif
 
 	sec_debug_dump_stack();
+	charm_assert_panic();
 	sec_debug_hw_reset();
 
 	return 0;
@@ -707,9 +709,9 @@ void sec_debug_check_crash_key(unsigned int code, int value)
 	}
 
 	//pr_info("%s: %d %d\n", __func__, code, value);
-#if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_SHV_E120L_HD720) \
+#if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120L) \
  || defined (CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
-#if defined (CONFIG_KOR_SHV_E120L_HD720)
+#if defined (CONFIG_KOR_MODEL_SHV_E120L)
 	if(get_hw_rev() >= 0x01)//SHV_E120L
 #elif defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
 	if(get_hw_rev() >= 0x06)//SHV_E120S
@@ -824,6 +826,10 @@ __init int sec_debug_init(void)
 		atomic_set(&(sec_debug_nocache_log->gExcpIrqEnterExitLogIdx[1]),-1);
 		atomic_set(&(sec_debug_nocache_log->gExcpTimerLogIdx[0]),-1);
 		atomic_set(&(sec_debug_nocache_log->gExcpTimerLogIdx[1]),-1);
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+		atomic_set(&(sec_debug_nocache_log->gExcpWorkqLogIdx[0]),-1);
+		atomic_set(&(sec_debug_nocache_log->gExcpWorkqLogIdx[1]),-1);
+#endif
 #ifdef CONFIG_SEC_DEBUG_DCVS_LOG
 		atomic_set(&(sec_debug_nocache_log->gExcpDcvsLogIdx),-1);
 #endif
@@ -982,6 +988,21 @@ void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time
 		gExcpIrqEnterExitLog[cpu][i].elapsed_time = gExcpIrqEnterExitLog[cpu][i].end_time -start_time;
 	}
 */
+}
+#endif
+
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+void debug_workq_log(int cpu, void *fn, struct task_struct *task) {
+	unsigned i;
+
+	if (sec_debug_nocache_log)
+        {
+                i = atomic_inc_return(&(sec_debug_nocache_log->gExcpWorkqLogIdx[cpu])) & (SCHED_LOG_MAX - 1);
+
+		sec_debug_nocache_log->gExcpWorkqLog[cpu][i].fn = fn;
+		strcpy(sec_debug_nocache_log->gExcpWorkqLog[cpu][i].comm, task->comm);
+		sec_debug_nocache_log->gExcpWorkqLog[cpu][i].pid = task->pid;
+	}
 }
 #endif
 #endif /* CONFIG_SEC_DEBUG_SCHED_LOG */

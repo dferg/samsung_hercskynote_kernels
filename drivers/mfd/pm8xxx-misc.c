@@ -133,7 +133,7 @@
 #define UART_PATH_SEL_SHIFT			0x5
 
 /* Shutdown/restart delays to allow for LDO 7/dVdd regulator load settling. */
-#define PM8901_DELAY_AFTER_REG_DISABLE_MS	10
+#define PM8901_DELAY_AFTER_REG_DISABLE_MS	4
 #define PM8901_DELAY_BEFORE_SHUTDOWN_MS		8
 
 struct pm8xxx_misc_chip {
@@ -479,7 +479,9 @@ int pm8xxx_reset_pwr_off(int reset)
 	unsigned long flags;
 	int rc = 0;
 
+	printk(KERN_ERR "pm8xxx_reset_pwr_off, [1]\n");
 	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+	printk(KERN_ERR "pm8xxx_reset_pwr_off, [2]\n");
 
 	/* Loop over all attached PMICs and call specific functions for them. */
 	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
@@ -488,10 +490,14 @@ int pm8xxx_reset_pwr_off(int reset)
 			rc = __pm8018_reset_pwr_off(chip, reset);
 			break;
 		case PM8XXX_VERSION_8058:
+			printk(KERN_ERR "pm8xxx_reset_pwr_off, [3]\n");
 			rc = __pm8058_reset_pwr_off(chip, reset);
+			printk(KERN_ERR "pm8xxx_reset_pwr_off, [4]\n");
 			break;
 		case PM8XXX_VERSION_8901:
+			printk(KERN_ERR "pm8xxx_reset_pwr_off, [5]\n");
 			rc = __pm8901_reset_pwr_off(chip, reset);
+			printk(KERN_ERR "pm8xxx_reset_pwr_off, [6]\n");
 			break;
 		case PM8XXX_VERSION_8921:
 			rc = __pm8921_reset_pwr_off(chip, reset);
@@ -505,9 +511,9 @@ int pm8xxx_reset_pwr_off(int reset)
 			break;
 		}
 	}
-
+	printk(KERN_ERR "pm8xxx_reset_pwr_off, [7]\n");
 	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
-
+	printk(KERN_ERR "pm8xxx_reset_pwr_off, [8]\n");
 	return rc;
 }
 EXPORT_SYMBOL_GPL(pm8xxx_reset_pwr_off);
@@ -947,10 +953,6 @@ EXPORT_SYMBOL(pm8xxx_uart_gpio_mux_ctrl);
 static int __pm8901_preload_dVdd(struct pm8xxx_misc_chip *chip)
 {
 	int rc;
-
-	/* dVdd preloading is not needed for PMIC PM8901 rev 2.3 and beyond. */
-	if (pm8xxx_get_revision(chip->dev->parent) >= PM8XXX_REVISION_8901_2p3)
-		return 0;
 
 	rc = pm8xxx_writeb(chip->dev->parent, 0x0BD, 0x0F);
 	if (rc)

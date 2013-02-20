@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/sec_param.h>
+#include <linux/module.h>		//SATHYA_JB_MAIN
 
 #define PARAM_RD	0
 #define PARAM_WR	1
@@ -31,7 +32,7 @@ static bool param_sec_operation(void *value, int offset, int size, int direction
 	int ret = true;
 	int flag = (direction == PARAM_WR) ? (O_RDWR | O_SYNC) : O_RDONLY;
 
-	pr_debug("%s %x %x %d %d\n", __func__, value, offset, size, direction);
+	pr_debug("%s %x %x %d %d\n", __func__, (int)value, offset, size, direction);
 
 	filp = filp_open(SEC_PARAM_FILE_NAME, flag, 0);
 

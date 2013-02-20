@@ -708,7 +708,7 @@ void RemoveTargetVDD(void)
 	printk("[TKEY] %s: tkey_vdd_enable(OFF)\n", __func__);
 #endif
 	tkey_vdd_enable(0);
-    #endif
+#endif	
     //gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
 }
 #endif

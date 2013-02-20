@@ -24,6 +24,9 @@
 #include <linux/i2c/k3dh.h>
 #include "k3dh_reg.h"
 #include <mach/gpio.h>
+#ifdef SENSORS_LOG_DUMP
+#include <linux/i2c/sensors_core.h>
+#endif
 
 
 #define k3dh_dbgmsg(str, args...) pr_debug("%s: " str, __func__, ##args)
@@ -110,9 +113,7 @@ static int k3dh_read_accel_raw_xyz(struct k3dh_data *k3dh, struct k3dh_acc *acc)
 
 #if defined (CONFIG_TARGET_LOCALE_KOR) || defined (CONFIG_JPN_MODEL_SC_03D)|| defined(CONFIG_USA_MODEL_SGH_I727)|| defined(CONFIG_USA_MODEL_SGH_T989) \
  || defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_EUR_MODEL_GT_I9210) || defined(CONFIG_USA_MODEL_SGH_I957) \
- || defined(CONFIG_USA_MODEL_SGH_I757)|| defined (CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I577) \
- || defined(CONFIG_KOR_MODEL_SHV_E140S)|| defined (CONFIG_KOR_MODEL_SHV_E140K) || defined(CONFIG_KOR_MODEL_SHV_E140L)
-
+ || defined(CONFIG_USA_MODEL_SGH_I757)|| defined (CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I577)
 extern unsigned int get_hw_rev(void);
 #endif
 
@@ -200,10 +201,8 @@ static int k3dh_read_accel_xyz(struct k3dh_data *k3dh, struct k3dh_acc *acc)
 	}
 #elif defined (CONFIG_USA_MODEL_SGH_I577)
 	{
-                acc->x = acc->x;
-                s16 temp = acc->x;
-                acc->x = acc->y;
-                acc->y = (temp);
+		acc->x = -(acc->x);
+		acc->y = -(acc->y);
 	}
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
 	if (get_hw_rev() >= 0x04 ) 
@@ -237,7 +236,7 @@ static int k3dh_read_accel_xyz(struct k3dh_data *k3dh, struct k3dh_acc *acc)
 	#if defined(CONFIG_USA_MODEL_SGH_T989D)
 		acc->x = -(acc->x);
 		acc->y = acc->y;
-                acc->z = -(acc->z);
+                //acc->z = -(acc->z);
 	#else
                 s16 temp = acc->x;
                 acc->x = -(acc->y);
@@ -353,7 +352,8 @@ static int k3dh_open(struct inode *inode, struct file *file)
 {
 	int err = 0;
 	struct k3dh_data *k3dh = container_of(file->private_data, struct k3dh_data, k3dh_device);
-
+	
+	file->private_data = k3dh;
 	if (atomic_read(&k3dh->opened) == 0) {
 		err = k3dh_open_calibration(k3dh);
 		if (err < 0)
@@ -376,7 +376,7 @@ static int k3dh_open(struct inode *inode, struct file *file)
 static int k3dh_close(struct inode *inode, struct file *file)
 {
 	int err = 0;
-	struct k3dh_data *k3dh = container_of(file->private_data, struct k3dh_data, k3dh_device);
+	struct k3dh_data *k3dh = file->private_data;
 
 	atomic_sub(1, &k3dh->opened);
 	if (atomic_read(&k3dh->opened) == 0) {
@@ -443,7 +443,7 @@ static int k3dh_set_delay(struct k3dh_data *k3dh, s64 delay_ns)
 static long k3dh_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
-	struct k3dh_data *k3dh = container_of(file->private_data, struct k3dh_data, k3dh_device);
+	struct k3dh_data *k3dh = file->private_data;
 	struct k3dh_acc data;
 	s64 delay_ns;
 
@@ -608,8 +608,7 @@ static ssize_t k3dh_calibration_show(struct device *dev, struct device_attribute
 		pr_err("[ACC] %s: k3dh_open_calibration() failed\n", __func__);
 	if (k3dh->cal_data.x == 0 && k3dh->cal_data.y== 0 && k3dh->cal_data.z == 0)
 		err = -1;
-#if defined(CONFIG_USA_MODEL_SGH_I717) || defined(CONFIG_USA_MODEL_SGH_I577) || defined (CONFIG_USA_MODEL_SGH_T769) ||\
-	defined (CONFIG_USA_MODEL_SGH_T989) || defined (CONFIG_USA_MODEL_SGH_I727) || defined (CONFIG_USA_MODEL_SGH_I757)
+#if defined(CONFIG_USA_MODEL_SGH_I577) || defined (CONFIG_USA_MODEL_SGH_T769) || defined (CONFIG_USA_MODEL_SGH_I757) || defined (CONFIG_USA_MODEL_SGH_I727)
 	return sprintf(buf, "%d %d %d %d\n", err, k3dh->cal_data.x, k3dh->cal_data.y, k3dh->cal_data.z);
 #else
 	return sprintf(buf, "%d %d %d\n", k3dh->cal_data.x, k3dh->cal_data.y, k3dh->cal_data.z);
@@ -655,13 +654,15 @@ static int k3dh_probe(struct i2c_client *client,
 	struct k3dh_data *k3dh;
 	struct device *dev_t, *dev_cal;
 	struct k3dh_platform_data *pdata = client->dev.platform_data;
-	int err;
+	int err = 0, which = 0;
 
 	printk("k3dh probe start!!\n");
 
 	if (!pdata) {
 		pr_err("%s: missing pdata!\n", __func__);
-		return -ENODEV;
+		which = 0x01;
+		err = -ENODEV;
+		goto exit;
 	}
 
 	if (!i2c_check_functionality(client->adapter,
@@ -669,6 +670,7 @@ static int k3dh_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		pr_err("%s: i2c functionality check failed!\n", __func__);
 		err = -ENODEV;
+		which = 0x02;
 		goto exit;
 	}
 
@@ -677,6 +679,7 @@ static int k3dh_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 				"failed to allocate memory for module data\n");
 		err = -ENOMEM;
+		which = 0x03;
 		goto exit;
 	}
 
@@ -701,10 +704,10 @@ static int k3dh_probe(struct i2c_client *client,
 	k3dh->k3dh_device.minor = MISC_DYNAMIC_MINOR;
 	k3dh->k3dh_device.name = "accelerometer";
 	k3dh->k3dh_device.fops = &k3dh_fops;
-
 	err = misc_register(&k3dh->k3dh_device);
 	if (err) {
 		pr_err("%s: misc_register failed\n", __FILE__);
+		which = 0x04;
 		goto err_misc_register;
 	}
 
@@ -713,6 +716,7 @@ static int k3dh_probe(struct i2c_client *client,
 	if (IS_ERR(k3dh->acc_class)) {
 		pr_err("%s: class create failed(accelerometer)\n", __func__);
 		err = PTR_ERR(k3dh->acc_class);
+		which = 0x05;
 		goto err_class_create;
 	}
 
@@ -721,6 +725,7 @@ static int k3dh_probe(struct i2c_client *client,
 	if (IS_ERR(dev_t)) {
 		pr_err("%s: device create failed(accelerometer)\n", __func__);
 		err = PTR_ERR(dev_t);
+		which = 0x06;
 		goto err_acc_device_create;
 	}
 
@@ -728,6 +733,7 @@ static int k3dh_probe(struct i2c_client *client,
 	if (err < 0) {
 		pr_err("%s: Failed to create device file(%s)\n",
 				__func__, dev_attr_acc_file.attr.name);
+		which = 0x07;
 		goto err_acc_device_create_file;
 	}
 
@@ -735,7 +741,8 @@ static int k3dh_probe(struct i2c_client *client,
 	if (err < 0) {
 		pr_err("%s: Failed to create device file2(%s)\n",
 				__func__, dev_attr_acc_hwrev.attr.name);
-		goto err_acc_device_create_file;  
+		which = 0x08;
+		goto err_acc_device_create_file_hwrev;  
 	}
 	
 	dev_set_drvdata(dev_t, k3dh);
@@ -745,6 +752,7 @@ static int k3dh_probe(struct i2c_client *client,
 	if (IS_ERR(dev_cal)) {
 		pr_err("%s: class create failed(gsensorcal)\n", __func__);
 		err = PTR_ERR(dev_cal);
+		which = 0x09;
 		goto err_cal_device_create;
 	}
 
@@ -752,19 +760,24 @@ static int k3dh_probe(struct i2c_client *client,
 	if (err < 0) {
 		pr_err("%s: Failed to create device file(%s)\n",
 				__func__, dev_attr_calibration.attr.name);
+		which = 0x0a;
 		goto err_cal_device_create_file;
 	}
 	dev_set_drvdata(dev_cal, k3dh);
 
 	printk("k3dh probe success!!\n");
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_accel(0, 0);
+#endif
 
 	return 0;
 
 err_cal_device_create_file:
 	device_destroy(sec_class, 0);
 err_cal_device_create:
-	device_remove_file(dev_t, &dev_attr_acc_file);
 	device_remove_file(dev_t, &dev_attr_acc_hwrev);
+err_acc_device_create_file_hwrev:
+	device_remove_file(dev_t, &dev_attr_acc_file);
 err_acc_device_create_file:
 	device_destroy(k3dh->acc_class, MKDEV(ACC_DEV_MAJOR, 0));
 err_acc_device_create:
@@ -772,10 +785,15 @@ err_acc_device_create:
 err_class_create:
 	misc_deregister(&k3dh->k3dh_device);
 err_misc_register:
+	if(pdata->power_off)
+		k3dh->power_off();
 	mutex_destroy(&k3dh->read_lock);
 	mutex_destroy(&k3dh->write_lock);
 	kfree(k3dh);
 exit:
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_accel(which, err);
+#endif
 	return err;
 }
 

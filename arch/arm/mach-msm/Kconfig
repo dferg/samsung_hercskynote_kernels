@@ -168,6 +168,7 @@ config ARCH_MSM8960
 	select MULTI_IRQ_HANDLER
 	select MSM_PM8X60 if PM
 	select HOLES_IN_ZONE if SPARSEMEM
+	select MSM_KRAIT_WFE_FIXUP
 
 config ARCH_MSM8930
 	bool "MSM8930"
@@ -205,6 +206,7 @@ config ARCH_MSM8930
 	select MULTI_IRQ_HANDLER
 	select MSM_PM8X60 if PM
 	select HOLES_IN_ZONE if SPARSEMEM
+	select MSM_KRAIT_WFE_FIXUP
 
 config ARCH_APQ8064
 	bool "APQ8064"
@@ -222,6 +224,7 @@ config ARCH_APQ8064
 	select MULTI_IRQ_HANDLER
 	select MSM_PM8X60 if PM
 	select HOLES_IN_ZONE if SPARSEMEM
+	select MSM_KRAIT_WFE_FIXUP
 
 config ARCH_MSMCOPPER
 	bool "MSM Copper"
@@ -306,6 +309,9 @@ config  ARCH_MSM_SCORPIONMP
 config  ARCH_MSM_KRAITMP
 	select ARCH_MSM_KRAIT
 	select MSM_SMP
+	bool
+
+config  MSM_KRAIT_WFE_FIXUP
 	bool
 
 config  ARCH_MSM_CORTEX_A5
@@ -718,9 +724,19 @@ config SEC_KERNEL_REBASE_FOR_PMEM_OPTIMIZATION
 
 config PHYS_OFFSET
 	hex
+	default "0x40800000" if ARCH_MSM9615
+	default "0x80200000" if ARCH_APQ8064
+	default "0x80200000" if ARCH_MSM8960
+	default "0x80200000" if ARCH_MSM8930
+	default "0x80200000" if ARCH_MSMCOPPER
+	default "0x10000000" if ARCH_FSM9XXX
+	default "0x00200000" if !MSM_STACKED_MEMORY
+	default "0x00000000" if ARCH_QSD8X50 && MSM_SOC_REV_A
+	default "0x20000000" if ARCH_QSD8X50
 	default "0x48000000" if SEC_KERNEL_REBASE_FOR_PMEM_OPTIMIZATION
 	default "0x48000000" if SAMSUNG_MEMORY_LAYOUT_ARRANGE
-	default "0x40400000"
+	default "0x40400000" if ARCH_MSM8X60
+	default "0x10000000"
 
 config KERNEL_PMEM_EBI_REGION
 	bool "Enable in-kernel PMEM region for EBI"
@@ -1717,14 +1733,6 @@ choice
 			bool "SHV-E160K"
 		config KOR_MODEL_SHV_E160L
 			bool "SHV-E160L"
-		config KOR_MODEL_SHV_E140S
-			bool "SHV-E140S"
-		config KOR_MODEL_SHV_E140K
-			bool "SHV-E140K"
-		config KOR_MODEL_SHV_E140L
-			bool "SHV-E140L"
-		config KOR_MODEL_SHV_E150S
-			bool "SHV-E150S"
 			
 endchoice
 
@@ -1740,9 +1748,11 @@ choice
                         default y
 			bool "USA ATT SGH-I727"
 			
-		config USA_MODEL_SGH_I727R 
-		    bool "USA ATT SGH-I727R"
-			
+		config USA_MODEL_SGH_I727R
+                depends on (USA_MODEL_SGH_I727)
+                        default n
+                        bool "USA ATT SGH-I727R"
+	
 		config USA_MODEL_SGH_I757 
 		    bool "USA ATT SGH-I757"
 
@@ -1764,13 +1774,7 @@ config USA_MODEL_SGH_T989D
                 depends on (USA_MODEL_SGH_T989)
                 default n             
                 bool "USA TMO SGH-T989D"
-
-config BT_MGMT
-	bool "Bluetooth Mgmt"
-	default n
-	help
-	  This is for bluetooth mgmt
-
+        
 choice
 		prompt "JPN Model Name"
 		depends on TARGET_LOCALE_JPN
@@ -1802,15 +1806,27 @@ config SEC_AUDIO_DEVICE
 	help
 	  Support Sec audio Device
 
+config SEC_EXTRA_VOLUME_SOL
+	bool "Sec Extra Volume Solution"
+	default n
+	help
+		Support Sec Extra Volume Solution
+
+config SEC_DVFS
+	bool "SEC DVFS LOCK"
+	default n
+	help
+	  Support Sec DVFS Lock function
+
 config SEC_DVFS_DUAL
 	bool "DVFS DUAL BOOST"
 	default n
 	depends on SEC_DVFS
 
-config SEC_DVFS_DUAL_LOCK
-	bool "DVFS DUAL BOOST_LOCK"
+config SEC_DVFS_UNI
+	bool "DVFS UNI"
 	default n
-	depends on SEC_DVFS_DUAL
+	depends on SEC_DVFS
 
 config MSM_IDLE_WAIT_ON_MODEM
 	int "Wait for Modem to become ready for idle power collapse"
@@ -1877,6 +1893,12 @@ config MSM_PIL_TZAPPS
 	  TZApps is an image that runs in the secure processor state. It is
 	  used to decrypt data and perform secure operations on the behalf of
 	  the kernel.
+
+config MSM_PIL_VIDC
+	tristate "Video Core Boot Support"
+	depends on MSM_PIL
+	help
+	  Support for authenticating the video core image.
 
 config MSM_SCM
 	bool "Secure Channel Manager (SCM) support"
@@ -2279,10 +2301,32 @@ config MSM_L1_ERR_PANIC
 
 	  For production builds, you should probably say 'N' here.
 
+config MSM_L2_ERP_PRINT_ACCESS_ERRORS
+	bool "Report L2 master port slave/decode errors in kernel log"
+	depends on MSM_CACHE_ERP
+	help
+	  Master port errors can occur when a memory request is not properly
+	  handled by the destination slave. This can occur if the destination
+	  register does not exist or is inaccessible due to security
+	  restrictions or (in some cases) clock configuration. Enabling this
+	  option will cause a backtrace to be printed to the kernel log whenever
+	  such an error is encountered. Note that the error is reported as an
+	  interrupt rather than as an exception, meaning that the backtrace may
+	  have some skid. This option may help with debugging, though production
+	  builds should probably say 'N' here.
+config MSM_L1_ERR_LOG
+	bool "Log CPU ERP events to system memory"
+	depends on MSM_CACHE_ERP
+	help
+	  Enable logging CPU ERP events to an area of memory that will be
+	  preserved across a system reset. This may be useful for detecting and
+	  troubleshooting ERP-related system crashes in the field.
+
+	  For production builds, you may want to say 'Y' here.
 
 config MSM_L2_ERP_PORT_PANIC
 	bool "Panic on L2 master port errors"
-	depends on MSM_CACHE_ERP
+	depends on MSM_CACHE_ERP && MSM_L2_ERP_PRINT_ACCESS_ERRORS
 	help
 	  Master port errors can occur when a memory request is not properly
 	  handled by the destination slave. Enable this option to catch drivers
@@ -2334,13 +2378,7 @@ config PMIC8058_XOADC_CAL
 	bool "PMIC8058 adc calibration"
 	help
 	  Support PMIC8058 adc calibration
-
-config SEC_AUDIO_I2S_DRIVING_CURRENT
-	bool "Sec I2S Driving Current"
-	default n
-	help
-	  Support I2S driving current up
-
+endif
 
 config Q1_KOR_AUDIO
 	bool "Q1 KOR AUDIO"
@@ -2348,13 +2386,31 @@ config Q1_KOR_AUDIO
 	help
 	  Support Q1 KOR AUDIO
 
-config MSM_DCVS
-	bool "Use MSM DCVS for CPU/GPU Frequency control"
-	depends on MSM_SCM
+config NOISE_REDUCE_FOR_WIFI_ON
+	bool "noise reduce for WIFI on"
+	default n
 	help
-	  Enable support for MSM DCVS to control all CPU and GPU core frequencies.
-	  The DCVS manager allows idle driver to feed the idle information to the
-	  algorithm and the algorithm returns a frequency for the core which is
-	  passed to the frequency change driver.
+	  Support Q1 LGU+
 
-endif
+config SEC_LOG_LAST_KMSG
+	default n
+	bool "Enable /proc/last_kmsg support: if EMBEDDED"
+	help
+	  This option enables /proc/last_kmsg support.
+
+config ANDROID_WIP
+	bool "work in progress hacks for android"
+	default n
+	help
+	  This enables 'work in progress' hacks for android issues.
+
+config COMPACTION_RETRY
+	bool "retry compaction once more after direct reclaim fails"
+	default n
+	depends on COMPACTION
+	help
+	  This enables compaction retry in android.
+	  If fails to get pages even with direct reclaim,
+	  we give one more try to allocate pages with forced compaction.
+	  This might avoid oom-killer invocation.
+	  with many free pages being already there.

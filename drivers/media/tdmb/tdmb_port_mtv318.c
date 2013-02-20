@@ -45,7 +45,7 @@
 #include "tdmb.h"
 
 #define MTV318_INTERRUPT_SIZE (188*10)
-#define TDMB_DEBUG_SCAN
+/* #define TDMB_DEBUG_SCAN */
 
 static bool mtv318_on_air;
 static bool mtv318_pwr_on;
@@ -208,6 +208,8 @@ static void mtv318_pull_data(void)
 			rtv_ClearAndSetupMemory_MSC1();
 			/* MSC1 Interrupt status clear */
 			RTV_REG_SET(INT_E_UCLRL, 0x04);
+			DPRINTK("%s : int_type 0x%x\n",
+					 __func__, int_type_val1);
 		} else {
 			/* Get the frame data using CPU or DMA.
 			RTV_REG_BURST_GET() macro should implemented by user. */

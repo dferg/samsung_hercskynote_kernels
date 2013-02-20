@@ -40,6 +40,10 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
+#if defined(CONFIG_BCM4334) || defined(CONFIG_BCM4330)
+#include "../host/msm_sdcc.h"
+#endif
+
 static struct workqueue_struct *workqueue;
 
 /*
@@ -1229,8 +1233,7 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 }
 
 /*
- * Remove the current bus handler from a host. Assumes that there are
- * no interesting cards left, so the bus is powered down.
+ * Remove the current bus handler from a host.
  */
 void mmc_detach_bus(struct mmc_host *host)
 {
@@ -1246,8 +1249,6 @@ void mmc_detach_bus(struct mmc_host *host)
 	host->bus_dead = 1;
 
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	mmc_power_off(host);
 
 	mmc_bus_put(host);
 }
@@ -1814,6 +1815,7 @@ void mmc_stop_host(struct mmc_host *host)
 
 		mmc_claim_host(host);
 		mmc_detach_bus(host);
+		mmc_power_off(host);
 		mmc_release_host(host);
 		mmc_bus_put(host);
 		return;
@@ -1920,16 +1922,16 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (mmc_bus_needs_resume(host))
 		return 0;
 
-	if (host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME)
-	{
-		host->pm_flags |= MMC_PM_KEEP_POWER;
-	}
-
 	if (host->caps & MMC_CAP_DISABLE)
 		cancel_delayed_work(&host->disable);
 	if (cancel_delayed_work(&host->detect))
 		wake_unlock(&host->detect_wake_lock);
-	mmc_flush_scheduled_work();
+
+	/* If there is pending detect work abort runtime suspend*/
+	if (unlikely(work_busy(&host->detect.work)))
+		return -EAGAIN;
+	else
+		mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
@@ -1974,11 +1976,17 @@ int mmc_suspend_host(struct mmc_host *host)
 	}
 	mmc_bus_put(host);
 
-	if (!err && !mmc_card_keep_power(host)) {
-		if (!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
-			mmc_power_off(host);
-	}
+	if (!err && !mmc_card_keep_power(host))
+		mmc_power_off(host);
 
+#if defined (CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || \
+	defined (CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined (CONFIG_KOR_MODEL_SHV_E120L) || \
+	defined (CONFIG_KOR_MODEL_SHV_E110S)
+	
+#else
+	if (host->card && host->index == 2 )
+		mdelay(50);
+#endif
 	return err;
 }
 
@@ -2001,10 +2009,7 @@ int mmc_resume_host(struct mmc_host *host)
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!mmc_card_keep_power(host)) {
-			/* for BCM WIFI */
-			if (!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
-				mmc_power_up(host);
-
+			mmc_power_up(host);
 			mmc_select_voltage(host, host->ocr);
 			/*
 			 * Tell runtime PM core we just powered up the card,
@@ -2037,13 +2042,16 @@ EXPORT_SYMBOL(mmc_resume_host);
 
 /* Do the card removal on suspend if card is assumed removeable
  * Do that in pm notifier while userspace isn't yet frozen, so we will be able
- * to sync the card.
+   to sync the card.
 */
 int mmc_pm_notify(struct notifier_block *notify_block,
 					unsigned long mode, void *unused)
 {
 	struct mmc_host *host = container_of(
 		notify_block, struct mmc_host, pm_notify);
+#if defined(CONFIG_BCM4334) || defined(CONFIG_BCM4330)
+	struct msmsdcc_host *msmhost = mmc_priv(host);
+#endif
 	unsigned long flags;
 
 
@@ -2070,6 +2078,7 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			host->bus_ops->remove(host);
 
 		mmc_detach_bus(host);
+		mmc_power_off(host);
 		mmc_release_host(host);
 		host->pm_flags = 0;
 		break;
@@ -2086,8 +2095,14 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
 
-		if (host->index != 3)  // for the bcm wifi deepsleep mode, kyungjin.moon
-			mmc_detect_change(host, 0);
+#if defined(CONFIG_BCM4334) || defined(CONFIG_BCM4330)
+		if (host->card && msmhost && msmhost->pdev_id == 4)
+			printk(KERN_INFO"%s(): WLAN SKIP DETECT CHANGE\n",
+					__func__);
+		else
+#endif
+		mmc_detect_change(host, 0);
+
 	}
 
 	return 0;

@@ -140,6 +140,7 @@
 #define PRX_CONFIG_PARAM		0x00
 #define PRX_PULSE_CNT_PARAM		0x0A
 #define PRX_GAIN_PARAM			0x28	// 21
+#define LIGHT_BUFFER_NUM 5
 
 #define SENSOR_DEFAULT_DELAY		(200)
 #define SENSOR_MAX_DELAY			(2000)
@@ -166,20 +167,46 @@ static int count = 0;
 static TAOS_ALS_FOPS_STATUS taos_als_status = TAOS_ALS_CLOSED;
 static TAOS_PRX_FOPS_STATUS taos_prx_status = TAOS_PRX_CLOSED;
 static TAOS_CHIP_WORKING_STATUS taos_chip_status = TAOS_CHIP_UNKNOWN;
-static TAOS_PRX_DISTANCE_STATUS taos_prox_dist = TAOS_PRX_DIST_UNKNOWN;
+#if defined(CONFIG_USA_MODEL_SGH_T769)
+static const int adc_table[4] = {
+	15,
+	150,
+	1350,
+	13000,
+};
+#elif defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_CAN_MODEL_SGH_I577R)
+static const int adc_table[4] = {
+	15,
+	163,
+	1650,
+	15700,
+};
+#elif defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)
+static const int adc_table[4] = {
+	15,
+	160,
+	1600,
+	16000,
+};
+#else
+static const int adc_table[4] = {
+	15,
+	150,
+	1450,
+	13000,
+};
+#endif
 
 /*  i2c write routine for taos */
 static int opt_i2c_write( u8 reg, u8 *val )
 {
-    int err;
-    struct i2c_msg msg[1];
-    unsigned char data[2];
-
-    if( opt_i2c_client == NULL )
-        return -ENODEV;
-
-    data[0] = reg;
-    data[1] = *val;
+	int err;
+	struct i2c_msg msg[1];
+	unsigned char data[2];
+		if( opt_i2c_client == NULL )
+		return -ENODEV;
+	data[0] = reg;
+	data[1] = *val;
 
     msg->addr = opt_i2c_client->addr;
     msg->flags = I2C_M_WR;
@@ -193,37 +220,33 @@ static int opt_i2c_write( u8 reg, u8 *val )
     printk("[TAOS] %s %d i2c transfer error : reg = [%X], err is %d\n", __func__, __LINE__, reg, err);
     return err;
 }
-
-static int opt_i2c_read(u8 reg , u8 *val)
+/*static int opt_i2c_read(u8 reg , u8 *val)
 {
-	
 	int ret;
 	udelay(10);
 
     if( opt_i2c_client == NULL )
         return -ENODEV;
-    
 	i2c_smbus_write_byte(taos->client, (CMD_REG | reg));
-	
 	ret = i2c_smbus_read_byte(taos->client);
 	*val = ret;
 
     return ret;
-}
+}*/
 
 /*************************************************************************/
-/*		TAOS sysfs	  				         */
+/*		TAOS sysfs						*/
 /*************************************************************************/
 
-short taos_get_proximity_value()
+short taos_get_proximity_value(void)
 {
 	return ((proximity_value==1)? 0:1);
 }
 
 EXPORT_SYMBOL(taos_get_proximity_value);
 
-short IsTaosSensorOn()
-{   
+short IsTaosSensorOn(void)
+{
 	return isTaosSensor;
 }
 
@@ -365,7 +388,7 @@ static ssize_t proximity_enable_store(struct device *dev,
 #if TAOS_DEBUG
 	printk(KERN_INFO "[TAOS_PROXIMITY] %s: input value = %d \n",__func__, value);
 #endif
-    if(value==1 && proximity_enable == OFF)
+	if(value==1 && proximity_enable == OFF)
 	{
 #if defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_CAN_MODEL_SGH_I577R)
 		if(get_hw_rev() < 0xF)
@@ -425,10 +448,10 @@ static ssize_t proximity_enable_store(struct device *dev,
 			taos->led_off();
 		if(taos->power_off)
 			taos->power_off();
-#endif	
-		printk("[TAOS_PROXIMITY] Temporary : Power OFF\n");
+#endif
+	printk("[TAOS_PROXIMITY] Temporary : Power OFF\n");
 	}
-
+	return 0;
 }
 
 static ssize_t proximity_delay_show(struct device *dev,
@@ -480,8 +503,8 @@ static ssize_t proximity_data_show(struct device *dev,
         struct device_attribute *attr,
         char *buf)
 {
-	struct input_dev *input_data = to_input_dev(dev);
-	struct taos_data *data = input_get_drvdata(input_data);
+	//struct input_dev *input_data = to_input_dev(dev);
+	//struct taos_data *data = input_get_drvdata(input_data);
 
 	return sprintf(buf, "%d\n", proximity_value);
 }
@@ -690,14 +713,32 @@ static irqreturn_t taos_irq_handler(int irq, void *dev_id)
 
 static void taos_work_func_light(struct work_struct *work)
 {
+	int i=0;
 	struct taos_data *taos = container_of(work, struct taos_data, work_light);
 	int lux=0;
-
-	//read value 	
+	//state_type level_state = LIGHT_INIT;
+	//read value
 	lux =  taos_get_lux();
 
-	input_report_abs(taos->light_input_dev, ABS_MISC, lux);
-	input_sync(taos->light_input_dev);
+	for (i=0; ARRAY_SIZE(adc_table); i++)
+		if(lux <= adc_table[i])
+			break;
+
+	if(taos->light_buffer == i) {
+		if(taos->light_count++ == LIGHT_BUFFER_NUM) {
+			input_report_abs(taos->light_input_dev, ABS_MISC, lux);
+			input_sync(taos->light_input_dev);
+			taos->light_count = 0;
+			count++;
+			if (count == 10) {
+				printk("[TAOS](%d) Lux=%d, Ch[0]=%d, Ch[1]=%d\n", count, lux, cleardata, irdata);
+				count = 0;
+			}
+		}
+	} else {
+		taos->light_buffer = i;
+		taos->light_count = 0;
+	}
 }
 
 static enum hrtimer_restart taos_timer_func(struct hrtimer *timer)
@@ -758,15 +799,13 @@ static enum hrtimer_restart taos_ptimer_func(struct hrtimer *timer)
 int taos_get_lux(void)
 {
 	int i=0;
-	int ret = 0;
 	int integration_time=27; //49->27
 	int als_gain = 1;
 	int CPL = 0;
 	int Lux1=0, Lux2=0;
-	int irfactor=0, irfactor2=0;
 	int calculated_lux = 0;
 	u8 prox_int_thresh[4];
-	// add for returning -1 if the Lisght sensor had bee closed : wonjun 0816 
+	// add for returning -1 if the Lisght sensor had bee closed : wonjun 0816
 	if(taos_chip_status == TAOS_CHIP_SLEEP)
 	{
 		printk("!!! Light sensor had been off return 0\n");
@@ -813,6 +852,7 @@ int taos_get_lux(void)
 	if(calculated_lux < 0)
 		calculated_lux = 0;
 #else
+	int irfactor, irfactor2=0;
 	irfactor = 1000 * cleardata - 2000 * irdata;
 	irfactor2 = 600 * cleardata - 1131 * irdata;
 
@@ -952,7 +992,7 @@ void taos_chip_init(void)
 
 }
 
-taos_chip_on(void)
+void taos_chip_on(void)
 {
 	u8 value;
 	u8 prox_int_thresh[4];
@@ -1076,27 +1116,18 @@ static int taos_chip_off(void)
 	}
 
 	taos_chip_status = TAOS_CHIP_SLEEP;
-		
 	return (ret);
 }
 /*****************************************************************************************
- *  
- *  function    : taos_on 
- *  description : This function is power-on function for optical sensor.
- *
- *  int type    : Sensor type. Two values is available (PROXIMITY,LIGHT).
- *                it support power-on function separately.
- *                
- *                 
- */
+*  function    : taos_on
+*  description : This function is power-on function for optical sensor.
+*
+*  int type    : Sensor type. Two values is available (PROXIMITY,LIGHT).
+*                it support power-on function separately.
+*/
 
 void taos_on(struct taos_data *taos, int type)
 {
-	u8 value;
-	u8 prox_int_thresh[4];
-	int err = 0;
-	int i;
-   
 	printk("%s : type=%d (0:light, 1:prox, 2:all)\n", __func__,type);
 
        if(1)//taos_chip_status != TAOS_CHIP_WORKING)
@@ -1129,20 +1160,14 @@ void taos_on(struct taos_data *taos, int type)
 }
 
 /*****************************************************************************************
- *  
- *  function    : taos_off 
+ *  function    : taos_off
  *  description : This function is power-off function for optical sensor.
  *
  *  int type    : Sensor type. Three values is available (PROXIMITY,LIGHT,ALL).
  *                it support power-on function separately.
- *                
- *                 
  */
-
 void taos_off(struct taos_data *taos, int type)
 {
-	u8 value;
-	int err = 0;
 #ifdef TAOS_DEBUG
 	printk("%s : type=%d (0:light, 1:prox, 2:all)\n",__FUNCTION__, type);
 #endif
@@ -1193,9 +1218,6 @@ static int taos_opt_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	int err = 0;
-	int i;
-	unsigned char value;
-	int config;
 	struct input_dev *input_dev;
 	struct taos_platform_data *pdata = client->dev.platform_data;
 
@@ -1439,7 +1461,6 @@ err_input_register_device_proximity:
 err_input_allocate_device_proximity:
 	mutex_destroy(&taos->power_lock);
 	wake_lock_destroy(&prx_wake_lock);
-exit_kfree:
 	kfree(taos);
     taos = NULL;
     opt_i2c_client = NULL;
@@ -1518,33 +1539,25 @@ static int taos_opt_suspend(struct device *dev)
 	 * to wake up device.  We remove power without changing
 	 * gp2a->power_state because we use that state in resume
 	*/
-	struct i2c_client *client = to_i2c_client(dev);
-	struct taos_data *taos = i2c_get_clientdata(client);
-	u8 value;
 
 #ifdef TAOS_DEBUG
 	printk(KERN_INFO "[%s] TAOS !!suspend mode!!\n",__FUNCTION__);
 #endif
-
 	return 0;
 }
 
 static int taos_opt_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct taos_data *taos = i2c_get_clientdata(client);
 #ifdef TAOS_DEBUG
 	printk(KERN_INFO "[%s] TAOS !!resume mode!!\n",__FUNCTION__);
 #endif
-
- 	return 0;
+	return 0;
 }
 #else
 #define taos_opt_suspend NULL
 #define taos_opt_resume NULL
 #endif
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END};
 
 static const struct i2c_device_id taos_id[] = {
 	{ "taos", 0 },

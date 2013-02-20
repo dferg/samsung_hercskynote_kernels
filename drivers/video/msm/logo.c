@@ -86,7 +86,7 @@ static unsigned char anycall_progress_bar_center[] =
 	0x2E, 0xB1, 0xDB, 0x00, 0x2E, 0xB1, 0xDB, 0x00, 0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00
 };
 
-static unsigned char anycall_progress_bar[] =
+static unsigned char anycall_progress_bar[] = 
 {
 	0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00,
 	0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00, 0x33, 0x33, 0x33, 0x00,
@@ -130,7 +130,7 @@ static void memset16_rgb8888(void *_ptr, unsigned short val, unsigned count)
 	}
 }
 
-int load_565rle_image(char *filename)
+int load_565rle_image(char *filename, bool bf_supported)
 {
 	int fd, err = 0;
 	unsigned count, max;
@@ -219,7 +219,7 @@ static void memset16(void *_ptr, unsigned short val, unsigned count)
 }
 
 /* 565RLE image format: [count(2 bytes), rle(2 bytes)] */
-int load_565rle_image(char *filename)
+int load_565rle_image(char *filename, bool bf_supported)
 {
 	struct fb_info *info;
 	int fd, count, err = 0;
@@ -258,6 +258,12 @@ int load_565rle_image(char *filename)
 
 	max = fb_width(info) * fb_height(info);
 	ptr = data;
+	if (bf_supported && (info->node == 1 || info->node == 2)) {
+		err = -EPERM;
+		pr_err("%s:%d no info->creen_base on fb%d!\n",
+		       __func__, __LINE__, info->node);
+		goto err_logo_free_data;
+	}
 	bits = (unsigned short *)(info->screen_base);
 	while (count > 3) {
 		unsigned n = ptr[0];
@@ -412,7 +418,7 @@ static void progress_timer_handler(unsigned long data)
 			PROGRESS_BAR_START_Y,
 			(void*)anycall_progress_bar_right,		
 			PROGRESS_BAR_WIDTH,
-			PROGRESS_BAR_HEIGHT);
+			PROGRESS_BAR_HEIGHT);    
 		
 			progress_timer.expires = (get_jiffies_64() + (HZ/14));         
 			progress_timer.function = progress_timer_handler;         

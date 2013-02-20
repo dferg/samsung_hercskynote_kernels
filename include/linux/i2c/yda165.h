@@ -177,6 +177,9 @@ void yda165_speaker_call_onoff(int onoff);
 #endif
 
 void yda165_speaker_onoff(int onoff); 			/* speaker path amp onoff */
+#if defined(CONFIG_NOISE_REDUCE_FOR_WIFI_ON)
+void yda165_differential_speaker_onoff(int onoff); /* speaker path amp onoff */
+#endif
 void yda165_headset_onoff(int onoff); 			/* headset path amp onoff */
 void yda165_speaker_headset_onoff(int onoff); 	/* speaker+headset path amp onoff */
 void yda165_tty_onoff(int onoff); 				/* tty path amp onoff */
@@ -185,7 +188,7 @@ void yda165_tty_onoff(int onoff); 				/* tty path amp onoff */
 void yda165_headset_call_E120L_onoff(int onoff);
 #endif
 
-#if defined (CONFIG_KOR_MODEL_SHV_E120S)  || defined (CONFIG_KOR_MODEL_SHV_E120K) || defined (CONFIG_KOR_MODEL_SHV_E120L) || defined(CONFIG_EUR_MODEL_GT_I9210)
+#if defined (CONFIG_KOR_MODEL_SHV_E120S)  || defined (CONFIG_KOR_MODEL_SHV_E120K) || defined (CONFIG_KOR_MODEL_SHV_E120L) || defined (CONFIG_EUR_MODEL_GT_I9210)
 void yda165_lineout_onoff(int onoff); /* lineout path amp onoff */
 #endif
 

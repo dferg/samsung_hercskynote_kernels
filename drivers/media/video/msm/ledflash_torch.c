@@ -48,6 +48,10 @@ MODULE_LICENSE("GPL");
 extern unsigned int get_hw_rev(void);
 
 struct class *ledflash_class;
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+struct class *camera_class;
+#endif
+
 
 static int ledflash_open(struct inode *inode, struct file *file)
 {
@@ -108,12 +112,19 @@ static struct miscdevice ledflash_device = {
 	.fops = &ledflash_fops,
 };
 
+
 static DEVICE_ATTR(torch, 0660, NULL, ledflash_torch_onoff_store);
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+static DEVICE_ATTR(rear_flash, 0660, NULL, ledflash_torch_onoff_store);
+#endif
 
 static int ledflash_init(void)
 {
 	int err = 0;
 	struct device *dev_t;
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+        struct device *cam_dev_back;
+#endif
 	
 	printk("[Torch] ledflash_init\n");
 	
@@ -137,6 +148,19 @@ static int ledflash_init(void)
 	}
 
 #if defined (CONFIG_USA_MODEL_SGH_I717)
+        camera_class = class_create(THIS_MODULE, "camera");
+
+        if (IS_ERR(camera_class))
+                return PTR_ERR( camera_class );
+
+        cam_dev_back = device_create( camera_class, NULL, 0, NULL, "rear");
+
+        if (IS_ERR(cam_dev_back))
+                return PTR_ERR(cam_dev_back);
+
+        if (device_create_file(cam_dev_back, &dev_attr_rear_flash) < 0)
+                printk("Failed to create device file(%s)!\n", dev_attr_rear_flash.attr.name);
+
 	 if (get_hw_rev() >= 0x05) {
 		gpio_tlmm_config(GPIO_CFG(CAM_SW_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
  	}
@@ -150,6 +174,9 @@ static void ledflash_exit(void)
 	printk("[Torch] ledflash exit\n");
 	misc_deregister(&ledflash_device);
 	class_destroy(ledflash_class);	
+#if defined (CONFIG_USA_MODEL_SGH_I717)
+	class_destroy(camera_class);
+#endif
 }
 
 module_init(ledflash_init);

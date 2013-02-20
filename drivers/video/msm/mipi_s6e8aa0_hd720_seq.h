@@ -178,10 +178,7 @@ static char GAMMA_7500K_COND_SET_120[]={ 0xFA, 0x01,	0x4A,	0x01,	0x4D,	0x4A,	0x0
 static char GAMMA_7500K_COND_SET_110[]={ 0xFA, 0x01,	0x4A,	0x01,	0x4D,	0x33,	0x00,	0x8B,	0x97,	0xC7,	0xA2,	0xB8,	0xDA,	0xBB,	0x96,	0xC0,	0x97,	0xBB,	0xD5,	0xBB,	0x00,	0x72,	0x00,	0x66,	0x00,	0x91,	};	
 static char GAMMA_7500K_COND_SET_100[]={ 0xFA, 0x01,	0x4A,	0x01,	0x4D,	0x12,	0x00,	0x84,	0x95,	0xC6,	0xA2,	0xB7,	0xD9,	0xBA,	0x95,	0xC1,	0x96,	0xBD,	0xD6,	0xBC,	0x00,	0x6E,	0x00,	0x62,	0x00,	0x8D,	};	
 static char GAMMA_7500K_COND_SET_90[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x82,	0x1E,	0xED,	0xCB,	0xBC,	0xCF,	0xDB,	0xD4,	0xD9,	0xBB,	0xBB,	0xB9,	0xD1,	0xD3,	0xCF,	0x00,	0x6A,	0x00,	0x5F,	0x00,	0x89,	};	
-static char GAMMA_7500K_COND_SET_80[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x7B,	0x00,	0xE6,	0xCC,	0xB9,	0xD1,	0xD9,	0xD4,	0xD9,	0xBA,	0xBB,	0xB8,	0xD3,	0xD4,	0xD0,	0x00,	0x67,	0x00,	0x5B,	0x00,	0x84,	};	
 static char GAMMA_7500K_COND_SET_70[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x53,	0x00,	0xDE,	0xCC,	0xB5,	0xD1,	0xDA,	0xD3,	0xDA,	0xB9,	0xBB,	0xB9,	0xD3,	0xD5,	0xD0,	0x00,	0x63,	0x00,	0x57,	0x00,	0x7F,	};	
-static char GAMMA_7500K_COND_SET_60[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x00,	0xD4,	0xCD,	0xAF,	0xD2,	0xD9,	0xD2,	0xDA,	0xBB,	0xBB,	0xBB,	0xD3,	0xD5,	0xD0,	0x00,	0x5E,	0x00,	0x53,	0x00,	0x79,	};	
-static char GAMMA_7500K_COND_SET_50[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x00,	0xC3,	0xCE,	0xA8,	0xD3,	0xD9,	0xD1,	0xDA,	0xBB,	0xBA,	0xBB,	0xD3,	0xD5,	0xD1,	0x00,	0x59,	0x00,	0x4E,	0x00,	0x73,	};	
 static char GAMMA_7500K_COND_SET_40[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x00,	0xB4,	0xCE,	0x99,	0xD4,	0xDA,	0xCE,	0xDC,	0xBD,	0xBA,	0xBD,	0xD4,	0xD6,	0xD3,	0x00,	0x52,	0x00,	0x48,	0x00,	0x6A,	};	
 static char GAMMA_7500K_COND_SET_30[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x01,	0x9F,	0xCC,	0x6C,	0xD5,	0xDD,	0xC9,	0xDE,	0xBC,	0xB8,	0xBD,	0xD5,	0xD7,	0xD5,	0x00,	0x4B,	0x00,	0x41,	0x00,	0x61,	};	
 //static char GAMMA_7500K_COND_SET_0[]={ 0xFA, 0x01, 	0x0, 	0x0, 	0x0, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00, 	0x00,	0x00, 	0x00,	0x00, 	0x00,	0x00, 	};
@@ -189,10 +186,7 @@ static char GAMMA_7500K_COND_SET_30[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x01
 //static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_0 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_0), GAMMA_7500K_COND_SET_0};  
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_30 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_30), GAMMA_7500K_COND_SET_30};
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_40 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_40), GAMMA_7500K_COND_SET_40};
-static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_50 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_50), GAMMA_7500K_COND_SET_50};
-static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_60 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_60), GAMMA_7500K_COND_SET_60};
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_70 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_70), GAMMA_7500K_COND_SET_70};
-static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_80 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_80), GAMMA_7500K_COND_SET_80};
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_90 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_90), GAMMA_7500K_COND_SET_90};
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_100 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_100), GAMMA_7500K_COND_SET_100};
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_110 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_110), GAMMA_7500K_COND_SET_110};
@@ -217,6 +211,14 @@ static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_290 = {DTYPE_DCS_LWRITE, 1, 0, 0,
 static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_300 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_300), GAMMA_7500K_COND_SET_300};
 
 #if defined (CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I757M)
+static char GAMMA_7500K_COND_SET_80[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x7B,	0x00,	0xE6,	0xCC,	0xB9,	0xD1,	0xD9,	0xD4,	0xD9,	0xBA,	0xBB,	0xB8,	0xD3,	0xD4,	0xD0,	0x00,	0x67,	0x00,	0x5B,	0x00,	0x84,	};	
+static char GAMMA_7500K_COND_SET_60[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x00,	0xD4,	0xCD,	0xAF,	0xD2,	0xD9,	0xD2,	0xDA,	0xBB,	0xBB,	0xBB,	0xD3,	0xD5,	0xD0,	0x00,	0x5E,	0x00,	0x53,	0x00,	0x79,	};	
+static char GAMMA_7500K_COND_SET_50[]={ 0xFA, 0x01,	0x0F,	0x0F,	0x0F,	0x00,	0x00,	0xC3,	0xCE,	0xA8,	0xD3,	0xD9,	0xD1,	0xDA,	0xBB,	0xBA,	0xBB,	0xD3,	0xD5,	0xD1,	0x00,	0x59,	0x00,	0x4E,	0x00,	0x73,	};	
+
+static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_50 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_50), GAMMA_7500K_COND_SET_50};
+static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_60 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_60), GAMMA_7500K_COND_SET_60};
+static struct dsi_cmd_desc DSI_CMD_GAMMA_7500K_80 = {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(GAMMA_7500K_COND_SET_80), GAMMA_7500K_COND_SET_80};
+
 static struct dsi_cmd_desc_LCD lcd_brightness_7500k_table[MAX_GAMMA_VALUE+1] = {
 { 30, "75K", &DSI_CMD_GAMMA_7500K_30},   // 0 = 30_dimming,
 { 40, "75K", &DSI_CMD_GAMMA_7500K_40},   // 1 =  40
@@ -457,10 +459,10 @@ static struct dsi_cmd_desc_LCD lcd_acl_55p_table[MAX_GAMMA_VALUE+1] = {
 static char ACL_ManualF_COND_SET_20p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x04, 0x07, 0x0A, 0x0D, 0x10, 0x12, 0x15, 0x18, 0x1B, 0x1E };
 static char ACL_ManualF_COND_SET_33p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x06, 0x0A, 0x0F, 0x14, 0x19, 0x1D, 0x22, 0x27, 0x2B, 0x30 };
 static char ACL_ManualF_COND_SET_50p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x09, 0x10, 0x18, 0x1F, 0x27, 0x2E, 0x36, 0x3D, 0x45, 0x4C };
-static char ACL_ManualF_COND_SET_48p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x08, 0x0F, 0x17, 0x1E, 0x25, 0x2C, 0x33, 0x3B, 0x42, 0x49 };
-static char ACL_ManualF_COND_SET_47p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x08, 0x0F, 0x15, 0x1C, 0x23, 0x2A, 0x31, 0x37, 0x3E, 0x45 };
-static char ACL_ManualF_COND_SET_45p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 0x0E, 0x14, 0x1B, 0x21, 0x27, 0x2E, 0x34, 0x3B, 0x41 };
-static char ACL_ManualF_COND_SET_43p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 0x0D, 0x14, 0x1A, 0x20, 0x26, 0x2C, 0x33, 0x39, 0x3F };
+//static char ACL_ManualF_COND_SET_48p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x08, 0x0F, 0x17, 0x1E, 0x25, 0x2C, 0x33, 0x3B, 0x42, 0x49 };
+//static char ACL_ManualF_COND_SET_47p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x08, 0x0F, 0x15, 0x1C, 0x23, 0x2A, 0x31, 0x37, 0x3E, 0x45 };
+//static char ACL_ManualF_COND_SET_45p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 0x0E, 0x14, 0x1B, 0x21, 0x27, 0x2E, 0x34, 0x3B, 0x41 };
+//static char ACL_ManualF_COND_SET_43p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 0x0D, 0x14, 0x1A, 0x20, 0x26, 0x2C, 0x33, 0x39, 0x3F };
 static char ACL_ManualF_COND_SET_40p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 0x0D, 0x12, 0x18, 0x1E, 0x24, 0x2A, 0x2F, 0x35, 0x3B };
 
 //static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_55p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_55p), ACL_ManualF_COND_SET_55p};
@@ -469,10 +471,10 @@ static char ACL_ManualF_COND_SET_40p[] = { ACL_ManualF_COND_HEADER, 0x01, 0x07, 
 static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_20p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_20p), ACL_ManualF_COND_SET_20p};
 static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_33p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_33p), ACL_ManualF_COND_SET_33p};
 static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_50p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_50p), ACL_ManualF_COND_SET_50p};
-static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_48p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_48p), ACL_ManualF_COND_SET_48p};
-static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_47p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_47p), ACL_ManualF_COND_SET_47p};
-static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_45p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_45p), ACL_ManualF_COND_SET_45p};
-static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_43p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_45p), ACL_ManualF_COND_SET_43p};
+//static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_48p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_48p), ACL_ManualF_COND_SET_48p};
+//static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_47p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_47p), ACL_ManualF_COND_SET_47p};
+//static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_45p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_45p), ACL_ManualF_COND_SET_45p};
+//static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_43p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_45p), ACL_ManualF_COND_SET_43p};
 static struct dsi_cmd_desc DSI_CMD_ACL_ManualF_40p= {DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ACL_ManualF_COND_SET_40p), ACL_ManualF_COND_SET_40p};
 
 #if 0 // Manual-H
@@ -511,10 +513,10 @@ static struct dsi_cmd_desc_LCD lcd_acl_ManualF_table[MAX_GAMMA_VALUE+1] = {
 	{ 0, "mf30", NULL},   // 1 = 30_dimming,
 	{ 0, "mf40", NULL},   // 2
 	{ 20, "mf50", &DSI_CMD_ACL_ManualF_20p},   
-	{ 33, "mf60", &DSI_CMD_ACL_ManualF_20p},   
-	{ 20, "mf70", &DSI_CMD_ACL_ManualF_20p},   
-    { 40, "mf80", &DSI_CMD_ACL_ManualF_40p},   
-	{ 40, "mf90", &DSI_CMD_ACL_ManualF_33p},   
+	{ 20, "mf60", &DSI_CMD_ACL_ManualF_20p},   
+	{ 33, "mf70", &DSI_CMD_ACL_ManualF_33p},   
+   	{ 40, "mf80", &DSI_CMD_ACL_ManualF_40p},   
+	{ 40, "mf90", &DSI_CMD_ACL_ManualF_40p},   
 	{ 40, "mf100", &DSI_CMD_ACL_ManualF_40p},   
 	{ 40, "mf110", &DSI_CMD_ACL_ManualF_40p},   
 	{ 40, "mf120", &DSI_CMD_ACL_ManualF_40p},   

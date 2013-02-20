@@ -63,8 +63,8 @@
 #include <linux/backlight.h>
 #include <linux/miscdevice.h>
 
-#include <lcdc_S6E63M0_seq.h>
-#include <mdp4_video_enhance.h>
+#include "lcdc_S6E63M0_seq.h"
+#include "mdp4_video_enhance.h"
 
 #define LCDC_DEBUG
 
@@ -622,7 +622,6 @@ static int lcdc_s6e63m0_panel_on(struct platform_device *pdev)
 		
 		if (PANEL_TYPE >= SMART_MTP_PANEL_ID) {
 			if(!is_load_mtp_offset) {
-				int i=0;
 				struct MTP_OFFSET tempMTP; 
 				// first read. just for logging.. can be removed. 
 				s6e63mo_read_mtp_info(); 		
@@ -806,8 +805,10 @@ static void lcdc_s6e63m0_set_brightness(int level)
 static int get_gamma_value_from_bl(int bl)
 {
 	int gamma_value =0;
+#ifndef MAPPING_TBL_AUTO_BRIGHTNESS
 	int gamma_val_x10 =0;
-	
+#endif
+
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
 	if (unlikely(!lcd.auto_brightness && bl > 250))	bl = 250;
   
@@ -1303,8 +1304,11 @@ static void s6e63m0_late_resume(struct early_suspend *h) {
 static int __devinit s6e63m0_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	
+#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
+	struct backlight_device *pbd = NULL;
+#endif
 	//struct msm_fb_data_type *mfd;
+	
 	DPRINT("start %s: pdev->name:%s\n", __func__,pdev->name );	
 
 	if (pdev->id == 0) {
@@ -1357,8 +1361,6 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
 	init_mdnie_class();
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-    
-      struct backlight_device *pbd = NULL;
       pbd = backlight_device_register("panel", NULL, NULL,NULL,NULL);
       if (IS_ERR(pbd)) {
         DPRINT("Could not register 'panel' backlight device\n");
@@ -1369,7 +1371,6 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
         if (ret < 0)
           DPRINT("auto_brightness failed to add sysfs entries\n");
       }
-
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

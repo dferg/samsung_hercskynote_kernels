@@ -132,6 +132,8 @@ struct usb_hcd {
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
+	unsigned		broken_pci_sleep:1;	/* Don't put the
+			controller in PCI-D3 for system sleep */
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -176,11 +178,6 @@ struct usb_hcd {
 	struct host_notify_dev ndev;
 	int host_notify;
 #endif
-	
-#ifdef CONFIG_USB_SEC_WHITELIST
-	int sec_whlist_table_num;
-#endif
-
 	/* more shared queuing code would be good; it should support
 	 * smarter scheduling, handle transaction translators, etc;
 	 * input size of periodic table to an interrupt scheduler.
@@ -191,7 +188,7 @@ struct usb_hcd {
 	 * this structure.
 	 */
 	unsigned long hcd_priv[0]
-			__attribute__ ((aligned(sizeof(unsigned long))));
+			__attribute__ ((aligned(sizeof(s64))));
 };
 
 /* 2.4 does this a bit differently ... */

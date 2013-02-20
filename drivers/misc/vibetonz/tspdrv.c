@@ -72,11 +72,12 @@ static char g_szDeviceName[  (VIBE_MAX_DEVICE_NAME_LENGTH
 static size_t g_cchDeviceName;
 
 //static struct wake_lock vib_wake_lock;
+#if 0
 static uint32_t vibrator_device_gpio_config[] = {
 	GPIO_CFG(30, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 	GPIO_CFG(31, 2, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 };
-static struct wake_lock vib_wake_lock;
+#endif
 
 /* Flag indicating whether the driver is in use */
 static char g_bIsPlaying;
@@ -411,7 +412,8 @@ int init_module(void)
         DbgOut((KERN_ERR "tspdrv: platform_device_register failed.\n"));
     }
 
-	android_vib_clk = clk_get(NULL,"sfpb_clk");
+	//android_vib_clk = clk_get(NULL,"sfpb_clk");
+	android_vib_clk = clk_get_sys("vibrator","core_clk");	
 	
 	if(IS_ERR(android_vib_clk)) {
 		printk("android vib clk failed!!!\n");
@@ -838,6 +840,20 @@ static int resume(struct platform_device *pdev)
 			vibrator_write_register(0x31, 0x40);
 			vibrator_write_register(0x32, 0x00);
 			vibrator_write_register(0x33, 0x13);
+			vibrator_write_register(0x34, 0x05);
+			vibrator_write_register(0x35, 0x00);
+			vibrator_write_register(0x36, 0x00);
+			isa1200_enabled = 1;				
+		}
+
+		printk(KERN_ERR "[VIBTONZ] isa1200_late_resume \n");
+#elif defined  (CONFIG_KOR_MODEL_SHV_E160L)
+		if(!isa1200_enabled){
+			gpio_set_value(VIB_EN, VIBRATION_ON);		
+			vibrator_write_register(0x30, 0x09);
+			vibrator_write_register(0x31, 0x40);
+			vibrator_write_register(0x32, 0x00);
+			vibrator_write_register(0x33, 0x13);
 			vibrator_write_register(0x34, 0x02);
 			vibrator_write_register(0x35, 0x00);
 			vibrator_write_register(0x36, 0x00);
@@ -845,7 +861,7 @@ static int resume(struct platform_device *pdev)
 		}
 
 		printk(KERN_ERR "[VIBTONZ] isa1200_late_resume \n");
-#elif defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
+#elif defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K)
 		if(!isa1200_enabled){
 			gpio_set_value(VIB_EN, VIBRATION_ON);		
 			vibrator_write_register(0x30, 0x09);

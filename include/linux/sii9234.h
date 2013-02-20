@@ -19,14 +19,13 @@
 
 struct sii9234_platform_data {
 	int (*get_irq)(void);
-	//TBD
 	int gpio;
 	void (*hw_reset)(void);
 	void (*hw_onoff)(bool);
 
 	void (*hw_off)(void);
 	int (*hw_device_init)(void);
-
+	/* TBD */
 #ifdef CONFIG_VIDEO_MHL_V2
 	int prio;
 	void (*mhl_sel)(bool);
@@ -34,14 +33,17 @@ struct sii9234_platform_data {
 	void (*enable)(bool enable);
 	void (*power)(int on);
 	void (*enable_vbus)(bool enable);
+#ifdef CONFIG_MHL_NEW_CBUS_MSC_CMD
+	void (*vbus_present)(bool on , int mhl_charge);
+#else
 	void (*vbus_present)(bool on);
+#endif
 	u8 power_state;
 	struct i2c_client *mhl_tx_client;
 	struct i2c_client *tpi_client;
 	struct i2c_client *hdmi_rx_client;
 	struct i2c_client *cbus_client;
 #endif
-
 	u32 swing_level;
 };
 

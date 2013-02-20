@@ -48,12 +48,12 @@ static int  mcsdl_program_flash(UINT8 *pDataOriginal, UINT16 unLength, INT8 IdxN
 static void mcsdl_program_flash_part(UINT8 *pData);
 static int  mcsdl_verify_flash(UINT8 *pData, UINT16 nLength, INT8 IdxNum);
 static void mcsdl_read_flash(UINT8 *pBuffer);
-static int  mcsdl_read_flash_from(UINT8 *pBuffer, UINT16 unStart_addr, UINT16 unLength, INT8 IdxNum);
+//static int  mcsdl_read_flash_from(UINT8 *pBuffer, UINT16 unStart_addr, UINT16 unLength, INT8 IdxNum);
 static void mcsdl_select_isp_mode(UINT8 ucMode);
 static void mcsdl_unselect_isp_mode(void);
 static void mcsdl_read_32bits(UINT8 *pData);
 static void mcsdl_write_bits(UINT32 wordData, int nBits);
-static void mcsdl_scl_toggle_twice(void);
+//static void mcsdl_scl_toggle_twice(void);
 //---------------------------------
 //	Delay functions
 //---------------------------------
@@ -419,9 +419,9 @@ MCSDL_DOWNLOAD_FINISH :
 //------------------------------------------------------------------
 static int mcsdl_erase_flash(INT8 IdxNum)
 {
-    int	  i;
-    UINT8 readBuffer[32];
-    int eraseCompareValue = 0xFF;
+//    int	  i;
+//    UINT8 readBuffer[32];
+//    int eraseCompareValue = 0xFF;
     //----------------------------------------
     //	Do erase
     //----------------------------------------
@@ -540,7 +540,7 @@ static int mcsdl_program_flash(UINT8 *pDataOriginal, UINT16 unLength, INT8 IdxNu
 
 static void mcsdl_program_flash_part(UINT8 *pData)
 {
-    int     i;
+//    int     i;
     UINT32	data;
 
 
@@ -556,7 +556,8 @@ static void mcsdl_program_flash_part(UINT8 *pData)
 
 static int mcsdl_verify_flash(UINT8 *pDataOriginal, UINT16 unLength, INT8 IdxNum)
 {
-    int	  i, j;
+//    int	  i, j;
+    int j;
     int	  nRet;
 
     UINT8 *pData;
@@ -682,11 +683,11 @@ static void mcsdl_read_flash(UINT8 *pBuffer)
 
     mcsdl_read_32bits(pBuffer);
 }
-
+/*
 static int mcsdl_read_flash_from(UINT8 *pBuffer, UINT16 unStart_addr, UINT16 unLength, INT8 IdxNum)
 {
     int	i;
-    int j;
+//    int j;
 
     UINT8  ucLength;
 
@@ -744,7 +745,7 @@ static int mcsdl_read_flash_from(UINT8 *pBuffer, UINT16 unStart_addr, UINT16 unL
     return MCSDL_RET_SUCCESS;
 }
 
-
+*/
 static void mcsdl_set_ready(struct melfas_tsi_platform_data *data)
 {
     //--------------------------------------------
@@ -948,7 +949,7 @@ static void mcsdl_write_bits(UINT32 wordData, int nBits)
 }
 
 
-static void mcsdl_scl_toggle_twice(void)
+/*static void mcsdl_scl_toggle_twice(void)
 {
     MCSDL_GPIO_SDA_SET_HIGH();
     MCSDL_GPIO_SDA_SET_OUTPUT(1);
@@ -959,7 +960,7 @@ static void mcsdl_scl_toggle_twice(void)
     MCSDL_GPIO_SCL_SET_HIGH();	mcsdl_delay(MCSDL_DELAY_20US);
     MCSDL_GPIO_SCL_SET_LOW();	mcsdl_delay(MCSDL_DELAY_20US);
 }
-
+*/
 
 //============================================================
 //

@@ -170,12 +170,18 @@ config SEC_DEBUG_IRQ_EXIT_LOG
 	help
 	  Verbose Logging for IRQ delay.
 
+config SEC_DEBUG_WORKQ_LOG
+	bool "Logging work queue/func information"
+	default n
+	help
+	  Verbose Logging work queue/func information.
+
 config SEC_DEBUG_DCVS_LOG
 	bool "Temporary Logging for DCVS"
 	default n
 	help
 	  Logging feature for DCVS
-	  
+
 config SEC_DEBUG_FUELGAUGE_LOG
 	bool "Temporary Logging for FuelGauge"
 	default n

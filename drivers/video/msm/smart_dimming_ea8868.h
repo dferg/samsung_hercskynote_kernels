@@ -79,7 +79,7 @@ struct str_table_info {
     // end gray value, st + count
     u8 et;
     u8 count;
-    u8 *offset_table;
+    const u8 *offset_table;
     // rv : ratio value 
     u32 rv;
 };
@@ -98,9 +98,9 @@ struct str_smart_dim{
     u8 *default_gamma; 
     struct str_table_info t_info[IV_TABLE_MAX];
     //u8 v_table_array[256];
-    struct str_flookup_table *flooktbl;
-    u32 *g22_tbl;
-    u32 *g300_gra_tbl;
+    const struct str_flookup_table *flooktbl;
+    const u32 *g22_tbl;
+    const u32 *g300_gra_tbl;
     u32 adjust_volt[CI_MAX][AD_IVMAX];
     //u32 *ad_cv;
     //u32 *ad_dv;

@@ -2620,7 +2620,7 @@ static struct rcg_clk mdp_vsync_clk = {
 static struct clk_freq_tbl clk_tbl_pixel_mdp[] = {
 	F_PIXEL_MDP(        0, gnd,  1,   0,    0),
 #if defined (CONFIG_USA_MODEL_SGH_I577) || defined (CONFIG_USA_MODEL_SGH_T769)
-	F_PIXEL_MDP( 24000000, pll8, 1,	  1,   16), // for TDMB	
+	F_PIXEL_MDP( 24000000, pll8, 1,	  1,   16),
 #endif
 	F_PIXEL_MDP( 25600000, pll8, 3,   1,    5),
 #if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined (CONFIG_USA_MODEL_SGH_I727) || defined (CONFIG_USA_MODEL_SGH_T989)	
@@ -3217,6 +3217,7 @@ static DEFINE_CLK_VOTER(dfab_sdc3_clk, &dfab_clk.c);
 static DEFINE_CLK_VOTER(dfab_sdc4_clk, &dfab_clk.c);
 static DEFINE_CLK_VOTER(dfab_sdc5_clk, &dfab_clk.c);
 static DEFINE_CLK_VOTER(dfab_scm_clk, &dfab_clk.c);
+static DEFINE_CLK_VOTER(dfab_qseecom_clk, &dfab_clk.c);
 
 static DEFINE_CLK_VOTER(ebi1_msmbus_clk, &ebi1_clk.c);
 static DEFINE_CLK_VOTER(ebi1_adm0_clk,   &ebi1_clk.c);
@@ -3604,7 +3605,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("mmfpb_a_clk",	mmfpb_a_clk.c,	NULL),
 
 	CLK_LOOKUP("core_clk",		gp0_clk.c,		NULL),
+#ifdef CONFIG_VIBETONZ_CLK
+	CLK_LOOKUP("core_clk",		gp1_clk.c,		"vibrator"),
+#else
 	CLK_LOOKUP("core_clk",		gp1_clk.c,		NULL),
+#endif
 	CLK_LOOKUP("core_clk",		gp2_clk.c,		NULL),
 	CLK_LOOKUP("core_clk",		gsbi1_uart_clk.c,	NULL),
 	CLK_LOOKUP("core_clk",		gsbi2_uart_clk.c,	NULL),
@@ -3639,7 +3644,7 @@ static struct clk_lookup msm_clocks_8x60[] = {
 #if defined (CONFIG_EPEN_WACOM_G5SP)
     CLK_LOOKUP("core_clk",    gsbi11_qup_clk.c, "qup_i2c.18"),
 #else
-    CLK_LOOKUP("core_clk",    gsbi11_qup_clk.c,     NULL),
+	CLK_LOOKUP("core_clk",		gsbi11_qup_clk.c,	NULL),
 #endif	
 	CLK_LOOKUP("gsbi_qup_clk",	gsbi12_qup_clk.c,	"msm_dsps"),
 	CLK_LOOKUP("core_clk",		gsbi12_qup_clk.c,	"qup_i2c.5"),
@@ -3669,7 +3674,6 @@ static struct clk_lookup msm_clocks_8x60[] = {
 #else
 	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"spi_qsd.0"),
 #endif
-	
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		NULL),
 	CLK_LOOKUP("iface_clk",		gsbi3_p_clk.c, "msm_serial_hsl.2"),
 	CLK_LOOKUP("iface_clk",		gsbi3_p_clk.c,		"qup_i2c.0"),
@@ -3684,11 +3688,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("iface_clk", 	gsbi10_p_clk.c, 	"qup_i2c.14"),
 #else
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"spi_qsd.1"),
-#endif	
+#endif
 #if defined (CONFIG_EPEN_WACOM_G5SP)
     CLK_LOOKUP("iface_clk",     gsbi11_p_clk.c,    "qup_i2c.18"),
 #else
-    CLK_LOOKUP("iface_clk",     gsbi11_p_clk.c,     NULL),
+	CLK_LOOKUP("iface_clk",		gsbi11_p_clk.c,		NULL),
 #endif	
 	CLK_LOOKUP("iface_clk",		gsbi12_p_clk.c,		NULL),
 	CLK_LOOKUP("iface_clk",		gsbi12_p_clk.c, "msm_serial_hsl.0"),
@@ -3719,6 +3723,8 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("core_clk",		amp_clk.c,		NULL),
 	CLK_LOOKUP("cam_clk",		cam_clk.c,		NULL),
 	CLK_LOOKUP("cam_clk",		cam_clk.c,		"1-001a"),
+	CLK_LOOKUP("cam_clk",		cam_clk.c,		"1-006c"),
+	CLK_LOOKUP("cam_clk",		cam_clk.c,		"1-0078"),
 	CLK_LOOKUP("csi_clk",		csi0_clk.c,		NULL),
 	CLK_LOOKUP("csi_clk",		csi0_clk.c,		"msm_csic.0"),
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_camera_s5k5bafx.0"),
@@ -3726,6 +3732,8 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_camera_s5k6aafx.0"),
 	CLK_LOOKUP("csi_clk",		csi1_clk.c, "msm_csic.1"),
 	CLK_LOOKUP("csi_src_clk",	csi_src_clk.c,		NULL),
+	CLK_LOOKUP("byte_clk",	dsi_byte_clk.c,		"mipi_dsi.1"),
+	CLK_LOOKUP("esc_clk",	dsi_esc_clk.c,		"mipi_dsi.1"),
 	CLK_LOOKUP("csi_src_clk",	csi_src_clk.c,		"msm_csic.0"),
 	CLK_LOOKUP("csi_src_clk",	csi_src_clk.c,		"msm_csic.1"),
 	CLK_LOOKUP("dsi_byte_div_clk",	dsi_byte_clk.c,		NULL),
@@ -3739,13 +3747,13 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("ijpeg_clk",		ijpeg_clk.c,		NULL),
 	CLK_LOOKUP("core_clk",		ijpeg_clk.c,	"footswitch-8x60.3"),
 	CLK_LOOKUP("core_clk",		jpegd_clk.c,		NULL),
-	CLK_LOOKUP("mdp_clk",		mdp_clk.c,		NULL),
+	CLK_LOOKUP("core_clk",		mdp_clk.c,		"mdp.0"),
 	CLK_LOOKUP("core_clk",		mdp_clk.c,	"footswitch-8x60.4"),
-	CLK_LOOKUP("mdp_vsync_clk",	mdp_vsync_clk.c,		NULL),
+	CLK_LOOKUP("vsync_clk",	mdp_vsync_clk.c,		"mdp.0"),
 	CLK_LOOKUP("vsync_clk",		mdp_vsync_clk.c, "footswitch-8x60.4"),
-	CLK_LOOKUP("pixel_lcdc_clk",	pixel_lcdc_clk.c,		NULL),
+	CLK_LOOKUP("lcdc_clk",	pixel_lcdc_clk.c,		"lcdc.0"),
 	CLK_LOOKUP("pixel_lcdc_clk",	pixel_lcdc_clk.c, "footswitch-8x60.4"),
-	CLK_LOOKUP("pixel_mdp_clk",	pixel_mdp_clk.c,		NULL),
+	CLK_LOOKUP("mdp_clk",	pixel_mdp_clk.c,	"lcdc.0"),
 	CLK_LOOKUP("pixel_mdp_clk",	pixel_mdp_clk.c, "footswitch-8x60.4"),
 	CLK_LOOKUP("core_clk",		rot_clk.c,	"msm_rotator.0"),
 	CLK_LOOKUP("core_clk",		rot_clk.c,	"footswitch-8x60.6"),
@@ -3753,21 +3761,21 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("tv_dac_clk",	tv_dac_clk.c,		NULL),
 	CLK_LOOKUP("core_clk",		vcodec_clk.c,	"msm_vidc.0"),
 	CLK_LOOKUP("core_clk",		vcodec_clk.c,	"footswitch-8x60.7"),
-	CLK_LOOKUP("mdp_tv_clk",	mdp_tv_clk.c,		NULL),
+	CLK_LOOKUP("mdp_clk",	mdp_tv_clk.c,		"dtv.0"),
 	CLK_LOOKUP("tv_clk",		mdp_tv_clk.c,	"footswitch-8x60.4"),
-	CLK_LOOKUP("hdmi_clk",		hdmi_tv_clk.c,		NULL),
-	CLK_LOOKUP("tv_src_clk",	tv_src_clk.c,		NULL),
+	CLK_LOOKUP("hdmi_clk",		hdmi_tv_clk.c,	"dtv.0"),
+	CLK_LOOKUP("src_clk",	tv_src_clk.c,	"dtv.0"),
 	CLK_LOOKUP("tv_src_clk",	tv_src_clk.c,	"footswitch-8x60.4"),
 	CLK_LOOKUP("core_clk",		hdmi_app_clk.c,	"hdmi_msm.1"),
 	CLK_LOOKUP("vpe_clk",		vpe_clk.c,		NULL),
 	CLK_LOOKUP("vpe_clk",		vpe_clk.c,		"msm_vpe.0"),
 	CLK_LOOKUP("core_clk",		vpe_clk.c,	"footswitch-8x60.9"),
 	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c,		NULL),
-	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c, "msm_csic.0"),
-	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_csic.1"),
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_s5k5bafx.0"),
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_sr200pc20m.0"),
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_camera_s5k6aafx.0"),
+	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c, "msm_csic.0"),
+	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c, "msm_csic.1"),
 	CLK_LOOKUP("vfe_clk",		vfe_clk.c,		NULL),
 	CLK_LOOKUP("vfe_clk",		vfe_clk.c,		"msm_vfe.0"),
 	CLK_LOOKUP("core_clk",		vfe_clk.c,	"footswitch-8x60.8"),
@@ -3778,13 +3786,15 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("bus_clk",		rot_axi_clk.c,	 "footswitch-8x60.6"),
 	CLK_LOOKUP("bus_clk",		vcodec_axi_clk.c, "footswitch-8x60.7"),
 	CLK_LOOKUP("bus_clk",		vpe_axi_clk.c,	 "footswitch-8x60.9"),
-	CLK_LOOKUP("amp_pclk",		amp_p_clk.c,		NULL),
+	CLK_LOOKUP("arb_clk",		amp_p_clk.c,		"mipi_dsi.1"),
 	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,		NULL),
 	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,		"msm_csic.0"),
-	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c,		"msm_csic.1"),
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c, "msm_camera_s5k5bafx.0"),
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c, "msm_camera_sr200pc20m.0"),
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c, "msm_camera_s5k6aafx.0"),
+	CLK_LOOKUP("master_iface_clk",	dsi_m_p_clk.c,		"mipi_dsi.1"),
+	CLK_LOOKUP("slave_iface_clk",	dsi_s_p_clk.c,		"mipi_dsi.1"),
+	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c,		"msm_csic.1"),
 	CLK_LOOKUP("dsi_m_pclk",	dsi_m_p_clk.c,		NULL),
 	CLK_LOOKUP("dsi_s_pclk",	dsi_s_p_clk.c,		NULL),
 	CLK_LOOKUP("iface_clk",		gfx2d0_p_clk.c,	"kgsl-2d0.0"),
@@ -3799,7 +3809,7 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("iface_clk",		ijpeg_p_clk.c,	"footswitch-8x60.3"),
 	CLK_LOOKUP("iface_clk",		jpegd_p_clk.c,		NULL),
 	CLK_LOOKUP("mem_iface_clk",	imem_p_clk.c,	"kgsl-3d0.0"),
-	CLK_LOOKUP("mdp_pclk",		mdp_p_clk.c,		NULL),
+	CLK_LOOKUP("iface_clk",		mdp_p_clk.c,		"mdp.0"),
 	CLK_LOOKUP("iface_clk",		mdp_p_clk.c,	"footswitch-8x60.4"),
 	CLK_LOOKUP("iface_clk",		smmu_p_clk.c,	"msm_iommu"),
 	CLK_LOOKUP("iface_clk",		rot_p_clk.c,	"msm_rotator.0"),
@@ -3849,6 +3859,7 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("bus_clk",		dfab_sdc4_clk.c, "msm_sdcc.4"),
 	CLK_LOOKUP("bus_clk",		dfab_sdc5_clk.c, "msm_sdcc.5"),
 	CLK_LOOKUP("bus_clk",		dfab_scm_clk.c,	"scm"),
+	CLK_LOOKUP("bus_clk",		dfab_qseecom_clk.c,	"qseecom"),
 
 	CLK_LOOKUP("mem_clk",		ebi1_adm0_clk.c, "msm_dmov.0"),
 	CLK_LOOKUP("mem_clk",		ebi1_adm1_clk.c, "msm_dmov.1"),
@@ -3920,15 +3931,8 @@ static void __init reg_init(void)
 	rmwreg(0x80FF0000, GFX3D_CC_REG,  0xE0FF0010);
 	rmwreg(0x80FF0000, IJPEG_CC_REG,  0xE0FF0018);
 	rmwreg(0x80FF0000, JPEGD_CC_REG,  0xE0FF0018);
-#ifdef CONFIG_SAMSUNG_8X60_TABLET
-	/* MDP and PIXEL clocks may be running at boot, don't turn them off. */
-	rmwreg(0x80FF0000, MDP_CC_REG,   BM(31, 29) | BM(23, 16));
-	/* invert pclk polarity */
-	rmwreg(0x80FF0200, PIXEL_CC_REG, BM(31, 29) | BM(23, 16) | BIT(9)); 
-#else
 	rmwreg(0x80FF0000, MDP_CC_REG,    0xE1FF0010);
 	rmwreg(0x80FF0000, PIXEL_CC_REG,  0xE1FF0010);
-#endif
 	rmwreg(0x000004FF, PIXEL_CC2_REG, 0x000007FF);
 	rmwreg(0x80FF0000, ROT_CC_REG,    0xE0FF0010);
 	rmwreg(0x80FF0000, TV_CC_REG,     0xE1FFC010);

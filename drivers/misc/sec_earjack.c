@@ -47,11 +47,6 @@ EXPORT_SYMBOL(jack_class);
 /* Sysfs device, this is used for communication with Cal App. */
 static struct device *jack_selector_fs;
 EXPORT_SYMBOL(jack_selector_fs);
-
-static struct device *jack_reselector_fs;     
-EXPORT_SYMBOL(jack_reselector_fs);
-
-bool recheck_jack = false;
 #endif
 
 extern int get_hw_rev(void);
@@ -170,11 +165,8 @@ static void sec_jack_set_type(struct sec_jack_info *hi, int jack_type)
 	 * the type but then we get another interrupt and do it again
 	 */
 	if (jack_type == hi->cur_jack_type) {
-		//pr_debug(MODULE_NAME "%s return, same type reason\n", __func__);
-	pr_info(MODULE_NAME "%s return, same type reason\n", __func__);
-		pr_info(MODULE_NAME "%s return, jack_type = %d, hi->cur_jack_type = %d\n", __func__, jack_type, hi->cur_jack_type);
-
-	return;
+		pr_debug(MODULE_NAME "%s return, same type reason\n", __func__);
+		return;
 	}
 
 	if (jack_type == SEC_HEADSET_4POLE) {
@@ -215,7 +207,7 @@ static void sec_jack_set_type(struct sec_jack_info *hi, int jack_type)
 
 static void handle_jack_not_inserted(struct sec_jack_info *hi)
 {
-	struct sec_jack_platform_data *pdata = hi->pdata;
+	/* struct sec_jack_platform_data *pdata = hi->pdata; */ /* compile warning */
 
 	sec_jack_set_type(hi, SEC_JACK_NO_DEVICE);
 	hi->pdata->set_micbias_state(false);
@@ -246,20 +238,13 @@ static void determine_jack_type(struct sec_jack_info *hi)
 				if (++count[i] > zones[i].check_count) {
 					pr_debug(MODULE_NAME "determine_jack_type %d, %d, %d\n",
 						zones[i].adc_high, count[i], zones[i].check_count);
-						if(recheck_jack == true && i == 3) {
-						pr_info(MODULE_NAME "something worng connection!\n");
-						handle_jack_not_inserted(hi);
-
-						recheck_jack = false;
-						return;
-					}
-     sec_jack_set_type(hi,zones[i].jack_type);
+					sec_jack_set_type(hi,
+							zones[i].jack_type);
 					/* mic_bias remains enabled in race condition. */
 					if (hi->cur_jack_type != SEC_HEADSET_4POLE) {
 						hi->pdata->set_micbias_state(false);
 						pr_info(MODULE_NAME "forced mic_bias disable\n");
 					}
-	recheck_jack = false;
 					return;
 				}
 				msleep(zones[i].delay_ms);
@@ -268,8 +253,6 @@ static void determine_jack_type(struct sec_jack_info *hi)
 		}
 	}
 	/* jack removed before detection complete */
-
-	recheck_jack = false;
 	handle_jack_not_inserted(hi);
 }
 
@@ -300,31 +283,6 @@ static ssize_t select_jack_store(struct device *dev, struct device_attribute *at
 	return size;
 }
 static DEVICE_ATTR(select_jack, S_IRUGO | S_IWUSR | S_IWGRP, select_jack_show, select_jack_store);
-
-static ssize_t reselect_jack_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	pr_info("%s : operate nothing\n", __func__);
-
-	return 0;
-}    
-
-static ssize_t reselect_jack_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
-{
-	struct sec_jack_info *hi = dev_get_drvdata(dev);
-	struct sec_jack_platform_data *pdata = hi->pdata;
-	int value = 0;
-
-	sscanf(buf, "%d", &value);
-	pr_err("%s: User  selection : 0x%x\n", __func__, value);
-
-	if(value == 1) {
-		recheck_jack = true;
-		determine_jack_type(hi);
-	}
-	
-	return size;
-}
-static DEVICE_ATTR(reselect_jack, S_IRUGO | S_IWUSR | S_IWGRP, reselect_jack_show, reselect_jack_store);
 #endif
 
 static irqreturn_t sec_jack_send_key_irq_handler(int irq, void *handle)
@@ -528,13 +486,6 @@ static int sec_jack_probe(struct platform_device *pdev)
 
 	if (device_create_file(jack_selector_fs, &dev_attr_select_jack) < 0)
 		pr_err("%s : Failed to create device file(%s)!\n", __func__, dev_attr_select_jack.attr.name);
-
-	jack_reselector_fs = device_create(jack_class, NULL, 0, hi, "jack_reselector");
-	if (IS_ERR(jack_reselector_fs))
-		pr_err("%s : Failed to create device(sec_jack)!= %ld\n", __func__, IS_ERR(jack_reselector_fs));
-
-	if (device_create_file(jack_reselector_fs, &dev_attr_reselect_jack) < 0)
-		pr_err("%s : Failed to create device file(%s)!\n", __func__, dev_attr_reselect_jack.attr.name);	
 #endif
 
 	INIT_WORK(&hi->det_work, sec_jack_det_work_func);

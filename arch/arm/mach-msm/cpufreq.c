@@ -96,12 +96,12 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 			return 0;
 		else
 			freqs.new = policy->max;
-	}
+	} 
 #ifdef CONFIG_SEC_DVFS
-	else if (lower_limit_freq || upper_limit_freq)
+	else if (lower_limit_freq || upper_limit_freq) 
 	{
 		freqs.new = new_freq;
-
+		
 		if (lower_limit_freq && new_freq < lower_limit_freq)
 			freqs.new = lower_limit_freq;
 
@@ -110,13 +110,22 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 
 		if (freqs.new == freqs.old)
 			return 0;
+
+		if (freqs.new > policy->max)
+			freqs.new = policy->max;
+		else if (freqs.new < policy->min)
+			freqs.new = policy->min;
 	}
-#endif
+#endif	  
 	else
 		freqs.new = new_freq;
 	freqs.cpu = policy->cpu;
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+#ifdef CONFIG_SEC_DVFS
 	ret = acpuclk_set_rate(policy->cpu, freqs.new, SETRATE_CPUFREQ);
+#else
+	ret = acpuclk_set_rate(policy->cpu, new_freq, SETRATE_CPUFREQ);
+#endif	
 	if (!ret)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
@@ -145,13 +154,13 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_work_struct *cpu_work = NULL;
 	cpumask_var_t mask;
 
-	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
-
 	if (!cpu_active(policy->cpu)) {
 		pr_info("cpufreq: cpu %d is not active.\n", policy->cpu);
 		return -ENODEV;
 	}
+
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
 #endif
 
 	mutex_lock(&per_cpu(cpufreq_suspend, policy->cpu).suspend_mutex);
@@ -195,13 +204,15 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		wait_for_completion(&cpu_work->complete);
 	}
 
-	free_cpumask_var(mask);
 	ret = cpu_work->status;
 #else
 	ret = set_cpu_freq(policy, table[index].frequency);
 #endif
 
 done:
+#ifdef CONFIG_SMP
+	free_cpumask_var(mask);
+#endif
 	mutex_unlock(&per_cpu(cpufreq_suspend, policy->cpu).suspend_mutex);
 	return ret;
 }
@@ -364,11 +375,6 @@ static int __init msm_cpufreq_register(void)
 
 #ifdef CONFIG_SMP
 	msm_cpufreq_wq = create_workqueue("msm-cpufreq");
-
-	if (unlikely(!msm_cpufreq_wq)) {
-		printk(KERN_ERR "Failed to create msm-cpufreq workqueue\n");
-		return -EFAULT;
-	}
 #endif
 
 	register_pm_notifier(&msm_cpufreq_pm_notifier);

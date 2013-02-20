@@ -746,12 +746,6 @@ static int __devinit ehci_msm_probe(struct platform_device *pdev)
 			}
 		}
 #endif
-	
-#ifdef CONFIG_USB_SEC_WHITELIST
-		if (pdata->sec_whlist_table_num)
-			hcd->sec_whlist_table_num = pdata->sec_whlist_table_num;
-#endif
-
 	retval = msm_xusb_init_host(pdev, mhcd);
 
 	if (retval < 0) {

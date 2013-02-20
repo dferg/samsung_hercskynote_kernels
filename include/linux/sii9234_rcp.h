@@ -51,7 +51,7 @@ const struct rcp_key code[MAX_KEY_CODE+1] = {
 	{"CONTENTS-MENU",	1,	0x0B},
 	{"FAVORITE-MENU",	1,	0x0C},
 	{"EXIT",		1,	0x0D},
-	/* Reserved Block 0x0E-0x1F */
+	/* Reserved Block 0x0E-0x1F  */
 	{"RSVD",		1,	0x0E},
 	{"RSVD",		1,	0x0F},
 	{"RSVD",		1,	0x10},

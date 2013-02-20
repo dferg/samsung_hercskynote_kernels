@@ -403,8 +403,8 @@ static int32_t pm8058_xoadc_dequeue_slot_request(uint32_t adc_instance,
 	struct pmic8058_adc *adc_pmic = pmic_adc[adc_instance];
 	struct xoadc_conv_state *slot_state = adc_pmic->conv_queue_list;
 	int rc = 0;
-	// ** test workaroud
-	u8 slot_amux_chan, cur_amux_chan;
+	// **  workaroud code for missing ADC interrupt
+	u8 slot_amux_chan = 0, cur_amux_chan = 0;
 	// **
 
 	mutex_lock(&slot_state->list_lock);
@@ -412,8 +412,7 @@ static int32_t pm8058_xoadc_dequeue_slot_request(uint32_t adc_instance,
 			!list_empty(&slot_state->slots)) {
 		*slot = list_first_entry(&slot_state->slots,
 			struct adc_conv_slot, list);
-
-		// test workaround
+		//  workaroud code for missing ADC interrupt
 		// ***********************************************************************************
 		switch ((*slot)->chan_path) {
 		case CHAN_PATH_TYPE1:
@@ -484,6 +483,7 @@ static int32_t pm8058_xoadc_dequeue_slot_request(uint32_t adc_instance,
 		rc = pm8xxx_readb(adc_pmic->dev->parent, ADC_ARB_USRP_AMUX_CNTRL, &cur_amux_chan);
 		if (rc < 0) {
 			pr_debug("%s: PM8058 read failed\n", __func__);
+			mutex_unlock(&slot_state->list_lock);
 			return rc;
 		}
 
@@ -492,6 +492,7 @@ static int32_t pm8058_xoadc_dequeue_slot_request(uint32_t adc_instance,
 			rc = -EINVAL;
 			if (pm8058_xoadc_can_print())
 				pr_err("Pmic 8058 xoadc : slot->chan_path isn't match with request amux_chan\n");
+			mutex_unlock(&slot_state->list_lock);
 			return rc;
 		}
 		// ***********************************************************************************
@@ -573,7 +574,7 @@ int32_t pm8058_xoadc_read_adc_code(uint32_t adc_instance, int32_t *data)
 	return 0;
 }
 EXPORT_SYMBOL(pm8058_xoadc_read_adc_code);
-// for Workaround
+
 int32_t pm8058_xoadc_clear_recentQ(void *h) {
 	struct msm_client_data *client = (struct msm_client_data *)h;
 	struct pmic8058_adc *adc_pmic = pmic_adc[XOADC_PMIC_0];

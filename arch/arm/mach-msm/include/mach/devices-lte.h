@@ -60,19 +60,12 @@
 #if defined(CONFIG_SAMSUNG_8X60_TABLET) && defined (CONFIG_CMC623_P5LTE)
 #define MSM_CMC623_I2C_BUS_ID   17
 #endif
-#if defined(CONFIG_SAMSUNG_8X60_TABLET) && defined (CONFIG_CMC624_P8LTE)
-#define MSM_CMC624_I2C_BUS_ID   17
-#endif
 
 #define MSM_MOTOR_I2C_BUS_ID		17
 
 #if defined (CONFIG_EPEN_WACOM_G5SP)
 #define MSM_GSBI11_QUP_I2C_BUS_ID	18
 #endif 
-
-#if defined(CONFIG_SAMSUNG_8X60_TABLET) && defined (CONFIG_STMPE811_ADC)
-#define MSM_STMPE811_I2C_BUS_ID		19
-#endif
 
 #ifdef CONFIG_SPI_QUP
 extern struct platform_device msm_gsbi1_qup_spi_device;

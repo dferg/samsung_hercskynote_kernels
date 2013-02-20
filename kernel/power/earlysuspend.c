@@ -78,8 +78,8 @@ static void early_suspend(struct work_struct *work)
 
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: begin\n");
-		
-    pr_info("early_suspend: %s\n",current->comm);
+
+	pr_info("early_suspend: %s\n",current->comm);
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);

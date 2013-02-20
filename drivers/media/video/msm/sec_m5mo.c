@@ -46,6 +46,7 @@ static int m5mo_dump_fw(void);
 
 static int firmware_update_mode = 0;
 
+static int m5mo_set_touch_auto_focus(int val);
 
 #define CHECK_ERR(x)   \
 		do {\
@@ -101,6 +102,7 @@ static const struct m5mo_frmsizeenum m5mo_picture_sizes[] = {
 	{ M5MO_CAPTURE_HD4MP,	2560,	1440,	0x1C }, // 16:9
 	{ M5MO_CAPTURE_3MP,	2048,	1536,	0x1B }, // 4:3
 	{ M5MO_CAPTURE_W2MP,	2048,	1232,	0x2C }, // 5:3
+	{ M5MO_CAPTURE_SXGA,	1280,	960,	0x14 }, // 5:3	
 	{ M5MO_CAPTURE_HD1MP,	1280,	720,	0x10 }, // 16:9
 	{ M5MO_CAPTURE_WVGA,	800,	480,	0x0A }, //5:3
 	{ M5MO_CAPTURE_VGA,	640,	480,	0x09 }, //4:3
@@ -363,7 +365,7 @@ static irqreturn_t m5mo_isp_isr(int irq, void *dev_id)
 
 static u32 m5mo_wait_interrupt(unsigned int timeout)
 {
-	cam_info("m5mo_wait_interrupt :E");
+	cam_info(" m5mo_wait_interrupt :E");
 
 	if (wait_event_interruptible_timeout(m5mo_ctrl->isp.wait, m5mo_ctrl->isp.issued == 1,
 		msecs_to_jiffies(timeout)) == 0) {
@@ -375,7 +377,7 @@ static u32 m5mo_wait_interrupt(unsigned int timeout)
 
 	m5mo_readb(M5MO_CATEGORY_SYS, M5MO_SYS_INT_FACTOR, &m5mo_ctrl->isp.int_factor);
 
-	cam_info("m5mo_wait_interrupt:	X: 0x%x", m5mo_ctrl->isp.int_factor);
+	cam_info(" m5mo_wait_interrupt:	X: 0x%x", m5mo_ctrl->isp.int_factor);
 	return m5mo_ctrl->isp.int_factor;
 }
 
@@ -536,13 +538,13 @@ static long m5mo_set_zoom(	int8_t level)
 	int zoom[] = { 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19,
 		20, 21, 22, 24, 25, 26, 28, 29, 30, 31, 32, 34, 35, 36, 38, 39};
 
+	CAM_DEBUG("level:%d ",level);
+
 	if(level < 0 || level > 30 )	{
 		cam_err("Invalid Zoom Level !!!");
 		level = 0;
 	}
 	
-	CAM_DEBUG("level:%d (reg value : %d)",level,zoom[level]);
-
 	/* Start Digital Zoom */
 	err = m5mo_writeb(M5MO_CATEGORY_MON, M5MO_MON_ZOOM, zoom[level]); 
 	CHECK_ERR(err);
@@ -600,7 +602,7 @@ static int m5mo_set_picture_size(u32 width, u32 height)
 
 static int m5mo_set_preview_size(int width, int height)
 {
-	u32 int_factor;
+//	u32 int_factor;
 	int frame_size = -1;
 	
 	CAM_DEBUG("%d*%d", width, height);
@@ -628,7 +630,9 @@ static int m5mo_set_preview_size(int width, int height)
 	if (m5mo_ctrl->settings.zoom) {
 		m5mo_set_zoom(m5mo_ctrl->settings.zoom);
 	}
-#if 0	//for LP11 state
+
+// param_mode -> preview size -> [LP11 state] ( mipi mode )-> monitor_mode
+#if 0 // for LP11 state
 	/* change to monitor mode */
 	m5mo_set_mode(M5MO_MONITOR_MODE);
 
@@ -730,6 +734,10 @@ static int  m5mo_get_exif(void)
 	CHECK_ERR(err);
 	err = m5mo_readl(M5MO_CATEGORY_EXIF, M5MO_EXIF_BV_DEN, &den);
 	CHECK_ERR(err);
+	if (den == 0) {
+		cam_err("check calibraion version. (M5MO_EXIF_BV_DEN is ZERO)");
+		den = 1;
+	}
 	m5mo_exif->bv = num*M5MO_DEF_APEX_DEN/den;
 
 	/* exposure */
@@ -737,6 +745,10 @@ static int  m5mo_get_exif(void)
 	CHECK_ERR(err);
 	err = m5mo_readl(M5MO_CATEGORY_EXIF, M5MO_EXIF_EBV_DEN, &den);
 	CHECK_ERR(err);
+	if (den == 0) {
+		cam_err("check calibraion version. (M5MO_EXIF_EBV_DEN is ZERO)");
+		den = 1;
+	}
 	m5mo_exif->ebv = num*M5MO_DEF_APEX_DEN/den;
 
 	
@@ -1055,6 +1067,9 @@ static int m5mo_set_effect_color(int8_t effect)
 		
 	}
 
+	cb = 0x00;
+	cr = 0x00;
+
 	switch(effect) {
 	case CAMERA_EFFECT_OFF:
 		break;
@@ -1309,9 +1324,20 @@ static int m5mo_set_af_mode_select(int focus_mode) {
 
 }
 
+
 static int m5mo_set_af(int val)
 {
 	int i, status, err;
+
+// touch
+//	CAM_DEBUG("focus.touch = %d   focus.touchaf = %d", m5mo_ctrl->focus.touch,  m5mo_ctrl->focus.touchaf);
+	
+	if (m5mo_ctrl->focus.touchaf == 1) {
+		m5mo_set_touch_auto_focus(val);
+	} else {
+		cam_info("touch af : stop");
+		m5mo_ctrl->focus.touch  = 0;//m5mo_set_touch_auto_focus(0);
+	}
 
 	CAM_DEBUG("%s, focus mode %d", val ? "start" : "stop", m5mo_ctrl->focus.mode);
 
@@ -1345,8 +1371,11 @@ static int m5mo_set_af(int val)
 			msleep(10);
 			err = m5mo_readb(M5MO_CATEGORY_LENS, M5MO_LENS_AF_STATUS, &status);
 			CHECK_ERR(err);
-
-			if (!(status & 0x01)) 
+#if defined (CONFIG_TARGET_SERIES_CELOX)
+			if (!(status & 0x01) && i < 599) // it will be Valid status after 10ms for celox 
+#else
+			if (!(status & 0x01))  
+#endif
 				break;
 		}
 
@@ -1383,6 +1412,7 @@ static int m5mo_set_af(int val)
 				break;
 		}
 	}
+	m5mo_ctrl->focus.touchaf = 0;
 
 	CAM_DEBUG("X");
 	return err;
@@ -1396,6 +1426,8 @@ static int m5mo_set_touchaf_pos(u32 screen_x, u32 screen_y)
 	//cam_info(" screenX : %d, screenY : %d",screen_x,screen_y);
 	m5mo_ctrl->focus.pos_x = screen_x;
 	m5mo_ctrl->focus.pos_y = screen_y;
+	
+	m5mo_ctrl->focus.touchaf = 1;   // JB, 
 	
 	return 0;
 }
@@ -1551,6 +1583,7 @@ static int m5mo_set_touch_auto_focus(int val)
 				err = m5mo_set_af_mode(FOCUS_MODE_AUTO);
 			}
 		}
+		m5mo_ctrl->focus.touchaf = 0;
 	}
 
 	CAM_DEBUG("X");
@@ -1738,8 +1771,6 @@ static int m5mo_mipi_mode(int mode)
 	CAM_DEBUG("%d",config_csi);
 
 	if (!config_csi) {
-
-		
 		m5mo_csi_params.lane_cnt = 2;
 		m5mo_csi_params.data_format = CSI_8BIT;
 		m5mo_csi_params.lane_assign = 0xe4;
@@ -1766,11 +1797,14 @@ static void m5mo_init_param(void)
 	m5mo_ctrl->settings.preview_size.height = 480;
 	m5mo_ctrl->settings.check_dataline = 0;
 	m5mo_ctrl->settings.fps = 30;
+	m5mo_ctrl->settings.started = 0;
 
 	m5mo_ctrl->isp.bad_fw = 0;
 	m5mo_ctrl->isp.issued = 0;
 	m5mo_ctrl->focus.mode = FOCUS_MODE_MAX;
 	m5mo_ctrl->focus.center = 0;
+	
+	m5mo_ctrl->focus.touchaf = 0;
 }
 
 static int m5mo_start(void) 
@@ -1870,6 +1904,10 @@ static long m5mo_preview_mode(void)
 {
 	u32 old_mode, int_factor;
 
+	if (m5mo_ctrl->focus.touchaf) {
+		m5mo_set_touch_auto_focus(0);
+	}
+	
 	old_mode = m5mo_set_mode(M5MO_MONITOR_MODE);
 
 	if (old_mode <= 0) {
@@ -1887,6 +1925,11 @@ static long m5mo_preview_mode(void)
 	/* AE/AWB Unlock */
 	m5mo_set_lock(0);
 	
+	if (!m5mo_ctrl->settings.started) { //ae/awb delay
+		m5mo_ctrl->settings.started = 1;
+		msleep(130); // 80 -> 130 
+	}
+
 	if (m5mo_ctrl->settings.check_dataline) {
 		m5mo_check_dataline(m5mo_ctrl->settings.check_dataline);
 	}
@@ -2459,12 +2502,23 @@ int m5mo_sensor_get_exif_data(int32_t *exif_cmd, int32_t *val)
 	return 0;	
 }
 
-
+/* Define default F/W version.
+ * - be cafeful of string size.
+ */
+#if defined(CONFIG_TARGET_SERIES_Q1)
+#define DEFAULT_PHONE_FW_VER    "OOEI08 Fujitsu M5MOLS"
+#elif defined (CONFIG_TARGET_SERIES_DALI)
+#define DEFAULT_PHONE_FW_VER    "OLEI02 Fujitsu M5MOLS"
+#elif defined (CONFIG_KOR_MODEL_SHV_E110S) 
+#define DEFAULT_PHONE_FW_VER    "SDEH0D Fujitsu M5MOLS"
+#else
+#define DEFAULT_PHONE_FW_VER    "FAILED Fujitsu M5MOLS"
+#endif
 
 int m5mo_check_fw(void)
 {
 	char sensor_ver[M5MO_VERSION_INFO_SIZE+1] = "FAILED Fujitsu M5MOLS";
-	char phone_ver[M5MO_VERSION_INFO_SIZE+1] = "FAILED Fujitsu M5MOLS";
+	char phone_ver[M5MO_VERSION_INFO_SIZE+1] = DEFAULT_PHONE_FW_VER;
 	int af_cal_h = 0, af_cal_l = 0;
 	int rg_cal_h = 0, rg_cal_l = 0;
 	int bg_cal_h = 0, bg_cal_l = 0;
@@ -2823,7 +2877,15 @@ static int m5mo_i2c_probe(struct i2c_client *client, const struct i2c_device_id 
 		CDBG("failed to create device file, %s\n",
 			dev_attr_camera_fw.attr.name);
 	}
+#if defined (CONFIG_USA_MODEL_SGH_I757)
+#define TORCH_EN		62
+#define TORCH_SET		63
+	gpio_tlmm_config(GPIO_CFG(TORCH_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	gpio_tlmm_config(GPIO_CFG(TORCH_SET, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 
+	gpio_set_value_cansleep(TORCH_EN, 0);
+	gpio_set_value_cansleep(TORCH_SET, 0);
+#endif
 	return 0;
 
 probe_failure:

@@ -26,6 +26,7 @@
 
 struct tcbd_queue_item {
 	u8 *buffer;
+	u8 subch_id;
 	s32 size;
 	s32 type;
 };
@@ -46,9 +47,13 @@ TCBB_FUNC void tcbd_init_queue(
 TCBB_FUNC void tcbd_deinit_queue(struct tcbd_queue *_queue);
 
 TCBB_FUNC s32 tcbd_enqueue(
-	struct tcbd_queue *_queue, u8 *_chunk, s32 _size, s32 _type);
+	struct tcbd_queue *_queue, u8 *_chunk, s32 _size,
+	u8 _subch_id, s32 _type);
+
 TCBB_FUNC s32 tcbd_dequeue(
-	struct tcbd_queue *_queue, u8 *_chunk, s32 *_size, s32 *_type);
+	struct tcbd_queue *_queue, u8 *_chunk, s32 *_size,
+	u8 *_subch_id, s32 *_type);
+
 TCBB_FUNC s32 tcbd_dequeue_ptr(
 	struct tcbd_queue *_queue, u8 **_chunk,	s32 *_size,	s32 *_type);
 

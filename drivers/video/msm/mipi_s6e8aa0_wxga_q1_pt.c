@@ -74,8 +74,8 @@ static int __init mipi_video_s6e8aa0_wxga_q1_pt_init(void)
 	pinfo.bpp = 24; 
 
 #if defined(S6E8AA0_WXGA_Q1_58HZ_500MBPS)
-	pinfo.lcdc.h_back_porch = 153;		// quincy
-	pinfo.lcdc.h_front_porch = 153;		// quincy 
+	pinfo.lcdc.h_back_porch = 148;//153;		// quincy
+	pinfo.lcdc.h_front_porch = 148;//153;		// quincy 
 #else
 	pinfo.lcdc.h_back_porch = 134;		// quincy
 	pinfo.lcdc.h_front_porch = 134;		// quincy 
@@ -83,7 +83,7 @@ static int __init mipi_video_s6e8aa0_wxga_q1_pt_init(void)
 	pinfo.lcdc.h_pulse_width = 2;	   
 
 	pinfo.lcdc.v_back_porch = 1; 
-	pinfo.lcdc.v_front_porch = 13; 
+	pinfo.lcdc.v_front_porch = 25;//13; 
 	pinfo.lcdc.v_pulse_width = 2; 
 
 	pinfo.lcdc.border_clr = 0; /* blk */ 
@@ -138,6 +138,9 @@ static int __init mipi_video_s6e8aa0_wxga_q1_pt_init(void)
 	pinfo.lcd.v_back_porch = pinfo.lcdc.v_back_porch;
 	pinfo.lcd.v_front_porch = pinfo.lcdc.v_front_porch;
 	pinfo.lcd.v_pulse_width = pinfo.lcdc.v_pulse_width;
+
+	// for fix Screen Lockup
+	pinfo.lcd.blt_ctrl = BLT_SWITCH_TG_OFF; 
 
 	ret = mipi_s6e8aa0_wxga_q1_device_register(&pinfo, MIPI_DSI_PRIM,
 						MIPI_DSI_PANEL_WVGA_PT);

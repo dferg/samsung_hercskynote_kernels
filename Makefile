@@ -1,6 +1,6 @@
 VERSION = 3
 PATCHLEVEL = 0
-SUBLEVEL = 8
+SUBLEVEL = 31
 EXTRAVERSION =
 NAME = Sneaky Weasel
 
@@ -192,8 +192,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 export KBUILD_BUILDHOST := $(SUBARCH)
-ARCH		=arm
-#CROSS_COMPILE	=/opt/toolchains/arm-eabi-4.4.3/bin/arm-eabi- 
+ARCH		?= arm
+CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -344,11 +344,10 @@ DEPMOD		= /sbin/depmod
 KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
-
 # Use the wrapper for the compiler.  This wrapper scans for new
 # warnings and causes the build to stop upon encountering them.
-#CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
-CC		= $(CROSS_COMPILE)gcc
+CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
+#CC  = $(CROSS_COMPILE)gcc
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
@@ -375,24 +374,11 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks
 KBUILD_AFLAGS_KERNEL :=
-KBUILD_CFLAGS_KERNEL := -DTARGET_PRODUCT="$(TARGET_PRODUCT)"
+KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_AFLAGS_MODULE  := -DMODULE
 KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
-
-#[ latin_scm Set up kernel feature for Latin
-ifeq ($(LTN_BUILD_LOCALE),LTN)
-
-## Latin Common about all project
-KBUILD_CFLAGS += -DCONFIG_LTN_COMMON
-
-## Model Common
-# ex) CONFIG_TREBON_LTN_COMMON
-KBUILD_CFLAGS += -DCONFIG_${SEC_PROJECT}_LTN_COMMON
-
-endif
-#] latin_scm Set up kernel feature for Latin
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
@@ -575,6 +561,10 @@ endif # $(dot-config)
 # This allow a user to issue only 'make' to build a kernel including modules
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
+
+ifdef CONFIG_USA_MODEL_SGH_I757
+CC		= $(CROSS_COMPILE)gcc
+endif
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os

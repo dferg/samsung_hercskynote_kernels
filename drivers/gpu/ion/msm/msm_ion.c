@@ -43,6 +43,13 @@ int msm_ion_unsecure_heap(int heap_id)
 }
 EXPORT_SYMBOL(msm_ion_unsecure_heap);
 
+int msm_ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
+			void *vaddr, unsigned long len, unsigned int cmd)
+{
+	return ion_do_cache_op(client, handle, vaddr, 0, len, cmd);
+}
+EXPORT_SYMBOL(msm_ion_do_cache_op);
+
 static unsigned long msm_ion_get_base(unsigned long size, int memory_type,
 				    unsigned int align)
 {
@@ -54,6 +61,12 @@ static unsigned long msm_ion_get_base(unsigned long size, int memory_type,
 		return allocate_contiguous_memory_nomap(size, MEMTYPE_SMI,
 							align);
 		break;
+#ifdef CONFIG_SEC_KERNEL_REBASE_FOR_PMEM_OPTIMIZATION
+	case ION_ADSP_TYPE:
+		return allocate_contiguous_memory_nomap(size, MEMTYPE_PMEM_ADSP,
+							align);
+		break;
+#endif
 	default:
 		pr_err("%s: Unknown memory type %d\n", __func__, memory_type);
 		return 0;
@@ -234,6 +247,7 @@ static int msm_ion_probe(struct platform_device *pdev)
 		struct ion_platform_heap *heap_data = &pdata->heaps[i];
 		msm_ion_allocate(heap_data);
 
+		heap_data->has_outer_cache = pdata->has_outer_cache;
 		heaps[i] = ion_heap_create(heap_data);
 		if (IS_ERR_OR_NULL(heaps[i])) {
 			heaps[i] = 0;

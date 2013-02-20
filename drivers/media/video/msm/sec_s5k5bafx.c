@@ -76,7 +76,6 @@ static DECLARE_WAIT_QUEUE_HEAD(s5k5bafx_wait_queue);
 
 #ifdef CONFIG_LOAD_FILE
 static int s5k5bafx_write_regs_from_sd(char *name);
-static int s5k5bafx_regs_table_write(char *name);
 #endif
 
 static int s5k5bafx_start(void);
@@ -111,7 +110,7 @@ error:
 static int32_t s5k5bafx_i2c_write_32bit(unsigned short saddr, unsigned long packet)
 		{
 	int32_t rc = -EFAULT;
-	int retry_count = 5;
+	int retry_count = 3;
 
 	unsigned char buf[4];
 
@@ -160,16 +159,14 @@ static int s5k5bafx_i2c_write_list(const u32 *list, int size, char *name)
 	{
 		temp_packet = list[i];
 
-		if ((temp_packet & S5K5BAFX_DELAY) == S5K5BAFX_DELAY)
-		{
+		if ((temp_packet & S5K5BAFX_DELAY) == S5K5BAFX_DELAY){
 			m_delay = temp_packet & 0xFFFF;
 			cam_info("delay = %d",m_delay );
 			msleep(m_delay);
 			continue;
 		}
 
-		if(s5k5bafx_i2c_write_32bit(s5k5bafx_client->addr, temp_packet) < 0)
-		{
+		if(s5k5bafx_i2c_write_32bit(s5k5bafx_client->addr, temp_packet) < 0){
 			cam_err("fail(0x%x, 0x%x:%d)", s5k5bafx_client->addr, temp_packet, i);
 			return -EIO;
 		}
@@ -180,8 +177,6 @@ static int s5k5bafx_i2c_write_list(const u32 *list, int size, char *name)
 }
 
 #ifdef I2C_BURST_MODE
-#define BURST_MODE_BUFFER_MAX_SIZE 1600
-
 static int s5k5bafx_i2c_write_burst_list(const u32 *list, int size, char *name)
 {
 	int ret = -EAGAIN;
@@ -191,7 +186,7 @@ static int s5k5bafx_i2c_write_burst_list(const u32 *list, int size, char *name)
 
 	u16 addr, value;
 	int len = 0;
-	u8 buf[BURST_MODE_BUFFER_MAX_SIZE] = {0,};
+	static u8 buf[1600] = {0,};
 	
 	struct i2c_msg msg = {
 		.addr = s5k5bafx_client->addr,
@@ -308,7 +303,7 @@ static inline int s5k5bafx_write(struct i2c_client *client,
 }
 
 
-void s5k5bafx_regs_table_init(void)
+int s5k5bafx_regs_table_init(void)
 {
 	struct file *fp = NULL;
 	struct test *nextBuf = NULL;
@@ -582,6 +577,18 @@ static int s5k5bafx_write_regs_from_sd(char *name)
 	return 0;
 }
 #endif
+
+
+#ifdef CONFIG_CAMERA_VE
+static int s5k5bafx_check_sensor(void)
+{
+	int err = 0;
+	err = s5k5bafx_i2c_write_32bit(s5k5bafx_client->addr, 0xFCFCD000);
+	return err;
+}
+#endif
+
+
 static void  s5k5bafx_get_exif(void)
 {
 	unsigned short read_value1, temp;	
@@ -644,6 +651,15 @@ static long s5k5bafx_video_config(int mode)
 	if (s5k5bafx_ctrl->check_dataline)
 		err = s5k5bafx_check_dataline(1);
 
+	
+	if ((s5k5bafx_ctrl->vtcall_mode == 1) || (s5k5bafx_ctrl->vtcall_mode == 2)) {
+		CAM_DEBUG("VTCALL MODDE :500ms Delay");
+		msleep(500);
+	} else if (s5k5bafx_ctrl->vtcall_mode == 3){
+		CAM_DEBUG("Smart Stay :200ms Delay");
+		msleep(200);
+	}
+
 	return err;
 
 }
@@ -672,7 +688,7 @@ static long s5k5bafx_set_sensor_mode(int mode)
 		CAM_DEBUG("SENSOR_PREVIEW_MODE START");
 		
 		err = s5k5bafx_start();
-		if(err < 0) {
+		if (err < 0) {
 			printk("s5k5bafx_start failed!\n"); 
 			return err;
 		}
@@ -926,6 +942,17 @@ static int s5k5bafx_start(void)
 			err = s5k5bafx_i2c_write_list(s5k5bafx_vt_common,
 				sizeof(s5k5bafx_vt_common)/sizeof(s5k5bafx_vt_common[0]),"s5k5bafx_vt_common");
 		}
+		else if(s5k5bafx_ctrl->vtcall_mode == 3) //smart stay settting
+		{
+			CAM_DEBUG("SMART STAY");
+#ifdef I2C_BURST_MODE
+			err = s5k5bafx_i2c_write_burst_list(s5k5bafx_FD_common,
+				sizeof(s5k5bafx_FD_common)/sizeof(s5k5bafx_FD_common[0]),"s5k5bafx_FD_common");
+#else
+			err = s5k5bafx_i2c_write_list(s5k5bafx_FD_common,
+				sizeof(s5k5bafx_FD_common)/sizeof(s5k5bafx_FD_common[0]),"s5k5bafx_FD_common");
+#endif
+		}
 		else //wifi vt call
 		{
 			CAM_DEBUG("WIFI VT CALL");
@@ -933,6 +960,7 @@ static int s5k5bafx_start(void)
 				sizeof(s5k5bafx_vt_wifi_common)/sizeof(s5k5bafx_vt_wifi_common[0]),"s5k5bafx_vt_wifi_common");
 		
 		}
+		
 	}
 	else {
 		CAM_DEBUG("SELF RECORD");
@@ -955,9 +983,8 @@ static int s5k5bafx_start(void)
 		err = s5k5bafx_i2c_write_list(s5k5bafx_recording_60Hz_common,
 			sizeof(s5k5bafx_recording_60Hz_common)/sizeof(s5k5bafx_recording_60Hz_common[0]),"s5k5bafx_recording_60Hz_common");
 #endif
-
-
 #endif
+		msleep(50);
 	}
 
 	s5k5bafx_ctrl->initialized = 1;
@@ -1005,8 +1032,6 @@ static int s5k5bafx_sensor_init_probe(const struct msm_camera_sensor_info *data)
 	
 	CAM_DEBUG("POWER ON END ");
 #endif
-        // kminkim_UD03, fail test
-	//rc = s5k5bafx_i2c_write_32bit(s5k5bafx_client->addr, 0xFCFCD000);
 	return rc;
 }
 
@@ -1065,7 +1090,26 @@ int s5k5bafx_sensor_open_init(const struct msm_camera_sensor_info *data)
 	s5k5bafx_ctrl->blur = BLUR_LEVEL_0;
 	s5k5bafx_ctrl->exif_exptime = 0; 
 	s5k5bafx_ctrl->exif_iso = 0;
+	
+#ifdef CONFIG_CAMERA_VE
+	rc = s5k5bafx_check_sensor();
+	if (rc < 0) {
+		cam_err(" Front sensor is not s5k5bafx [rc: %d]", rc);
 
+#if 0	// -> msm_io_8x60.c, board-msm8x60_XXX.c
+		gpio_set_value_cansleep(CAM_VGA_RST, LOW);
+		mdelay(1);
+
+		sub_cam_ldo_power(OFF);	// have to turn off MCLK before PMIC
+#endif
+#ifdef CONFIG_LOAD_FILE
+		s5k5bafx_regs_table_exit();
+#endif
+
+		goto init_fail;
+	}
+#endif 
+	
 	CAM_DEBUG("X");
 init_done:
 	return rc;

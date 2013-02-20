@@ -913,13 +913,13 @@ static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
 	u8 field_len;
 	size_t parsed;
 
-	/* 
+	/*
 	* for (parsed = 0; parsed < data_len - 1; parsed += field_len) {
 	*/
 	for (parsed = 0; parsed < data_len - 1; ) {
 		field_len = data[0];
 
-		/* 
+		/*
 		* if (field_len == 0)
 		*/
 		if (field_len == 0 && data[1] == 0)
@@ -963,7 +963,7 @@ static inline size_t eir_length(u8 *eir, size_t maxlen)
 	for (parsed = 0, length = 0; parsed < maxlen - 1; ) {
 		field_len = eir[0];
 
-		/* 
+		/*
 		* if (field_len == 0)
 		*/
 		if (field_len == 0 && eir[1] == 0)

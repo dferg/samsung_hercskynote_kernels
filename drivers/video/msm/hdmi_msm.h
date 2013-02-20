@@ -13,9 +13,7 @@
 #ifndef __HDMI_MSM_H__
 #define __HDMI_MSM_H__
 
-#include <linux/switch.h>
 #include <mach/msm_iomap.h>
-#include <linux/wakelock.h>
 #include "external_common.h"
 /* #define PORT_DEBUG */
 
@@ -58,19 +56,18 @@ struct hdmi_msm_cec_msg {
 struct hdmi_msm_state_type {
 	boolean panel_power_on;
 	boolean hpd_initialized;
+	boolean hpd_state_in_isr;
 #ifdef CONFIG_SUSPEND
 	boolean pm_suspended;
 #endif
-	int hpd_stable;
-	boolean hpd_prev_state;
 	boolean hpd_cable_chg_detected;
-	boolean full_auth_done;
-	boolean hpd_during_auth;
-	struct work_struct hpd_state_work, hpd_read_work;
+	struct work_struct hpd_state_work;
 	struct timer_list hpd_state_timer;
 	struct completion ddc_sw_done;
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
+	boolean full_auth_done;
+	boolean hpd_during_auth;
 	boolean hdcp_activating;
 	boolean reauth ;
 	struct work_struct hdcp_reauth_work, hdcp_work;
@@ -115,14 +112,14 @@ struct hdmi_msm_state_type {
 	void __iomem *hdmi_io;
 
 	struct external_common_state_type common;
-	boolean	boot_completion;
-	struct wake_lock wake_lock;
-	boolean dock_state;
-	boolean boot_state;
-
-#ifndef QCT_SWITCH_STATE_CMD
-	struct switch_dev	hdmi_audio_switch;
+	boolean hpd_on_offline;
+#if defined(CONFIG_VIDEO_MHL_V1) || defined(CONFIG_VIDEO_MHL_V2) || \
+		defined(CONFIG_VIDEO_MHL_TAB_V2)
+	boolean mhl_hpd_state;
 #endif
+	struct switch_dev	hdmi_audio_switch;
+	struct switch_dev	hdmi_audio_ch;
+	boolean	boot_completion;
 };
 
 extern struct hdmi_msm_state_type *hdmi_msm_state;

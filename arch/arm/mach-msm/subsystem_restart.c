@@ -156,11 +156,11 @@ static int restart_level_set(const char *val, struct kernel_param *kp)
 	case RESET_SOC:
 	case RESET_SUBSYS_COUPLED:
 	case RESET_SUBSYS_INDEPENDENT:
-		pr_info("Subsystem Restart: Phase %d behavior activated.\n", restart_level);
+		pr_info("Phase %d behavior activated.\n", restart_level);
 	break;
 
 	case RESET_SUBSYS_MIXED:
-		pr_info("Subsystem Restart: Phase 2+ behavior activated.\n");
+		pr_info("Phase 2+ behavior activated.\n");
 	break;
 
 	default:
@@ -547,11 +547,6 @@ static int ssr_panic_handler(struct notifier_block *this,
 {
 	struct subsys_data *subsys;
 
-#if defined(CONFIG_SEC_DEBUG)
-	if(sec_debug_is_enabled()) // Skip ssr_panic_handler when the device is going to upload mode.
-		return NOTIFY_DONE;
-#endif
-	
 	list_for_each_entry(subsys, &subsystem_list, list)
 		if (subsys->crash_shutdown)
 			subsys->crash_shutdown(subsys);

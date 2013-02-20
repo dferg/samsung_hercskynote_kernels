@@ -47,19 +47,6 @@
 #endif
 /*******************************************************************************/
 
-#if 1 //defined (CONFIG_MACH_STEALTH)
-#define PMIC8058_IRQ_BASE				(NR_MSM_IRQS + NR_GPIO_IRQS)
-#if defined(CONFIG_KOR_MODEL_SHV_E120L)
-#define IRQ_GP2A_INT PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)))
-#define GP2A_INT_GPIO PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(14))
-#else
-#define IRQ_GP2A_INT PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(3)))
-#define GP2A_INT_GPIO PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(3))
-#define IRQ_GP2A_INT_08 PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)))
-#define GP2A_INT_GPIO_08 PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(14))
-#endif
-#endif
-
 #define SENSOR_DEFAULT_DELAY            (200)   /* 200 ms */
 #define SENSOR_MAX_DELAY                (2000)  /* 2000 ms */
 #define ABS_STATUS                      (ABS_BRAKE)
@@ -82,6 +69,12 @@ struct opt_gp2a_platform_data {
 	void	(*gp2a_led_off) (void);
 	void	(*power_on) (void);
 	void	(*power_off) (void);
+    int gp2a_irq;
+    int gp2a_gpio;
+#if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
+    int gp2a_irq_rev08;
+    int gp2a_gpio_rev08;
+#endif
 };
 
 struct gp2a_data {
@@ -104,6 +97,8 @@ struct gp2a_data {
 	void	(*gp2a_led_off) (void);
 	void	(*power_on) (void);
 	void	(*power_off) (void);
+    int gp2a_irq;
+    int gp2a_gpio;
 };
 
 
@@ -238,14 +233,14 @@ proximity_enable_store(struct device *dev,
 		msleep(160);
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)
 		if(get_hw_rev() >= 0x01) // HW_REV00 does not work gp2a sensor 
-			input = gpio_get_value_cansleep(GP2A_INT_GPIO);
+			input = gpio_get_value_cansleep(data->gp2a_gpio);
 		else
 			input = 1;
 #else
 		if(get_hw_rev() >= 0x08) 
-			input = gpio_get_value_cansleep(GP2A_INT_GPIO_08);
-		else
-			input = !gpio_get_value_cansleep(GP2A_INT_GPIO);
+            input = gpio_get_value_cansleep(data->gp2a_gpio);
+        else
+            input = !gpio_get_value_cansleep(data->gp2a_gpio);
 #endif
 	    input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 	    input_sync(data->input_dev);
@@ -381,20 +376,20 @@ static struct attribute_group proximity_attribute_group = {
 };
 
 
-static char get_ps_vout_value(void)
+static char get_ps_vout_value(int gp2a_gpio)
 {
 	char value = 0;
 
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)
 	if(get_hw_rev() >= 0x01) // HW_REV00 does not work gp2a sensor 
-		value = gpio_get_value_cansleep(GP2A_INT_GPIO);
+		value = gpio_get_value_cansleep(gp2a_gpio);
 	else
 		value = 1;
 #else
-	if(get_hw_rev() >= 0x08)
-		value = gpio_get_value_cansleep(GP2A_INT_GPIO_08);
-	else
-		value = !gpio_get_value_cansleep(GP2A_INT_GPIO);
+    if(get_hw_rev() >= 0x08) 
+    	value = gpio_get_value_cansleep(gp2a_gpio);
+    else
+    	value = !gpio_get_value_cansleep(gp2a_gpio);
 #endif
 
 	return value;
@@ -419,7 +414,7 @@ static void gp2a_work_func_prox(struct work_struct *work)
 	char result;
 	int ret;
 
-	result = get_ps_vout_value(); // 0 : proximity, 1 : away
+	result = get_ps_vout_value(gp2a->gp2a_gpio); // 0 : proximity, 1 : away
 	proximity_sensor_detection = !result;
 
 	input_report_abs(gp2a->input_dev, ABS_DISTANCE,  result);
@@ -618,6 +613,24 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 			gp2a->gp2a_led_on = pdata->gp2a_led_on;
 		if(pdata->gp2a_led_off)
 			gp2a->gp2a_led_off = pdata->gp2a_led_off;
+#if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
+		if(get_hw_rev() >= 0x08) {
+			if(pdata->gp2a_irq_rev08)
+				gp2a->gp2a_irq = pdata->gp2a_irq_rev08;
+			if(pdata->gp2a_gpio_rev08)
+				gp2a->gp2a_gpio = pdata->gp2a_gpio_rev08;
+		} else {
+			if(pdata->gp2a_irq)
+				gp2a->gp2a_irq = pdata->gp2a_irq;
+			if(pdata->gp2a_gpio)
+				gp2a->gp2a_gpio = pdata->gp2a_gpio;
+		}
+#else
+		if(pdata->gp2a_irq)
+			gp2a->gp2a_irq = pdata->gp2a_irq;
+		if(pdata->gp2a_gpio)
+			gp2a->gp2a_gpio = pdata->gp2a_gpio;
+#endif
 	}
 
 	if(gp2a->power_on)
@@ -675,14 +688,7 @@ static int gp2a_opt_probe( struct platform_device* pdev )
     opt_i2c_write((u8)(COMMAND1),&value); //shutdown mode op[3]=0
 	
 	
-#if defined(CONFIG_KOR_MODEL_SHV_E120L)
-	alt_int = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)));
-#else
-	if(get_hw_rev() >= 0x08)
-		alt_int = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)));
-	else
-		alt_int = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(3)));
-#endif
+	alt_int = gp2a->gp2a_irq;
 	
 	/* INT Settings */	
   	err = request_threaded_irq( alt_int , 

@@ -74,6 +74,13 @@ static struct gpiomux_setting gsbi8 = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
+#ifdef CONFIG_VP_A2220
+static struct gpiomux_setting gsbi1 = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+#endif
 #if defined(CONFIG_PN544_NFC)
 static struct gpiomux_setting gsbi10 = {
 	.func = GPIOMUX_FUNC_1,
@@ -201,6 +208,42 @@ static struct gpiomux_setting sdcc2_clk_actv_cfg = {
 	.drv = GPIOMUX_DRV_6MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
+#elif defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+static struct gpiomux_setting sdcc2_dat_0_3_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc2_dat_4_7_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc2_clk_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+#elif defined (CONFIG_USA_MODEL_SGH_T989)|| defined (CONFIG_USA_MODEL_SGH_T769)
+static struct gpiomux_setting sdcc2_dat_0_3_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc2_dat_4_7_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc2_clk_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
 #else
 static struct gpiomux_setting sdcc2_dat_0_3_cmd_actv_cfg = {
 	.func = GPIOMUX_FUNC_2,
@@ -218,6 +261,14 @@ static struct gpiomux_setting sdcc2_clk_actv_cfg = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_16MA,
 	.pull = GPIOMUX_PULL_NONE,
+};
+#endif
+
+#if defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+static struct gpiomux_setting sdcc2_clk_suspend_config = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE, 
 };
 #endif
 
@@ -251,6 +302,30 @@ static struct gpiomux_setting sdcc5_clk_actv_cfg = {
 	.drv = GPIOMUX_DRV_6MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
+#elif defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+static struct gpiomux_setting sdcc5_dat_0_3_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc5_clk_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+#elif defined (CONFIG_USA_MODEL_SGH_T989)|| defined (CONFIG_USA_MODEL_SGH_T769)
+static struct gpiomux_setting sdcc5_dat_0_3_cmd_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdcc5_clk_actv_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
 #else
 static struct gpiomux_setting sdcc5_dat_0_3_cmd_actv_cfg = {
 	.func = GPIOMUX_FUNC_2,
@@ -261,6 +336,14 @@ static struct gpiomux_setting sdcc5_dat_0_3_cmd_actv_cfg = {
 static struct gpiomux_setting sdcc5_clk_actv_cfg = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_16MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+#endif
+
+#if defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+static struct gpiomux_setting sdcc5_clk_suspend_config = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 #endif
@@ -331,6 +414,7 @@ static struct gpiomux_setting hdmi_suspend_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 };
 
+#if 0 // samsung gpio setting
 static struct gpiomux_setting mdm2ap_status_active_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -342,6 +426,7 @@ static struct gpiomux_setting mdm2ap_status_suspend_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
+#endif
 
 static struct gpiomux_setting cam_suspend_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
@@ -412,7 +497,7 @@ static struct gpiomux_setting hdmi_active_3_cfg = {
 static struct gpiomux_setting pmic_suspended_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
+	.pull = GPIOMUX_PULL_NONE,
 };
 
 static struct gpiomux_setting cam_active_1_cfg = {
@@ -426,19 +511,20 @@ static struct gpiomux_setting cam_active_2_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
+
 #if 0//samsung LTE
 static struct gpiomux_setting cam_active_3_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_UP,
 };
-#endif
 
 static struct gpiomux_setting cam_active_4_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
+#endif
 
 static struct gpiomux_setting cam_active_5_cfg = {
 	.func = GPIOMUX_FUNC_1,
@@ -467,7 +553,6 @@ static struct gpiomux_setting accel_suspend_cfg = {
 };
 #endif
 
-#if !defined(CONFIG_TARGET_LOCALE_US_ATT_REV01)
 #ifdef CONFIG_GYRO_K3G
 static struct gpiomux_setting gyro_active_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
@@ -493,13 +578,21 @@ static struct gpiomux_setting gyro_fifo_int_suspend_cfg = {
 };
 #endif
 #endif
-#endif //CONFIG_TARGET_LOCALE_US_ATT_REV01
 
 #if defined (CONFIG_OPTICAL_GP2A) || defined(CONFIG_OPTICAL_GP2AP020A00F)
 static struct gpiomux_setting opt_active_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_UP,
+};
+static struct gpiomux_setting opt_suspend_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+#if defined (CONFIG_KOR_MODEL_SHV_E120L)
+	.pull = GPIOMUX_PULL_DOWN,
+#else
+	.pull = GPIOMUX_PULL_UP,
+#endif
 };
 #endif
 
@@ -615,14 +708,6 @@ static struct gpiomux_setting tdmb_suspend_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 	.dir = 0,
 };
-
-static struct gpiomux_setting tdmb_spi_config = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_DOWN,
-	.dir = 0,
-};
-
 #endif
 
 static struct gpiomux_setting motor_active_cfg = {
@@ -647,29 +732,54 @@ static struct gpiomux_setting boot_config_cfg = {
 };
 
 static struct msm_gpiomux_config msm8x60_gsbi_configs[] __initdata = {
-#if defined(CONFIG_TDMB) || defined(CONFIG_TDMB_MODULE)
+#if defined(CONFIG_VP_A2220)
+	{
+		.gpio      = 33,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1,
+		},
+	},
+	{
+		.gpio      = 34,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1,
+		},
+	},	
+	{
+		.gpio      = 35,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1,
+		},
+	},	
+	{
+		.gpio      = 36,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1,
+		},
+	},	
+#elif defined(CONFIG_TDMB) || defined(CONFIG_TDMB_MODULE)
 	{
 		.gpio	   = 33,
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &tdmb_spi_config,
+			[GPIOMUX_SUSPENDED] = &tdmb_suspend_cfg,
 		},
 	},
 	{
 		.gpio	   = 34,
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &tdmb_spi_config,
+			[GPIOMUX_SUSPENDED] = &tdmb_suspend_cfg,
 		},
 	},
 	{
-		.gpio	   = 35,
+		.gpio      = 35,
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &tdmb_spi_config,
+			[GPIOMUX_SUSPENDED] = &tdmb_suspend_cfg,
 		},
-	},
+	},	
 	{
 		.gpio	   = 36,
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &tdmb_spi_config,
+			[GPIOMUX_SUSPENDED] = &tdmb_suspend_cfg,
 		},
 	},
 #else
@@ -1008,7 +1118,6 @@ static struct msm_gpiomux_config msm8x60_accel_configs[] __initdata = {
 };
 #endif
 
-#if !defined(CONFIG_TARGET_LOCALE_US_ATT_REV01)
 #ifdef CONFIG_GYRO_K3G
 static struct msm_gpiomux_config msm8x60_gyro_configs[] __initdata = {
 	{
@@ -1038,7 +1147,6 @@ static struct msm_gpiomux_config msm8x60_gyro_configs[] __initdata = {
 #endif
 };
 #endif
-#endif //CONFIG_TARGET_LOCALE_US_ATT_REV01
 
 #if defined (CONFIG_OPTICAL_GP2A) || defined(CONFIG_OPTICAL_GP2AP020A00F)
 static struct msm_gpiomux_config msm8x60_opt_configs[] __initdata = {
@@ -1046,14 +1154,14 @@ static struct msm_gpiomux_config msm8x60_opt_configs[] __initdata = {
 		.gpio      = 138,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &opt_active_cfg,
-			[GPIOMUX_SUSPENDED] = &opt_active_cfg,
+			[GPIOMUX_SUSPENDED] = &opt_suspend_cfg,
 		},
 	},
 	{
 		.gpio      = 139,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &opt_active_cfg,
-			[GPIOMUX_SUSPENDED] = &opt_active_cfg,
+			[GPIOMUX_SUSPENDED] = &opt_suspend_cfg,
 		},
 	},
 };
@@ -1077,7 +1185,6 @@ static struct msm_gpiomux_config msm8x60_touchkey_configs[] __initdata = {
 	},
 };
 #endif
-
 #if defined(CONFIG_USB_PEHCI_HCD) || defined(CONFIG_USB_PEHCI_HCD_MODULE)
 static struct msm_gpiomux_config msm8x60_isp_usb_configs[] __initdata = {
 	{
@@ -1364,7 +1471,11 @@ static struct msm_gpiomux_config msm8x60_charm_sdc_configs[] __initdata = {
 		.gpio = 97,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &sdcc5_clk_actv_cfg,
+#if defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+			[GPIOMUX_SUSPENDED] = &sdcc5_clk_suspend_config,
+#else
 			[GPIOMUX_SUSPENDED] = &sdcc5_suspend_config,
+#endif			
 		},
 	},
 	/* SDCC5 data[2]*/
@@ -1486,7 +1597,11 @@ static struct msm_gpiomux_config msm8x60_charm_sdc_configs[] __initdata = {
 		.gpio = 152,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &sdcc2_clk_actv_cfg,
+#if defined(CONFIG_USA_MODEL_SGH_I727 ) || defined(CONFIG_USA_MODEL_SGH_I577)
+			[GPIOMUX_SUSPENDED] = &sdcc2_clk_suspend_config,
+#else
 			[GPIOMUX_SUSPENDED] = &sdcc2_suspend_config,
+#endif
 		},
 	},
 };
@@ -1891,7 +2006,7 @@ static struct msm_gpiomux_config msm8x60_cam_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &cam_suspend_cfg,
 		},
 	},
-#if 0 //samsung LTE
+#if 0 //samsung camera LTE
 	{
 		.gpio = 47,
 		.settings = {
@@ -2171,6 +2286,35 @@ static struct msm_gpiomux_config msm8x60_nc_configs[] __initdata = {
 		},
 	},
 #endif
+#if defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I577)
+	{
+		.gpio      = 65,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+#endif
+#if defined(CONFIG_USA_MODEL_SGH_T769)
+	{
+		.gpio      = 38,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	{
+		.gpio      = 39,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	{
+		.gpio      = 126,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nc_cfg,
+		},
+	},
+	
+#endif
 };
 
 struct msm_gpiomux_configs
@@ -2203,10 +2347,8 @@ msm8x60_surf_ffa_gpiomux_cfgs[] __initdata = {
 	{msm8x60_usb_configs, ARRAY_SIZE(msm8x60_usb_configs)},
 #endif
 #endif
-#if !defined(CONFIG_TARGET_LOCALE_US_ATT_REV01)
 #ifdef CONFIG_GYRO_K3G
 	{msm8x60_gyro_configs, ARRAY_SIZE(msm8x60_gyro_configs)},
-#endif
 #endif
 #if defined (CONFIG_OPTICAL_GP2A) || defined(CONFIG_OPTICAL_GP2AP020A00F)
 	{msm8x60_opt_configs, ARRAY_SIZE(msm8x60_opt_configs)},
@@ -2238,10 +2380,8 @@ msm8x60_fluid_gpiomux_cfgs[] __initdata = {
 #ifdef CONFIG_SENSORS_K3DH
 	{msm8x60_accel_configs, ARRAY_SIZE(msm8x60_accel_configs)},
 #endif
-#if !defined(CONFIG_TARGET_LOCALE_US_ATT_REV01)
 #ifdef CONFIG_GYRO_K3G
 	{msm8x60_gyro_configs, ARRAY_SIZE(msm8x60_gyro_configs)},
-#endif
 #endif
 #if defined (CONFIG_OPTICAL_GP2A) || defined(CONFIG_OPTICAL_GP2AP020A00F)
 	{msm8x60_opt_configs, ARRAY_SIZE(msm8x60_opt_configs)},
@@ -2279,10 +2419,8 @@ msm8x60_charm_gpiomux_cfgs[] __initdata = {
 	{msm8x60_usb_configs, ARRAY_SIZE(msm8x60_usb_configs)},
 #endif
 #endif
-#if !defined(CONFIG_TARGET_LOCALE_US_ATT_REV01)
 #ifdef CONFIG_GYRO_K3G
 	{msm8x60_gyro_configs, ARRAY_SIZE(msm8x60_gyro_configs)},
-#endif
 #endif
 #if defined (CONFIG_OPTICAL_GP2A) || defined(CONFIG_OPTICAL_GP2AP020A00F)
 	{msm8x60_opt_configs, ARRAY_SIZE(msm8x60_opt_configs)},

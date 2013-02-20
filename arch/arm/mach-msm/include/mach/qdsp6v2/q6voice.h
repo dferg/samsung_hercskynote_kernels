@@ -31,7 +31,7 @@
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)|| defined(CONFIG_KOR_MODEL_SHV_E160L)
 #define CONFIG_VPCM_INTERFACE_ON_SVLTE2
 #endif
-#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717)
 #define CONFIG_VPCM_INTERFACE_ON_CSFB
 #endif
 
@@ -595,15 +595,13 @@ struct vss_ivocproc_cmd_create_full_control_session_t {
 	 * ID set to VSS_NETWORK_ID_DEFAULT.
 	 */
 #if defined(CONFIG_VPCM_INTERFACE_ON_CSFB)
-//device Info
+	/* Device Info */
 	uint32_t rx_device_id;
-    uint32_t tx_device_id;
-//Volume Info
+	uint32_t tx_device_id;
+	/* Volume Info */
 	uint32_t vol_index;
-
-//Loopback Info
-    int loopback_mode_onoff;
-
+	/* Loopback Info */
+	int loopback_mode_onoff;
 #endif 
 } __attribute__((packed));
 
@@ -631,15 +629,13 @@ struct vss_ivocproc_cmd_set_device_t {
 	* pre/post-processing blocks and is pass-through.
 	*/
 #if defined(CONFIG_VPCM_INTERFACE_ON_CSFB)
-	//Device Info
+	/* Device Info */
 	uint32_t rx_device_id;
-    uint32_t tx_device_id;
-//Volume Info
-	uint32_t vol_index;    
-
-//Loopback Info
-    int loopback_mode_onoff;
-   	 
+	uint32_t tx_device_id;
+	/* Volume Info */
+	uint32_t vol_index;
+	/* Loopback Info */
+	int loopback_mode_onoff;
 #endif 
 } __attribute__((packed));
 
@@ -695,7 +691,7 @@ struct oem_ivolume_cmd_change_cmd {
 } __attribute__ ((packed));
 #endif 
 
-#ifdef CONFIG_SEC_DHA_SOL_MAL
+#ifdef SEC_PRODUCT_FEATURE_AUDIO_DHA_SOL_MAL2
 struct oem_dha_parm_send_t {
 	uint16_t onoff;
 	uint16_t select;
@@ -706,7 +702,7 @@ struct oem_dha_parm_send_cmd {
 	struct apr_hdr hdr;
 	struct oem_dha_parm_send_t dha_send;
 } __attribute__ ((packed));
-#endif /* CONFIG_SEC_DHA_SOL_MAL*/
+#endif /* SEC_PRODUCT_FEATURE_AUDIO_DHA_SOL_MAL2*/
 
 /* END: VPCM */
 
@@ -841,9 +837,9 @@ struct common_data {
 };
 
 int voice_set_voc_path_full(uint32_t set);
-#ifdef CONFIG_SEC_DHA_SOL_MAL
+#ifdef SEC_PRODUCT_FEATURE_AUDIO_DHA_SOL_MAL2
 int voice_sec_set_dha_data(int mode, int select, short* parameters);
-#endif /* CONFIG_SEC_DHA_SOL_MAL*/
+#endif /* SEC_PRODUCT_FEATURE_AUDIO_DHA_SOL_MAL2*/
 
 void voice_register_mvs_cb(ul_cb_fn ul_cb,
 			   dl_cb_fn dl_cb,
@@ -860,9 +856,8 @@ int voice_start_record(uint32_t rec_mode, uint32_t set);
 int voice_start_playback(uint32_t set);
 
 u16 voice_get_session_id(const char *name);
-
 #if defined(CONFIG_EUR_MODEL_GT_I9210)
-int vpcm_stop_modem_voice();
-int vpcm_start_modem_voice();
+int vpcm_stop_modem_voice(void);
+int vpcm_start_modem_voice(void);
 #endif
 #endif

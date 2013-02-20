@@ -146,6 +146,7 @@ struct usb_ep {
 	const struct usb_ep_ops	*ops;
 	struct list_head	ep_list;
 	unsigned		maxpacket:16;
+	const struct usb_endpoint_descriptor	*desc;
 };
 
 /*-------------------------------------------------------------------------*/

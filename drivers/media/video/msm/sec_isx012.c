@@ -85,7 +85,7 @@ int gGLOWLIGHT_ISO50 = 0, gGLOWLIGHT_ISO100 = 0, gGLOWLIGHT_ISO200 = 0, gGLOWLIG
 
 static int accessibility_torch = 0;
 static DECLARE_WAIT_QUEUE_HEAD(isx012_wait_queue);
-DECLARE_MUTEX(isx012_sem);
+//DECLARE_MUTEX(isx012_sem);
 
 /*
 #define ISX012_WRITE_LIST(A) \
@@ -173,7 +173,7 @@ static int isx012_i2c_write_multi_temp(unsigned short addr, unsigned int w_data,
 	unsigned char buf[w_len+2];
 	struct i2c_msg msg = {0x3C, 0, w_len+2, buf};
 
-	int retry_count = 5;
+	int retry_count = 1;	//for Factory test
 	int err = 0;
 
 	if (!isx012_client->adapter) {
@@ -223,7 +223,7 @@ static int isx012_i2c_write_multi(unsigned short addr, unsigned int w_data, unsi
 	unsigned char buf[w_len+2];
 	struct i2c_msg msg = {isx012_client->addr, 0, w_len+2, buf};
 
-	int retry_count = 5;
+	int retry_count = 3;
 	int err = 0;
 
 	if (!isx012_client->adapter) {
@@ -273,7 +273,7 @@ static int isx012_i2c_burst_write_list(isx012_short_t regs[], int size, char *na
 {
 	int i = 0;
 	int iTxDataIndex = 0;
-	int retry_count = 5;
+	int retry_count = 3;
 	int err = 0;
 
 
@@ -629,7 +629,7 @@ static int isx012_write_regs_from_sd(char *name)
 }
 #endif
 
-static int isx012_get_LowLightCondition()
+static int isx012_get_LowLightCondition( void ) 
 {
 	int err = -1;
 	unsigned char r_data2[2] = {0, 0};
@@ -639,7 +639,7 @@ static int isx012_get_LowLightCondition()
 
 	if(isx012_ctrl->setting.iso == 0) {	//auto iso
 		pr_err("%s: auto iso %d\n", __func__, isx012_ctrl->setting.iso);
-		err = isx012_i2c_read_multi(0x01A5, r_data2, 2);
+		err = isx012_i2c_read_multi(0x01A5, (unsigned short*)r_data2, 2);
 		
 		if (err < 0)
 			pr_err("%s: isx012_get_LowLightCondition() returned error, %d\n", __func__, err);
@@ -652,10 +652,10 @@ static int isx012_get_LowLightCondition()
 		}
 	} else {	//manual iso
 		pr_err("%s: manual iso %d\n", __func__, isx012_ctrl->setting.iso);
-		err = isx012_i2c_read_multi(0x019C, l_data, 2);	//SHT_TIME_OUT_L
+		err = isx012_i2c_read_multi(0x019C,(unsigned short*) l_data, 2);	//SHT_TIME_OUT_L
 		ldata_temp = (l_data[1] << 8 | l_data[0]);
 
-		err = isx012_i2c_read_multi(0x019E, h_data, 2);	//SHT_TIME_OUT_H
+		err = isx012_i2c_read_multi(0x019E,(unsigned short*) h_data, 2);	//SHT_TIME_OUT_H
 		hdata_temp = (h_data[1] << 8 | h_data[0]);
 		LowLight_value = (h_data[1] << 24 | h_data[0] << 16 | l_data[1] << 8 | l_data[0]);
 		//printk(KERN_ERR "func(%s):line(%d) LowLight_value : 0x%x / hdata_temp : 0x%x ldata_temp : 0x%x\n",__func__, __LINE__, LowLight_value, hdata_temp, ldata_temp);
@@ -704,10 +704,12 @@ static int isx012_get_LowLightCondition()
 	return err;
 }
 
-void isx012_mode_transition_OM(void)
+int isx012_mode_transition_OM(void)
 {
 	int timeout_cnt = 0;
+	int factory_timeout_cnt = 0;
 	int om_status = 0;
+	int ret = 0;
 	short unsigned int r_data[2] = {0,0};
 
 	printk("[isx012] %s/%d\n", __func__, __LINE__);
@@ -718,9 +720,17 @@ void isx012_mode_transition_OM(void)
 			mdelay(1);
 		}
 		timeout_cnt++;
-		isx012_i2c_read_multi(0x000E, r_data, 1);
+		ret = isx012_i2c_read_multi(0x000E, r_data, 1);
 		om_status = r_data[0];
 		//printk("%s [isx012] 0x000E (1) read : 0x%x / om_status & 0x1 : 0x%x(origin:0x1)\n", __func__, om_status, om_status & 0x1);
+		if (ret != 1) {
+			factory_timeout_cnt++;
+			if (factory_timeout_cnt > 5) {
+				pr_info("factory test1 error(%d)\n", ret);
+				return -EIO; /*factory test*/
+			}
+			
+		}
 		if (timeout_cnt > ISX012_DELAY_RETRIES_OM) {
 			pr_err("%s: %d :Entering OM_1 delay timed out \n", __func__, __LINE__);
 			break;
@@ -728,6 +738,11 @@ void isx012_mode_transition_OM(void)
 	} while (((om_status & 0x01) != 0x01));
 
 	timeout_cnt = 0;
+
+	if (ret != 1) {
+		pr_info("factory test2 error(%d)\n", ret);
+		return -EIO; /*factory test*/
+	}
 
 	do {
 		if (timeout_cnt > 0){
@@ -743,6 +758,8 @@ void isx012_mode_transition_OM(void)
 			break;
 		}
 	} while (((om_status & 0x01) != 0x00));
+
+	return 0; /*factory test*/
 }
 
 void isx012_mode_transition_CM(void)
@@ -1070,8 +1087,8 @@ static int isx012_exif_shutter_speed(void)
 
 	unsigned char l_data[2] = {0,0}, h_data[2] = {0,0};
 
-	err = isx012_i2c_read_multi(0x019C, l_data,2);	//SHT_TIME_OUT_L
-	err = isx012_i2c_read_multi(0x019E, h_data,2);	//SHT_TIME_OUT_H
+	err = isx012_i2c_read_multi(0x019C,(unsigned short*) l_data,2);	//SHT_TIME_OUT_L
+	err = isx012_i2c_read_multi(0x019E,(unsigned short*) h_data,2);	//SHT_TIME_OUT_H
 	shutter_speed = (h_data[1] << 24 | h_data[0] << 16 | l_data[1] << 8 | l_data[0]);
 	//printk(KERN_DEBUG "[exif_shutter][%s:%d] shutter_speed(%x/%d)\n", __func__, __LINE__, shutter_speed, shutter_speed);
 
@@ -1892,7 +1909,7 @@ static long isx012_set_sensor_mode(int mode)
 	int err = -EINVAL;
 	short unsigned int r_data[1] = {0};
 //	short unsigned int r_data2[2] = {0, 0};
-	char modesel_fix[1] = {0}, awbsts[1] = {0};
+	char awbsts[1] = {0};
 	int timeout_cnt = 0;
 #if 0
 	unsigned int hunt1 = 0;
@@ -2217,7 +2234,11 @@ static int isx012_sensor_init_probe(const struct msm_camera_sensor_info *data)
 
 	//printk("[isx012] Mode Trandition 1\n");
 
-	isx012_mode_transition_OM();
+	err = isx012_mode_transition_OM();
+	if (err == -EIO) {
+		printk("[isx012] start1 fail!\n");
+		return -EIO;
+	}
 
 	mdelay(10);
 
@@ -2225,7 +2246,11 @@ static int isx012_sensor_init_probe(const struct msm_camera_sensor_info *data)
 	//printk("[isx012] Mode Trandition 2\n");
 
 	mdelay(10);
-	isx012_mode_transition_OM();
+	err = isx012_mode_transition_OM();
+	if (err == -EIO) {
+		printk("[isx012] start2 fail!\n");
+		return -EIO;
+	}
 
 
 	//printk("[isx012] MIPI write\n");
@@ -2240,7 +2265,11 @@ static int isx012_sensor_init_probe(const struct msm_camera_sensor_info *data)
 	//printk("[isx012] CAM_5M_ISP_STNBY : %d\n", temp);
 
 	mdelay(20);
-	isx012_mode_transition_OM();
+	err = isx012_mode_transition_OM();
+	if (err == -EIO) {
+		printk("[isx012] start3 fail!\n");
+		return -EIO;
+	}
 
 	isx012_mode_transition_CM();
 
@@ -2371,7 +2400,7 @@ static int isx012_sensor_af_status(void)
 
 	//printk(KERN_DEBUG "[isx012] %s/%d\n", __func__, __LINE__);
 
-	err = isx012_i2c_read_multi(0x8B8A, r_data, 1);
+	err = isx012_i2c_read_multi(0x8B8A, (unsigned short*)r_data, 1);
 	//printk(KERN_DEBUG "%s:%d status(0x%x) r_data(0x%x %x)\n", __func__, __LINE__, status, r_data[1], r_data[0]);
 	status = r_data[0];
 	//printk(KERN_DEBUG "[isx012] %s/%d status(0x%x)\n", __func__, __LINE__, status);
@@ -2608,30 +2637,33 @@ static int isx012_get_af_status(void)
 #if 1
 static int isx012_set_touch_auto_focus(int value1)
 {
-	CAM_DEBUG("%d", value1);
+	int x,y;
+	unsigned int H_ratio, V_ratio;
+	unsigned int AF_OPD4_HDELAY, AF_OPD4_VDELAY, AF_OPD4_HVALID, AF_OPD4_VVALID;
+	
+	x = isx012_ctrl->status.pos_x;
+	y = isx012_ctrl->status.pos_y;
 
-
-	int x = isx012_ctrl->status.pos_x;
-	int y = isx012_ctrl->status.pos_y;
-
-
-	unsigned int H_ratio = 324;	//H_RATIO : 3.24 = 2592 / 800
-	unsigned int V_ratio = 405;	//V_RATIO : 4.05 = 1944 / 480
+	H_ratio = 324;	//H_RATIO : 3.24 = 2592 / 800
+	V_ratio = 405;	//V_RATIO : 4.05 = 1944 / 480
 
 	//AE value
 	//OPD4 Not touchAF value
 	//H : 2048 = 896 + 256 + 896
 	//V : 1536 = 512 + 512 +512
-	unsigned int AF_OPD4_HDELAY = 486;
-	unsigned int AF_OPD4_VDELAY = 259;
-	unsigned int AF_OPD4_HVALID = 259;
-	unsigned int AF_OPD4_VVALID = 324;
+	AF_OPD4_HDELAY = 486;
+	AF_OPD4_VDELAY = 259;
+	AF_OPD4_HVALID = 259;
+	AF_OPD4_VVALID = 324;
 
+
+        CAM_DEBUG("%d", value1);
 
 	if (value1 == 0) // Stop touch AF
 	{
 		if (iscapture != 1) {
 			ISX012_WRITE_LIST(ISX012_AF_TouchSAF_OFF);
+			isx012_ctrl->status.touchaf=0;	  /* Have to set Zero, otherwise in Touch AF followed by Shutter AF(long press) , AE and AWB locking will not work */
 
 			//wait 1V time (66ms)
 			mdelay(66);
@@ -2822,13 +2854,13 @@ int isx012_sensor_ext_config(void __user *argp)
 		case EXT_CFG_SET_LOW_LEVEL :
 			isx012_ctrl->status.cancel_af = 0;
 			isx012_ctrl->status.cancel_af_running = 0;
-			if (isx012_ctrl->setting.flash_mode > 0) {
-				err = isx012_get_LowLightCondition();
+		   if (isx012_ctrl->setting.flash_mode > 0) { 
+		      err = isx012_get_LowLightCondition();
 			} else if (isx012_ctrl->setting.scene == SCENE_MODE_NIGHTSHOT){
 				err = isx012_get_LowLightCondition();
 			} else {
 				cam_info("Not Low light check");
-			}
+			}  
 			break;
 
 		case EXT_CFG_GET_EXIF :

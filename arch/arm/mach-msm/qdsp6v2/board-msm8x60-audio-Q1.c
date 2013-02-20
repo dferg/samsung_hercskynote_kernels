@@ -32,7 +32,8 @@
 #ifdef CONFIG_SENSORS_YDA165
 #include <linux/i2c/yda165_integ.h>
 #endif
-
+#include <linux/i2c/fsa9480.h>
+#include <mach/board-msm8660.h>
 #include <mach/qdsp6v2/audio_dev_ctl.h>
 #include <sound/apr_audio.h>
 #include <mach/mpp.h>
@@ -53,6 +54,8 @@
 #include "timpani_profile_quincy_kt.h"
 #elif defined(CONFIG_KOR_MODEL_SHV_E160L)/*QUINCY-LGT */
 #include "timpani_profile_quincy_lgt.h"
+#elif defined(CONFIG_JPN_MODEL_SC_05D)/*QUINCY-JPN equal to SKT*/
+#include "timpani_profile_quincy_skt.h"
 #elif defined(CONFIG_USA_MODEL_SGH_I717) /*QUINCY-ATT */
 #include "timpani_profile_quincy_att.h"
 #endif
@@ -467,7 +470,7 @@ static void msm_snddev_poweramp_off_call(void)
 }
 
 int msm_snddev_poweramp_on_headset_call(void)
-{
+{	fsa9480_audiopath_control(0);
 #ifdef CONFIG_SENSORS_YDA165
 	yda165_headset_call_onoff(1);
 #endif
@@ -483,6 +486,7 @@ void msm_snddev_poweramp_off_headset_call(void)
 
 int msm_snddev_poweramp_on_headset(void)
 {
+	fsa9480_audiopath_control(0); /* prevent lineout sound out */
 #ifdef CONFIG_SENSORS_YDA165
 	yda165_headset_onoff(1);
 #endif
@@ -511,6 +515,26 @@ void msm_snddev_poweramp_off_call_headset(void)
 	pr_info("%s: power on headset\n", __func__);
 }
 
+int msm_snddev_vpsamp_on_headset(void)
+{
+#ifdef CONFIG_SENSORS_YDA165
+	yda165_headset_onoff(1);
+	pr_info("%s: power on amp headset\n", __func__);
+#endif
+	fsa9480_audiopath_control(1);
+
+	return 0;
+}
+
+void msm_snddev_vpsamp_off_headset(void)
+{
+#ifdef CONFIG_SENSORS_YDA165
+	yda165_headset_onoff(0);
+	pr_info("%s: power off amp headset\n", __func__);
+#endif
+	fsa9480_audiopath_control(0);
+}
+int msm_snddev_spkvpsamp_on_together(void){	pr_info("%s\n", __func__);#ifdef CONFIG_SENSORS_YDA165	yda165_speaker_headset_onoff(1);#endif	fsa9480_audiopath_control(1);	return 0;}void msm_snddev_spkvpsamp_off_together(void){	pr_info("%s\n", __func__);#ifdef CONFIG_SENSORS_YDA165	yda165_speaker_headset_onoff(0);#endif	fsa9480_audiopath_control(0);}
 int msm_snddev_poweramp_on_together(void)
 {
 #ifdef CONFIG_SENSORS_YDA165
@@ -794,6 +818,7 @@ static void msm_snddev_disable_2mic_power(void)
 }
 #endif
 
+#ifndef SEC_AUDIO_DEVICE
 static int msm_snddev_enable_dmic_sec_power(void)
 {
 	int ret;
@@ -814,6 +839,7 @@ static int msm_snddev_enable_dmic_sec_power(void)
 	return 0;
 }
 
+
 static void msm_snddev_disable_dmic_sec_power(void)
 {
 	msm_snddev_disable_dmic_power();
@@ -822,6 +848,7 @@ static void msm_snddev_disable_dmic_sec_power(void)
 		pm8058_micbias_enable(OTHC_MICBIAS_2, OTHC_SIGNAL_OFF);
 #endif
 }
+#endif
 
 #ifdef SEC_AUDIO_DEVICE
 static int msm_snddev_enable_submic_power(void)
@@ -960,8 +987,10 @@ ADIE_HEADSET_LOOPBACK_TX_48000_256;
  
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_action_unit dualmic_handset_tx_48KHz_osr256_actions[] =
 ADIE_HANDSET_TX_48000_256;
+#endif
 static struct adie_codec_action_unit dualmic_speaker_tx_48KHz_osr256_actions[] =
 ADIE_SPEAKER_TX_48000_256;
  static struct adie_codec_action_unit speaker_vr_tx_48KHz_osr256_actions[] =
@@ -1361,6 +1390,7 @@ static struct adie_codec_hwsetting_entry headset_loopback_tx_settings[] = {
 
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_hwsetting_entry dualmic_handset_tx_settings[] = {
 	{
 		.freq_plan = 48000,
@@ -1369,6 +1399,8 @@ static struct adie_codec_hwsetting_entry dualmic_handset_tx_settings[] = {
 		.action_sz = ARRAY_SIZE(dualmic_handset_tx_48KHz_osr256_actions),
 	}
 };
+#endif
+
 static struct adie_codec_hwsetting_entry dualmic_speaker_tx_settings[] = {
 	{
 		.freq_plan = 48000,
@@ -1687,11 +1719,13 @@ static struct adie_codec_dev_profile headset_loopback_tx_profile = {
 };
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_dev_profile dualmic_handset_tx_profile = {
 	.path_type = ADIE_CODEC_TX,
 	.settings = dualmic_handset_tx_settings,
 	.setting_sz = ARRAY_SIZE(dualmic_handset_tx_settings),
 };
+#endif
 static struct adie_codec_dev_profile dualmic_speaker_tx_profile = {
 	.path_type = ADIE_CODEC_TX,
 	.settings = dualmic_speaker_tx_settings,
@@ -2460,8 +2494,8 @@ static struct snddev_icodec_data lineout_rx_data = {
 	.profile = &lineout_rx_profile,
 	.channel_mode = 2,
 	.default_sample_rate = 48000,
-	.pamp_on = msm_snddev_poweramp_on_headset,
-	.pamp_off = msm_snddev_poweramp_off_headset,
+	.pamp_on = msm_snddev_vpsamp_on_headset,
+	.pamp_off = msm_snddev_vpsamp_off_headset,	
 	.voltage_on = msm_snddev_voltage_on,
 	.voltage_off = msm_snddev_voltage_off,
 };
@@ -2495,8 +2529,8 @@ static struct snddev_icodec_data speaker_headset_rx_data = {
 	.profile = &speaker_headset_rx_profile,
 	.channel_mode = 2,
 	.default_sample_rate = 48000,
-	.pamp_on = msm_snddev_poweramp_on_together,
-	.pamp_off = msm_snddev_poweramp_off_together,
+	.pamp_on = msm_snddev_spkvpsamp_on_together,
+	.pamp_off = msm_snddev_spkvpsamp_off_together,
 	.voltage_on = msm_snddev_voltage_on,
 	.voltage_off = msm_snddev_voltage_off,
 };
@@ -3789,10 +3823,6 @@ static struct platform_device *snd_devices_samsung[] __initdata = {
 };
 #endif /* SEC_AUDIO_DEVICE */
 
-
-
-
-
 static struct adie_codec_action_unit iearpiece_48KHz_osr256_actions[] =
 EAR_PRI_MONO_8000_OSR_256;
 
@@ -4018,6 +4048,7 @@ static struct platform_device msm_ispkr_mic_device = {
 	.dev = { .platform_data = &snddev_ispkr_mic_data },
 };
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit iearpiece_ffa_48KHz_osr256_actions[] =
 EAR_PRI_MONO_8000_OSR_256;
 
@@ -4049,6 +4080,7 @@ static struct platform_device msm_iearpiece_ffa_device = {
 	.name = "snddev_icodec",
 	.dev = { .platform_data = &snddev_iearpiece_ffa_data },
 };
+#endif
  
 static struct snddev_icodec_data snddev_qt_dual_dmic_d0_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -4066,6 +4098,7 @@ static struct platform_device msm_qt_dual_dmic_d0_device = {
 	.dev = { .platform_data = &snddev_qt_dual_dmic_d0_data },
 };
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit dual_mic_endfire_8KHz_osr256_actions[] =
 DMIC1_PRI_STEREO_OSR_256;
 
@@ -4116,7 +4149,9 @@ static struct platform_device msm_spkr_dual_mic_endfire_device = {
 	.id = 15,
 	.dev = { .platform_data = &snddev_dual_mic_spkr_endfire_data },
 };
+#endif
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit dual_mic_broadside_8osr256_actions[] =
 HS_DMIC2_STEREO_OSR_256;
 
@@ -4168,6 +4203,7 @@ static struct platform_device msm_spkr_dual_mic_broadside_device = {
 	.id = 18,
 	.dev = { .platform_data = &snddev_spkr_dual_mic_broadside_data },
 };
+#endif
 
 static struct snddev_hdmi_data snddev_hdmi_stereo_rx_data = {
 	.capability = SNDDEV_CAP_RX ,
@@ -5456,7 +5492,6 @@ static struct platform_device msm_snddev_hdmi_non_linear_pcm_rx_device = {
 	.dev = { .platform_data = &snddev_hdmi_non_linear_pcm_rx_data },
 };
 
-
 #ifdef CONFIG_DEBUG_FS
 static struct adie_codec_action_unit
 ihs_stereo_rx_class_d_legacy_48KHz_osr256_actions[] =
@@ -5576,6 +5611,7 @@ static const struct file_operations snddev_hsed_config_debug_fops = {
 };
 #endif
 
+#ifndef SEC_AUDIO_DEVICE
 static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_iearpiece_ffa_device,
 	&msm_imic_device,
@@ -5602,6 +5638,7 @@ static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_icodec_gpio_device,
 	&msm_snddev_hdmi_non_linear_pcm_rx_device,
 };
+#endif
 
 static struct platform_device *snd_devices_surf[] __initdata = {
 	&msm_iearpiece_device,

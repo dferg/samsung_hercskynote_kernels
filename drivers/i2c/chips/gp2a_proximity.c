@@ -37,6 +37,9 @@
 #include <linux/i2c/gp2a.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
+#ifdef SENSORS_LOG_DUMP
+#include <linux/i2c/sensors_core.h>
+#endif
 
 
 /*********** for debug **********************************************************/
@@ -48,9 +51,9 @@
 /*******************************************************************************/
 
 #if 1 //defined (CONFIG_MACH_STEALTH)
-#define PMIC8058_IRQ_BASE				(NR_MSM_IRQS + NR_GPIO_IRQS)
-#define IRQ_GP2A_INT PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)))  
-#define GPIO_PS_VOUT PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(14))
+//#define PMIC8058_IRQ_BASE				(NR_MSM_IRQS + NR_GPIO_IRQS)
+//#define IRQ_GP2A_INT PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(14)))
+//#define GPIO_PS_VOUT PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(14))
 #endif
 
 //#define PROX_MODE_A
@@ -74,6 +77,8 @@ struct opt_gp2a_platform_data {
 	void	(*gp2a_led_off) (void);
 	void	(*power_on) (void);
 	void	(*power_off) (void);
+    int gp2a_irq;
+    int gp2a_gpio;
 };
 
 struct gp2a_data {
@@ -96,6 +101,8 @@ struct gp2a_data {
 	void	(*gp2a_led_off) (void);
 	void	(*power_on) (void);
 	void	(*power_off) (void);
+    int gp2a_irq;
+    int gp2a_gpio;
 };
 
 static struct gp2a_data *prox_data = NULL;
@@ -115,12 +122,14 @@ static u8 gp2a_original_image[8] =
 	0xC2,  
 	0x04,
 	0x01,
+	0xC0,
 #else
 	0x00,  
 	0x08,  
 	0x40,  
-	0x04,
+	0x00,
 	0x03,
+	0xC0,
 #endif //PROX_MODE_A	
 };
 
@@ -210,10 +219,10 @@ proximity_enable_store(struct device *dev, struct device_attribute *attr, const 
     }
 
     if (data->enabled && !value) { 			/* Proximity power off */
-        disable_irq(IRQ_GP2A_INT);
+        disable_irq(data->gp2a_irq);
 
 		proximity_onoff(0);
-		disable_irq_wake(IRQ_GP2A_INT);
+		disable_irq_wake(data->gp2a_irq);
 		if(data->gp2a_led_off)
 			data->gp2a_led_off();
 		if(data->power_off)
@@ -231,8 +240,8 @@ proximity_enable_store(struct device *dev, struct device_attribute *attr, const 
 		opt_i2c_write((u8)(REGS_OPMOD),&input);
 
 		msleep(50);
-		enable_irq_wake(IRQ_GP2A_INT);
-		input = gpio_get_value_cansleep(GPIO_PS_VOUT);
+		enable_irq_wake(data->gp2a_irq);
+        input = gpio_get_value_cansleep(data->gp2a_gpio);
 		input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 		input_sync(data->input_dev);
 		gprintk("[PROX] Start proximity = %d\n",input); //Temp
@@ -240,7 +249,7 @@ proximity_enable_store(struct device *dev, struct device_attribute *attr, const 
 		input = 0x03;
 		opt_i2c_write((u8)(REGS_OPMOD),&input);
 
-        enable_irq(IRQ_GP2A_INT);
+        enable_irq(data->gp2a_irq);
 		spin_unlock_irqrestore(&prox_lock, flags);
     }
 
@@ -328,13 +337,13 @@ static struct attribute_group proximity_attribute_group = {
     .attrs = proximity_attributes
 };
 
-static char get_ps_vout_value(void)
+static char get_ps_vout_value(int gp2a_gpio)
 {
   char value = 0;
 
 #ifdef PROX_MODE_A
 #if 1 //defined (CONFIG_MACH_STEALTH)
-  value = gpio_get_value_cansleep(GPIO_PS_VOUT);
+  value = gpio_get_value_cansleep(gp2a_gpio);
 #else
   value = gpio_get_value(GPIO_PS_VOUT);
 #endif
@@ -364,34 +373,38 @@ static void gp2a_work_func_prox(struct work_struct *work)
 #ifdef PROX_MODE_B
     u8 reg = 0;
 #endif
+    static u8 mvo = 0;
 
-    disable_irq(IRQ_GP2A_INT);
+    if(mvo == 0)
+        mvo = 1;
+    else
+        mvo = 0;
 
-    value = get_ps_vout_value(); 
+    disable_irq(gp2a->gp2a_irq);
+
+    if(mvo)
+        reg = 0x20;
+    else
+        reg = 0x40;
+    opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
+
+    reg = 0x18;
+    opt_i2c_write(NOT_INT_CLR(REGS_CON), &reg);
+
+    value = get_ps_vout_value(gp2a->gp2a_gpio); 
 
     input_report_abs(gp2a->input_dev, ABS_DISTANCE,  value);
     input_sync(gp2a->input_dev);
 
 	gp2a->prox_data= value;
-	gprintk("proximity = %d\n",value); //Temp
+	gprintk("proximity = %d mvo=%d\n",value, mvo); //Temp
 
-#ifdef PROX_MODE_B
-    if(value == 1) //VO == 0
-    {
-      reg = 0x40;
-      opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
-    }
-    else
-    {
-		reg = 0x27;
-      opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
+    if(mvo == value) { // Error Case
+        printk("proximity = %d mvo = %d\n",value, mvo);
+        mvo = value^0x01;
     }
 
-    reg = 0x18;
-    opt_i2c_write(NOT_INT_CLR(REGS_CON), &reg);
-#endif //PROX_MODE_B
-
-    enable_irq(IRQ_GP2A_INT);
+    enable_irq(gp2a->gp2a_irq);
 
 #ifdef PROX_MODE_B
     reg = 0x00;
@@ -525,7 +538,7 @@ static int gp2a_opt_probe( struct platform_device* pdev )
     struct gp2a_data *gp2a;
 	struct opt_gp2a_platform_data *pdata = pdev->dev.platform_data;
     u8 value;
-    int err = 0;
+    int err = 0, which = 0;
 	int wakeup = 0;
 
 	/* allocate driver_data */
@@ -533,7 +546,9 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	if(!gp2a)
 	{
 		pr_err("kzalloc error\n");
-		return -ENOMEM;
+		which = 0x1;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	gp2a->enabled = 0;
@@ -550,6 +565,10 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 			gp2a->gp2a_led_on = pdata->gp2a_led_on;
 		if(pdata->gp2a_led_off)
 			gp2a->gp2a_led_off = pdata->gp2a_led_off;
+		if(pdata->gp2a_irq)
+			gp2a->gp2a_irq = pdata->gp2a_irq;
+		if(pdata->gp2a_gpio)
+			gp2a->gp2a_gpio = pdata->gp2a_gpio;
 	}
 
 	if(gp2a->power_on)
@@ -566,13 +585,14 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	
 	err = proximity_input_init(gp2a);
 	if(err < 0) {
+		which = 0x2;
 		goto error_setup_reg;
 	}
 
 	err = sysfs_create_group(&gp2a->input_dev->dev.kobj,
 				&proximity_attribute_group);
-	if(err < 0)
-	{
+	if(err < 0) {
+		which = 0x3;
 		goto err_sysfs_create_group_proximity;
 	}
 
@@ -585,12 +605,13 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	wake_lock_init(&prx_wake_lock, WAKE_LOCK_SUSPEND, "prx_wake_lock");
 	spin_lock_init(&prox_lock);
 	/* init i2c */
-	opt_i2c_init();
+	err = opt_i2c_init();
 
-	if(opt_i2c_client == NULL)
-	{
+	if(err < 0 || opt_i2c_client == NULL) {
 		pr_err("opt_probe failed : i2c_client is NULL\n"); 
-		return -ENODEV;
+		which = 0x4;
+		err = -ENODEV;
+		goto err_i2c_add;
 	}
 	else
 		printk("opt_i2c_client : (0x%p)\n",opt_i2c_client);
@@ -607,20 +628,23 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	printk("gp2a_opt_probe is OK!!\n");
 	
 	/* INT Settings */	
-  	err = request_threaded_irq( IRQ_GP2A_INT , 
+  	err = request_threaded_irq( gp2a->gp2a_irq , 
 		NULL, gp2a_irq_handler, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING	, "proximity_int", gp2a);
 
 	if (err < 0) {
+		which = 0x5;
 		printk(KERN_ERR "failed to request proximity_irq\n");
-		goto error_setup_reg;
+		goto err_request_irq;
 	}
 
-    disable_irq(IRQ_GP2A_INT);
+    disable_irq(gp2a->gp2a_irq);
 	
 	/* set sysfs for proximity sensor */
 	gp2a->proximity_class = class_create(THIS_MODULE, "proximity");
 	if (IS_ERR(gp2a->proximity_class)) {
 		pr_err("%s: could not create proximity_class\n", __func__);
+		err = PTR_ERR(gp2a->proximity_class);
+		which = 0x6;
 		goto err_proximity_class_create;
 	}
 
@@ -628,25 +652,32 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 						NULL, 0, NULL, "proximity");
 	if (IS_ERR(gp2a->proximity_dev)) {
 		pr_err("%s: could not create proximity_dev\n", __func__);
+		err = PTR_ERR(gp2a->proximity_dev);
+		which = 0x7;
 		goto err_proximity_device_create;
 	}
 
-	if (device_create_file(gp2a->proximity_dev,
-		&dev_attr_proximity_state) < 0) {
+	if ((err = device_create_file(gp2a->proximity_dev,
+		&dev_attr_proximity_state)) < 0) {
 		pr_err("%s: could not create device file(%s)!\n", __func__,
 			dev_attr_proximity_state.attr.name);
+		which = 0x8;
 		goto err_proximity_device_create_file1;
 	}
 
-	if (device_create_file(gp2a->proximity_dev,
-		&dev_attr_proximity_avg) < 0) {
+	if ((err = device_create_file(gp2a->proximity_dev,
+		&dev_attr_proximity_avg)) < 0) {
 		pr_err("%s: could not create device file(%s)!\n", __func__,
 			dev_attr_proximity_avg.attr.name);
+		which = 0x9;
 		goto err_proximity_device_create_file2;
 	}
 	dev_set_drvdata(gp2a->proximity_dev, gp2a);
 
 	device_init_wakeup(&pdev->dev, wakeup);
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_proximity(0, 0);
+#endif	
 	return 0;
 
 err_proximity_device_create_file2:
@@ -656,15 +687,29 @@ err_proximity_device_create_file1:
 err_proximity_device_create:
 	class_destroy(gp2a->proximity_class);
 err_proximity_class_create:
+	free_irq(gp2a->gp2a_irq, gp2a);
+err_request_irq:
+	i2c_del_driver(&opt_i2c_driver);
+err_i2c_add:
+	wake_lock_destroy(&prx_wake_lock);
 	sysfs_remove_group(&gp2a->input_dev->dev.kobj,
 			   &proximity_attribute_group);
 err_sysfs_create_group_proximity:
 	input_unregister_device(gp2a->input_dev);
-	input_free_device(gp2a->input_dev);
 error_setup_reg:
+	destroy_work_on_stack(&gp2a->work);
+	mutex_destroy(&gp2a->enable_mutex);
+	mutex_destroy(&gp2a->data_mutex);
+	
 	if(gp2a->power_off)
 		gp2a->power_off();
+	
+	prox_data = NULL;
 	kfree(gp2a);
+error:
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_proximity(which, err);
+#endif	
 	return err;
 }
 
@@ -673,22 +718,31 @@ static int gp2a_opt_remove( struct platform_device* pdev )
   struct gp2a_data *gp2a = platform_get_drvdata(pdev);
 
 	if (gp2a->proximity_class!= NULL) {
-		device_remove_file(gp2a->proximity_dev,
-			&dev_attr_proximity_avg);
 		device_remove_file(gp2a->proximity_dev, &dev_attr_proximity_avg);
 		device_remove_file(gp2a->proximity_dev, &dev_attr_proximity_state);
 		device_destroy(gp2a->proximity_class, 0);
 		class_destroy(gp2a->proximity_class);
 	}
-  if (gp2a->input_dev!= NULL) {
-    sysfs_remove_group(&gp2a->input_dev->dev.kobj,
-				&proximity_attribute_group);
-    input_unregister_device(gp2a->input_dev);
-    if (gp2a->input_dev != NULL) {
-        kfree(gp2a->input_dev);
-    }
-  }
+
+	disable_irq(gp2a->gp2a_irq);
+	free_irq(gp2a->gp2a_irq, gp2a);
+
+	
+	wake_lock_destroy(&prx_wake_lock);
+	if (gp2a->input_dev!= NULL) {
+	    sysfs_remove_group(&gp2a->input_dev->dev.kobj,
+					&proximity_attribute_group);
+	    input_unregister_device(gp2a->input_dev);
+	}
+
+	
+	destroy_work_on_stack(&gp2a->work);
+	mutex_destroy(&gp2a->enable_mutex);
+	mutex_destroy(&gp2a->data_mutex);
+	
 	device_init_wakeup(&pdev->dev, 0);
+	if(gp2a->power_off)
+		gp2a->power_off();
 
   kfree(gp2a);
 
@@ -704,7 +758,7 @@ static int gp2a_opt_suspend( struct platform_device* pdev, pm_message_t state )
 	if(gp2a->enabled) // calling
 	{
       if (device_may_wakeup(&pdev->dev))
-        enable_irq_wake(IRQ_GP2A_INT);
+        enable_irq_wake(gp2a->gp2a_irq);
 
 	   gprintk("The timer is cancled.\n");
 	}
@@ -726,7 +780,7 @@ static int gp2a_opt_resume( struct platform_device* pdev )
 	if(gp2a->enabled) //calling
 	{
       if (device_may_wakeup(&pdev->dev))
-			enable_irq_wake(IRQ_GP2A_INT);
+			enable_irq_wake(gp2a->gp2a_irq);
 
       gprintk("The timer is cancled.\n");
 	}
@@ -741,7 +795,7 @@ static int proximity_onoff(u8 onoff)
        
 	if(onoff)
 	{
-       	for(i=1;i<5;i++)
+       	for(i=1;i<=5;i++)
        	{
        		opt_i2c_write((u8)(i),&gp2a_original_image[i]);
     	}

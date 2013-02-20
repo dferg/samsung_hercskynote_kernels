@@ -6409,10 +6409,6 @@ static int __init test_init(void)
 #endif
 
 	test_class = class_create(THIS_MODULE, TEST_MODULE_NAME);
-    if (IS_ERR(test_class)) {
-        pr_err(TEST_MODULE_NAME ":class_create err.\n") ;
-        return -ENODEV ;
-    }
 
 	ret = alloc_chrdev_region(&test_ctx->dev_num, 0, 1, TEST_MODULE_NAME);
 	if (ret) {

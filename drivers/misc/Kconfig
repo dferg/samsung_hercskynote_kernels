@@ -62,8 +62,8 @@ config AD525X_DPOT_SPI
 	  module will be called ad525x_dpot-spi.
 
 config ANDROID_PMEM
-	bool "Android pmem allocator"
-	default y
+        bool "Android pmem allocator"
+        default y
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
@@ -403,12 +403,13 @@ config SENSORS_AK8975
 	  If you say yes here you get support for Asahi Kasei's
 	  orientation sensor AK8975.
 
+
 config USE_A2220_B
 	tristate "A2220_B Voice Processor Driver"
 	depends on I2C
 	help
 	  This option support audience A2220_B chip
-	  
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -493,7 +494,7 @@ config BMP085
 	  module will be called bmp085.
 
 config PCH_PHUB
-	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) PHUB"
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
@@ -501,12 +502,13 @@ config PCH_PHUB
 	  processor. The Topcliff has MAC address and Option ROM data in SROM.
 	  This driver can access MAC address and Option ROM data in SROM.
 
-	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
-	  Output Hub), ML7213 and ML7223.
-	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
-	  for MP(Media Phone) use.
-	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for LAPIS Semiconductor's IOH,
+	  ML7213/ML7223/ML7831.
+	  ML7213 which is for IVI(In-Vehicle Infotainment) use.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
@@ -606,6 +608,14 @@ config PMIC8058_PWM
 	  purposes including software controlled brightness of backlight,
 	  motor control, and waveform generation.
 
+config PMIC8XXX_VIBRATOR
+	tristate "Qualcomm Vibrator support for PMIC8XXX"
+	depends on MFD_PM8XXX && ANDROID_TIMED_OUTPUT
+	help
+	  This option enables device driver support for the vibrator
+	  on the PM8XXX chips. The vibrator is controlled using the
+	  timed output class.
+
 config PMIC8XXX_NFC
 	tristate "Qualcomm PM8XXX support for Near Field Communication"
 	depends on MFD_PM8XXX
@@ -680,14 +690,6 @@ menuconfig VIBETONZ
         default m
         help
           Say Y to enable Vibetonz support.
-	  
-
-config PN544
-        bool "NXP PN544 NFC Controller Driver"
-        default y
-        help
-          NXP PN544 Near Field Communication controller support.
-
 config STMPE811_ADC
 	bool "stmpe811 adc driver"
 	default n

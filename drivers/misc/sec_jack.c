@@ -57,38 +57,34 @@
 #define KEY_MEDIA_ADC_MIN 0
 #define KEY_MEDIA_ADC_MAX 113
 #elif defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
+#if defined (CONFIG_PMIC8058_XOADC_CAL)
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 117//114
-#elif defined (CONFIG_KOR_MODEL_SHV_E120L)
+#define KEY_MEDIA_ADC_MAX 150
+#else
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 113
+#define KEY_MEDIA_ADC_MAX 94
+#endif
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_MEDIA_ADC_MIN 0
+#define KEY_MEDIA_ADC_MAX 150
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && !defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_MEDIA_ADC_MIN 0
+#define KEY_MEDIA_ADC_MAX 94
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && defined (CONFIG_PMIC8058_XOADC_CAL)
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 145
+#define KEY_MEDIA_ADC_MAX 152
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && !defined (CONFIG_PMIC8058_XOADC_CAL)
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 117//114
+#define KEY_MEDIA_ADC_MAX 70
 #elif defined (CONFIG_Q1_KOR_AUDIO)
 #define KEY_MEDIA_ADC_MIN 0
 #define KEY_MEDIA_ADC_MAX 149
 #elif defined (CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757)
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 122
+#define KEY_MEDIA_ADC_MAX 134
 #elif defined (CONFIG_USA_MODEL_SGH_I717)
 #define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 81
-#elif defined (CONFIG_USA_MODEL_SGH_I957)
-#define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 178
-#elif defined (CONFIG_KOR_MODEL_SHV_E140S)
-#define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 178
-#elif defined (CONFIG_KOR_MODEL_SHV_E140K)
-#define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 178
-#elif defined (CONFIG_KOR_MODEL_SHV_E140L)
-#define KEY_MEDIA_ADC_MIN 0
-#define KEY_MEDIA_ADC_MAX 178
+#define KEY_MEDIA_ADC_MAX 116
 #else	// etc
 #define KEY_MEDIA_ADC_MIN 0
 #define KEY_MEDIA_ADC_MAX 111
@@ -97,17 +93,25 @@
 
 #if defined CONFIG_TARGET_LOCALE_KOR
 #if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
-#define KEY_VOLUMEUP_ADC_MIN 117
-#define KEY_VOLUMEUP_ADC_MAX 311
-#elif defined (CONFIG_KOR_MODEL_SHV_E120L)
-#define KEY_VOLUMEUP_ADC_MIN 117
-#define KEY_VOLUMEUP_ADC_MAX 301
+#if defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEUP_ADC_MIN 151
+#define KEY_VOLUMEUP_ADC_MAX 335
+#else
+#define KEY_VOLUMEUP_ADC_MIN 95
+#define KEY_VOLUMEUP_ADC_MAX 285
+#endif
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEUP_ADC_MIN 151
+#define KEY_VOLUMEUP_ADC_MAX 335
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && !defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEUP_ADC_MIN 95
+#define KEY_VOLUMEUP_ADC_MAX 285
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && defined (CONFIG_PMIC8058_XOADC_CAL)
-#define KEY_VOLUMEUP_ADC_MIN 150
-#define KEY_VOLUMEUP_ADC_MAX 330
+#define KEY_VOLUMEUP_ADC_MIN 153
+#define KEY_VOLUMEUP_ADC_MAX 333
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && !defined (CONFIG_PMIC8058_XOADC_CAL)
-#define KEY_VOLUMEUP_ADC_MIN 118//120
-#define KEY_VOLUMEUP_ADC_MAX 306//291
+#define KEY_VOLUMEUP_ADC_MIN 71
+#define KEY_VOLUMEUP_ADC_MAX 285
 #elif defined (CONFIG_Q1_KOR_AUDIO)
 #define KEY_VOLUMEUP_ADC_MIN 150
 #define KEY_VOLUMEUP_ADC_MAX 330
@@ -123,25 +127,13 @@
 #define KEY_VOLUMEUP_ADC_MAX 266
 #elif defined (CONFIG_USA_MODEL_SGH_T989)
 #define KEY_VOLUMEUP_ADC_MIN 149
-#define KEY_VOLUMEUP_ADC_MAX 284
+#define KEY_VOLUMEUP_ADC_MAX 331
 #elif defined (CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757)
-#define KEY_VOLUMEUP_ADC_MIN 122
+#define KEY_VOLUMEUP_ADC_MIN 134
 #define KEY_VOLUMEUP_ADC_MAX 310
 #elif defined (CONFIG_USA_MODEL_SGH_I717)
-#define KEY_VOLUMEUP_ADC_MIN 81
-#define KEY_VOLUMEUP_ADC_MAX 221
-#elif defined (CONFIG_USA_MODEL_SGH_I957)
-#define KEY_VOLUMEUP_ADC_MIN 189
-#define KEY_VOLUMEUP_ADC_MAX 391
-#elif defined (CONFIG_KOR_MODEL_SHV_E140S)
-#define KEY_VOLUMEUP_ADC_MIN 189
-#define KEY_VOLUMEUP_ADC_MAX 391
-#elif defined (CONFIG_KOR_MODEL_SHV_E140K)
-#define KEY_VOLUMEUP_ADC_MIN 189
-#define KEY_VOLUMEUP_ADC_MAX 391
-#elif defined (CONFIG_KOR_MODEL_SHV_E140L)
-#define KEY_VOLUMEUP_ADC_MIN 189
-#define KEY_VOLUMEUP_ADC_MAX 391
+#define KEY_VOLUMEUP_ADC_MIN 116
+#define KEY_VOLUMEUP_ADC_MAX 246
 #else
 #define KEY_VOLUMEUP_ADC_MIN 108
 #define KEY_VOLUMEUP_ADC_MAX 301
@@ -150,16 +142,24 @@
 
 #if defined CONFIG_TARGET_LOCALE_KOR
 #if defined (CONFIG_KOR_MODEL_SHV_E120S) || defined (CONFIG_KOR_MODEL_SHV_E120K)
-#define KEY_VOLUMEDOWN_ADC_MIN 315
-#define KEY_VOLUMEDOWN_ADC_MAX 758
-#elif defined (CONFIG_KOR_MODEL_SHV_E120L)
-#define KEY_VOLUMEDOWN_ADC_MIN 310
-#define KEY_VOLUMEDOWN_ADC_MAX 758
+#if defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEDOWN_ADC_MIN 336
+#define KEY_VOLUMEDOWN_ADC_MAX 757
+#else
+#define KEY_VOLUMEDOWN_ADC_MIN 286
+#define KEY_VOLUMEDOWN_ADC_MAX 757
+#endif
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEDOWN_ADC_MIN 336
+#define KEY_VOLUMEDOWN_ADC_MAX 757
+#elif defined (CONFIG_KOR_MODEL_SHV_E120L) && !defined (CONFIG_PMIC8058_XOADC_CAL)
+#define KEY_VOLUMEDOWN_ADC_MIN 286
+#define KEY_VOLUMEDOWN_ADC_MAX 757
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && defined (CONFIG_PMIC8058_XOADC_CAL)
-#define KEY_VOLUMEDOWN_ADC_MIN 350
-#define KEY_VOLUMEDOWN_ADC_MAX 700
+#define KEY_VOLUMEDOWN_ADC_MIN 334
+#define KEY_VOLUMEDOWN_ADC_MAX 786
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && !defined (CONFIG_PMIC8058_XOADC_CAL)
-#define KEY_VOLUMEDOWN_ADC_MIN 307//320
+#define KEY_VOLUMEDOWN_ADC_MIN 286
 #define KEY_VOLUMEDOWN_ADC_MAX 758
 #elif defined (CONFIG_Q1_KOR_AUDIO)
 #define KEY_VOLUMEDOWN_ADC_MIN 350
@@ -175,26 +175,14 @@
 #define KEY_VOLUMEDOWN_ADC_MIN 266
 #define KEY_VOLUMEDOWN_ADC_MAX 681
 #elif defined (CONFIG_USA_MODEL_SGH_T989)
-#define KEY_VOLUMEDOWN_ADC_MIN 284
+#define KEY_VOLUMEDOWN_ADC_MIN 331
 #define KEY_VOLUMEDOWN_ADC_MAX 681
 #elif defined (CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757)
 #define KEY_VOLUMEDOWN_ADC_MIN 310
 #define KEY_VOLUMEDOWN_ADC_MAX 681
 #elif defined (CONFIG_USA_MODEL_SGH_I717)
-#define KEY_VOLUMEDOWN_ADC_MIN 221
-#define KEY_VOLUMEDOWN_ADC_MAX 681
-#elif defined (CONFIG_USA_MODEL_SGH_I957)
-#define KEY_VOLUMEDOWN_ADC_MIN 438
-#define KEY_VOLUMEDOWN_ADC_MAX 832
-#elif defined (CONFIG_USA_MODEL_SHV_E140S)
-#define KEY_VOLUMEDOWN_ADC_MIN 438
-#define KEY_VOLUMEDOWN_ADC_MAX 832
-#elif defined (CONFIG_USA_MODEL_SHV_E140K)
-#define KEY_VOLUMEDOWN_ADC_MIN 438
-#define KEY_VOLUMEDOWN_ADC_MAX 832
-#elif defined (CONFIG_USA_MODEL_SHV_E140L)
-#define KEY_VOLUMEDOWN_ADC_MIN 438
-#define KEY_VOLUMEDOWN_ADC_MAX 832
+#define KEY_VOLUMEDOWN_ADC_MIN 246
+#define KEY_VOLUMEDOWN_ADC_MAX 682
 #else
 #define KEY_VOLUMEDOWN_ADC_MIN 301
 #define KEY_VOLUMEDOWN_ADC_MAX 660
@@ -336,8 +324,7 @@ static void sec_jack_set_type(struct sec_jack_info *hi, int jack_type)
 	 */
 	if (jack_type == hi->cur_jack_type)
 	{
-		pr_info(MODULE_NAME "%s return, same type reason\n", __func__);
-		pr_info(MODULE_NAME "%s return, jack_type = %d, hi->cur_jack_type = %d\n", __func__, jack_type, hi->cur_jack_type);
+		pr_debug(MODULE_NAME "%s return, same type reason\n", __func__);
 		return;
 	}
 
@@ -438,9 +425,7 @@ static void determine_jack_type(struct sec_jack_info *hi)
 						pr_info(MODULE_NAME "forced mic_bias disable\n");
 					}					
 #if defined(JACK_WATERPROOF)
-
 					recheck_jack = false;
-#else
 #endif
 					return;
 				}
@@ -452,8 +437,7 @@ static void determine_jack_type(struct sec_jack_info *hi)
 	/* jack removed before detection complete */
 #if defined(JACK_WATERPROOF)
 
-					recheck_jack = false;
-#else
+	recheck_jack = false;
 #endif
 	handle_jack_not_inserted(hi);
 }
@@ -495,7 +479,7 @@ static ssize_t reselect_jack_show(struct device *dev, struct device_attribute *a
 static ssize_t reselect_jack_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct sec_jack_info *hi = dev_get_drvdata(dev);
-	struct sec_jack_platform_data *pdata = hi->pdata;
+	// struct sec_jack_platform_data *pdata = hi->pdata;
 	int value = 0;
 
 	sscanf(buf, "%d", &value);
@@ -519,7 +503,7 @@ static irqreturn_t sec_jack_send_key_irq_handler(int irq, void *handle)
 	pr_info(MODULE_NAME "%s : irq is %d.\n", __func__, irq);
 
 	if(hi->is_ready)
-	{
+	{		
 		//disable_irq_nosync(hi->pdata->send_int);
 		schedule_work(&hi->sendkey_work);
 	}	

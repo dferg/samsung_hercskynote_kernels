@@ -61,6 +61,10 @@ void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
 
 #define __LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
 
+#ifdef CONFIG_SEC_LOG_LAST_KMSG
+#define LAST_LOG_BUF_SHIFT 18
+#endif
+
 /* printk's without a loglevel use this.. */
 #define DEFAULT_MESSAGE_LOGLEVEL CONFIG_DEFAULT_MESSAGE_LOGLEVEL
 
@@ -269,8 +273,8 @@ static unsigned sec_log_size;
 
 #ifdef CONFIG_PRINTK_NOCACHE
 static unsigned sec_log_save_size;
-static unsigned long long sec_log_save_base;
-unsigned long long sec_log_reserve_base;
+static unsigned long sec_log_save_base;
+unsigned long sec_log_reserve_base;
 unsigned sec_log_reserve_size;
 unsigned int *sec_log_irq_en = NULL;
 #endif
@@ -282,40 +286,67 @@ static inline void emit_sec_log_char(char c)
 	}
 }
 
-#ifdef CONFIG_PRINTK_NOCACHE
-void printk_remap_nocache(void)
+#ifdef CONFIG_SEC_LOG_LAST_KMSG
+static void __init sec_log_save_old(void)
 {
-	unsigned long long nocache_base = 0;
+	extern char* last_kmsg_buffer;
+	extern unsigned last_kmsg_size;
+
+	/* provide previous log as last_kmsg */
+	last_kmsg_size =
+	    min((unsigned)(1 << LAST_LOG_BUF_SHIFT), *sec_log_ptr);
+	last_kmsg_buffer = (char *)kmalloc(last_kmsg_size, GFP_KERNEL);
+
+	if (last_kmsg_size && last_kmsg_buffer && sec_log_buf) {
+		unsigned int i;
+		for (i = 0; i < last_kmsg_size; i++)
+			last_kmsg_buffer[i] =
+			    sec_log_buf[(*sec_log_ptr - last_kmsg_size +
+					 i) & (sec_log_size - 1)];
+
+		pr_info("%s: saved old log at %d@%p\n",
+			__func__, last_kmsg_size, last_kmsg_buffer);
+	} else
+		pr_err("%s: failed saving old log %d@%p\n",
+		       __func__, last_kmsg_size, last_kmsg_buffer);
+}
+#else
+static void __init sec_log_save_old(void)
+{
+}
+#endif
+
+#ifdef CONFIG_PRINTK_NOCACHE
+// void printk_remap_nocache(void)
+static int __init printk_remap_nocache(void)
+{
+	unsigned long nocache_base = 0;
 	unsigned *sec_log_mag;
 	unsigned long flags;
 	unsigned start;
 
-#if 1
-	if( 0 == sec_debug_is_enabled() ) {
-		sec_getlog_supply_kloginfo(log_buf);
-		return;
-	}
-#endif
-
-	pr_err("%s: sec_log_save_size %d at sec_log_save_base 0x%x \n", 
+	pr_err("%s: sec_log_save_size %d at sec_log_save_base 0x%x \n",
 		__func__, sec_log_save_size, (unsigned int)sec_log_save_base);
-	pr_err("%s: sec_log_reserve_size %d at sec_log_reserve_base 0x%x \n", 
+	pr_err("%s: sec_log_reserve_size %d at sec_log_reserve_base 0x%x \n",
 		__func__, sec_log_reserve_size, (unsigned int)sec_log_reserve_base);
 
-	nocache_base = ioremap_nocache(sec_log_save_base - 4096, sec_log_save_size + 8192);
+	nocache_base = (unsigned long)ioremap_nocache(sec_log_save_base - 4096, sec_log_save_size + 8192);
 	nocache_base = nocache_base + 4096;
 
-	sec_log_mag = nocache_base - 8;
-	sec_log_ptr = nocache_base - 4;
-	sec_log_buf = nocache_base;
+	sec_log_mag = (unsigned *)(nocache_base - 8);
+	sec_log_ptr = (unsigned *)(nocache_base - 4);
+	sec_log_buf = (char *)nocache_base;
 	sec_log_size = sec_log_save_size;
-	sec_log_irq_en = nocache_base - 0xC ;
+	sec_log_irq_en = (unsigned int *)(nocache_base - 0xC);
 
-	spin_lock_irqsave(&logbuf_lock, flags);
 	if (*sec_log_mag != LOG_MAGIC) {
 		*sec_log_ptr = 0;
 		*sec_log_mag = LOG_MAGIC;
+	} else {
+		sec_log_save_old();
 	}
+
+	spin_lock_irqsave(&logbuf_lock, flags);
 
 	start = min(con_start, log_start);
 	while (start != log_end) {
@@ -325,7 +356,9 @@ void printk_remap_nocache(void)
 
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 
-	sec_getlog_supply_kloginfo(sec_log_buf);
+	sec_getlog_supply_kloginfo(log_buf);
+	
+	return 0;
 }
 #endif
 
@@ -340,7 +373,7 @@ static int __init sec_log_setup(char *str)
 */
 
 	if (size && (size == roundup_pow_of_two(size)) && (*str == '@')) {
-		unsigned long long base = 0;
+		unsigned long base = 0;
 
 		base = simple_strtoul(++str, &str, 0);
 #ifdef CONFIG_PRINTK_NOCACHE
@@ -504,8 +537,10 @@ static int check_syslog_permissions(int type, bool from_file)
 			return 0;
 		/* For historical reasons, accept CAP_SYS_ADMIN too, with a warning */
 		if (capable(CAP_SYS_ADMIN)) {
-			WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
-				 "but no CAP_SYSLOG (deprecated).\n");
+			printk_once(KERN_WARNING "%s (%d): "
+				 "Attempt to access syslog with CAP_SYS_ADMIN "
+				 "but no CAP_SYSLOG (deprecated).\n",
+				 current->comm, task_pid_nr(current));
 			return 0;
 		}
 		return -EPERM;

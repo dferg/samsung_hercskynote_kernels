@@ -38,7 +38,9 @@
 	.flags	= IORESOURCE_IRQ, \
 }
 
+#ifdef CONFIG_PMIC8901_PRELOAD_DVDD
 extern unsigned int get_hw_rev(void);
+#endif
 
 struct pm8901_chip {
 	struct pm8901_platform_data	pdata;
@@ -174,7 +176,8 @@ static struct mfd_cell mpp_cell = {
 };
 
 
-int pm8901_preload_dVdd_old(void)
+#ifdef CONFIG_PMIC8901_PRELOAD_DVDD
+int pm8901_preload_dVdd(void)
 {
 	int rc;
 	u8 reg;
@@ -204,7 +207,7 @@ int pm8901_preload_dVdd_old(void)
 
 	return rc;
 }
-EXPORT_SYMBOL(pm8901_preload_dVdd_old);
+EXPORT_SYMBOL(pm8901_preload_dVdd);
 
 
 int pm8901_is_old_PCB_with_PM8901(void)
@@ -252,67 +255,23 @@ int pm8901_is_old_PCB_with_PM8901(void)
                 retval = 1;
         else if( rev >=10 )
                 retval = 0;
-#elif defined(CONFIG_EUR_MODEL_GT_I9210)
-        if( rev <= 10 )
+#elif defined(CONFIG_TARGET_LOCALE_KOR_LGU) && defined(CONFIG_MACH_P5_LTE)
+        if( rev <= 7 || rev==15 )
                 retval = 1;
-        else if( rev >=11 )
+        else if( rev >=8 && rev <=14)
                 retval = 0;
-#elif defined(CONFIG_USA_MODEL_SGH_I957)
-	if( rev <= 7 )
-		retval = 1;
-	else if( rev >= 8)
-		retval = 0;
-#elif defined(CONFIG_KOR_MODEL_SHV_E140S)
-	if( rev <= 7 )
-		retval = 1;
-	else if( rev >= 8)
-		retval = 0;
-#elif defined(CONFIG_KOR_MODEL_SHV_E140K)
-	if( rev <= 7 )
-		retval = 1;
-	else if( rev >= 8)
-		retval = 0;
-#elif defined(CONFIG_KOR_MODEL_SHV_E140L)
-	if( rev <= 7 )
-		retval = 1;
-	else if( rev >= 8)
-		retval = 0;
-#elif defined (CONFIG_USA_MODEL_SGH_I717)
-        if( rev <= 9 )
-                retval = 1;
-        else if( rev >=10 )
-                retval = 0;
-#elif defined (CONFIG_USA_MODEL_SGH_I757)
+#elif defined(CONFIG_TARGET_LOCALE_KOR_SKT) && defined(CONFIG_MACH_P5_LTE)
         if( rev <= 7 )
                 retval = 1;
         else if( rev >=8 )
                 retval = 0;
-#elif defined (CONFIG_USA_MODEL_SGH_T769)
-        if( rev <= 19 )
-                retval = 1;
-        else if( rev >=20 )
-                retval = 0;
-#elif defined(CONFIG_USA_MODEL_SGH_I577)
-        if( rev <= 17 )
-                retval = 1;
-        else if( rev >=18 )
-                retval = 0;
-#elif defined(CONFIG_USA_MODEL_SGH_I727)
-        if( rev <= 13 )
-                retval = 1;
-        else if( rev >=14 )
-                retval = 0;
-#elif defined(CONFIG_USA_MODEL_SGH_I727)
-        if( rev <= 14 )
-                retval = 1;
-        else if( rev >=15 )
-                retval = 0;
 #endif
-
         return retval;
         
 
 }
+#endif
+
 
 static int __devinit
 pm8901_add_subdevices(const struct pm8901_platform_data *pdata,
@@ -413,23 +372,11 @@ bail:
 	return rc;
 }
 
-static const char * const pm8901_rev_names[] = {
-	[PM8XXX_REVISION_8901_TEST]	= "test",
-	[PM8XXX_REVISION_8901_1p0]	= "1.0",
-	[PM8XXX_REVISION_8901_1p1]	= "1.1",
-	[PM8XXX_REVISION_8901_2p0]	= "2.0",
-	[PM8XXX_REVISION_8901_2p1]	= "2.1",
-	[PM8XXX_REVISION_8901_2p2]	= "2.2",
-	[PM8XXX_REVISION_8901_2p3]	= "2.3",
-};
-
-static int __devinit pm8901_probe(struct platform_device *pdev)
+static int pm8901_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct pm8901_platform_data *pdata = pdev->dev.platform_data;
-	const char *revision_name = "unknown";
 	struct pm8901_chip *pmic;
-	int revision;
 
 	if (pdata == NULL) {
 		pr_err("%s: No platform_data or IRQ.\n", __func__);
@@ -453,12 +400,9 @@ static int __devinit pm8901_probe(struct platform_device *pdev)
 		pr_err("%s: Failed reading version register rc=%d.\n",
 			__func__, rc);
 
-	pr_info("%s: PMIC revision reg: %02X\n", __func__, pmic->revision);
-	revision =  pm8xxx_get_revision(pmic->dev);
-	if (revision >= 0 && revision < ARRAY_SIZE(pm8901_rev_names))
-		revision_name = pm8901_rev_names[revision];
-	pr_info("%s: PMIC version: PM8901 rev %s\n", __func__, revision_name);
+	pr_info("%s: PMIC REVISION = %X\n", __func__, pmic->revision);
 
+#ifdef CONFIG_PMIC8901_PRELOAD_DVDD
         // This api is s/w workaround for PM8901's abnormal spike which could
         // cause DDR problem on PCB. Because of the spike SS made new PCB for
         // h/w workaround. This s/w workaround is for old PCBs. And If a target
@@ -468,8 +412,8 @@ static int __devinit pm8901_probe(struct platform_device *pdev)
         // here you just need to check if SBL3 bootloader includes the api.
         // In other words this api has dependency with SBL3 change
         if( pm8901_is_old_PCB_with_PM8901()==1 )
-                pm8901_preload_dVdd_old();
-                
+                pm8901_preload_dVdd();
+#endif                
 	(void) memcpy((void *)&pmic->pdata, (const void *)pdata,
 		      sizeof(pmic->pdata));
 

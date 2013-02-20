@@ -49,22 +49,23 @@
 #define DLOAD_MODE_ADDR     0x0
 
 #define RESTART_LPM_BOOT_MODE		0x77665506
-#define RESTART_ARM11FOTA_MODE  	0x77665503
-#define RESTART_RECOVERY_MODE   	0x77665502
-#define RESTART_OTHERBOOT_MODE		0x77665501
-#define RESTART_FASTBOOT_MODE   	0x77665500
+#define RESTART_ARM11FOTA_MODE          0x77665503
+#define RESTART_RECOVERY_MODE           0x77665502
+#define RESTART_OTHERBOOT_MODE          0x77665501
+#define RESTART_FASTBOOT_MODE           0x77665500
 #ifdef CONFIG_SEC_DEBUG
-#define RESTART_SECDEBUG_MODE   	0x776655EE
-#define RESTART_SECCOMMDEBUG_MODE   	0x7766DEAD
+#define RESTART_SECDEBUG_MODE           0x776655EE
+#define RESTART_SECCOMMDEBUG_MODE       0x7766DEAD
 #endif
 // NOT USE 0x776655FF~0x77665608 command
-#define RESTART_HOMEDOWN_MODE       	0x776655FF
-#define RESTART_HOMEDOWN_MODE_END   	0x77665608
+#define RESTART_HOMEDOWN_MODE           0x776655FF
+#define RESTART_HOMEDOWN_MODE_END       0x77665608
+#define RESTART_CHECKSUM_FAIL_MODE      0x77667752
 
 #define SCM_IO_DISABLE_PMIC_ARBITER	1
 
 static int restart_mode;
-static void *restart_reason;
+void *restart_reason;
 
 int pmic_reset_irq;
 static void __iomem *msm_tmr0_base;
@@ -104,9 +105,9 @@ static void set_dload_mode(int on)
 		__raw_writel(on ? 0xCE14091A : 0,
 		       dload_mode_addr + sizeof(unsigned int));
 		mb();
-		
+
 		// klaatu
-		pr_err("set_dload_mode <%d> ( %x )\n", on, CALLER_ADDR0);
+		pr_err("set_dload_mode <%d> ( %lX )\n", on, CALLER_ADDR0);
 	}
 }
 
@@ -150,6 +151,7 @@ static void __msm_power_off(int lower_pshold)
 	set_dload_mode(0);
 #endif
 	pm8xxx_reset_pwr_off(0);
+	printk(KERN_ERR "pm8xxx_reset_pwr_off is called\n");
 
 	if (lower_pshold) {
 		__raw_writel(0, PSHOLD_CTL_SU);
@@ -209,6 +211,8 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 
 void arch_reset(char mode, const char *cmd)
 {
+	int error;
+
 #ifdef CONFIG_MSM_DLOAD_MODE
 
 #ifdef CONFIG_SEC_DEBUG // klaatu
@@ -228,11 +232,11 @@ void arch_reset(char mode, const char *cmd)
 		set_dload_mode(1);
 #endif
 
-	#if 0	/* onlyjazz.ef24 : intentionally remove it */
+	#if 0 /* onlyjazz.ef24 : intentionally remove it */
 	/* Kill download mode if master-kill switch is set */
 	if (!download_mode)
 		set_dload_mode(0);
-	#endif 	/* onlyjazz.ef24 : intentionally remove it */
+	#endif /* onlyjazz.ef24 : intentionally remove it */
 
 #endif
 
@@ -240,21 +244,19 @@ void arch_reset(char mode, const char *cmd)
 
 	pm8xxx_reset_pwr_off(1);
 
-        // TODO:  Never use RESTART_LPM_BOOT_MODE/0x77665506 as another restart reason instead of LPM mode.
-        // RESTART_LPM_BOOT_MODE/0x77665506 is reserved for LPM mode.
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			__raw_writel(RESTART_FASTBOOT_MODE, restart_reason);
 		} else if (!strncmp(cmd, "recovery", 8)) {
 			__raw_writel(RESTART_RECOVERY_MODE, restart_reason);
 		} else if (!strncmp(cmd, "download", 8)) {
-			unsigned long code = 0;
-			strict_strtoul(cmd + 8, 16, &code);
+			unsigned long code=0;
+			error = strict_strtoul(cmd + 8, 16, &code);
 			code = code & 0xff;
 			__raw_writel(RESTART_HOMEDOWN_MODE + code, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
-			unsigned long code = 0;
-			strict_strtoul(cmd + 4, 16, &code);
+			unsigned long code;
+			error = strict_strtoul(cmd + 4, 16, &code);
 			code = code & 0xff;
 			__raw_writel(0x6f656d00 | code, restart_reason);
 #ifdef CONFIG_SEC_DEBUG
@@ -265,6 +267,8 @@ void arch_reset(char mode, const char *cmd)
 #endif
 		} else if (!strncmp(cmd, "arm11_fota", 10)) {
 			__raw_writel(RESTART_ARM11FOTA_MODE, restart_reason);
+		} else if (!strncmp(cmd, "checksum_fail", 13)) {
+			__raw_writel(RESTART_CHECKSUM_FAIL_MODE, restart_reason);
 		} else {
 			__raw_writel(RESTART_OTHERBOOT_MODE, restart_reason);
 		}
@@ -283,11 +287,6 @@ void arch_reset(char mode, const char *cmd)
 		mdelay(5000);
 		pr_notice("PS_HOLD didn't work, falling back to watchdog\n");
 	}
-#endif
-
-#if 0  /* onlyjazz.el20 : give time for MDM to prepare upload mode to prevent mdm dump corruption. still required ?  */
-	__raw_writel(0, msm_tmr0_base + WDT0_EN);
-	mdelay(1000);
 #endif
 
 	__raw_writel(1, msm_tmr0_base + WDT0_RST);

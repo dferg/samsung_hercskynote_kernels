@@ -13,6 +13,15 @@ config SENSORS_MT9T013
 	help
 	 MT9T013 Camera Driver implemented by HTC.
 
+config SENSORS_CORE
+	bool "Sensor devices"
+	help
+	  Say Y here, and a list of sensors drivers will be displayed.
+	  Everything that didn't fit into the other categories is here. This option
+	  doesn't affect the kernel.
+
+	  If unsure, say Y.
+	  
 config OPTICAL_GP2A
 	depends on I2C
 	tristate "GP2A driver"

@@ -16,7 +16,12 @@ CAMERA DRIVER FOR 2M CAM (SYS.LSI)
 #include <mach/camera.h>
 
 #include "sec_sr200pc20m.h"
+
+#if defined (CONFIG_TARGET_SERIES_Q1) && defined (CONFIG_CAMERA_VE)
+#include "sec_sr200pc20m_reg_q1_ve.h"	
+#else
 #include "sec_sr200pc20m_reg.h"	
+#endif
 
 //#include "sec_cam_pmic.h"
 #include "sec_cam_dev.h"
@@ -68,11 +73,9 @@ static unsigned int config_csi2;
 static struct sr200pc20m_ctrl_t *sr200pc20m_ctrl;
 
 static DECLARE_WAIT_QUEUE_HEAD(sr200pc20m_wait_queue);
-DECLARE_MUTEX(sr200pc20m_sem);
 
 #ifdef CONFIG_LOAD_FILE
 static int sr200pc20m_write_regs_from_sd(char *name);
-static int sr200pc20m_regs_table_write(char *name);
 #endif
 
 static int sr200pc20m_start(void);
@@ -228,8 +231,6 @@ int sr200pc20m_regs_table_init(void)
 	s32 i = 0;
 	int ret = 0;
 	loff_t pos;
-
-	CAM_DEBUG("CONFIG_LOAD_FILE is enable!!\n");
 
 	mm_segment_t fs = get_fs();
 	set_fs(get_ds());
@@ -492,6 +493,17 @@ static int sr200pc20m_write_regs_from_sd(char *name)
 }
 #endif
 
+
+#ifdef CONFIG_CAMERA_VE
+static int sr200pc20m_check_sensor(void)
+{
+	int err = 0;
+	err = sr200pc20m_i2c_write_16bit(0x0320);;
+	return err;
+}
+#endif
+
+
 static void  sr200pc20m_get_exif(void)
 {
 	u8 read_value1, read_value2, read_value3;	
@@ -548,7 +560,10 @@ static int sr200pc20m_check_dataline(s32 val)
 static long sr200pc20m_video_config(int mode)
 {
 	int err = 0;
-
+	
+	if (sr200pc20m_ctrl->vtcall_mode == 2) //VoIP
+		return 0;
+		
 	err = sr200pc20m_i2c_write_list(sr200pc20m_preview, 
 		sizeof(sr200pc20m_preview) / sizeof(sr200pc20m_preview[0]), "sr200pc20m_preview");
 
@@ -613,7 +628,7 @@ static long sr200pc20m_set_sensor_mode(int mode)
 }
 
 
-static int sr200pc20m_set_brightness(int8_t ev)
+static int sr200pc20m_set_brightness(int32_t ev)
 {
 	int err = 0;
 	
@@ -669,7 +684,7 @@ static int sr200pc20m_set_brightness(int8_t ev)
 	return err;
 }
 
-static int sr200pc20m_set_blur(int8_t blur)
+static int sr200pc20m_set_blur(int32_t blur)
 {
 	int err = 0;
 	
@@ -818,19 +833,20 @@ static int sr200pc20m_start(void)
 		if(sr200pc20m_ctrl->vtcall_mode == 0)  //normal
 		{
 			CAM_DEBUG("SELF CAMERA");
-#ifdef I2C_BURST_MODE
-			err = sr200pc20m_i2c_write_burst_list(sr200pc20m_common,
-				sizeof(sr200pc20m_common)/sizeof(sr200pc20m_common[0]),"sr200pc20m_common");				
-#else
 			err = sr200pc20m_i2c_write_list(sr200pc20m_common,
 				sizeof(sr200pc20m_common)/sizeof(sr200pc20m_common[0]),"sr200pc20m_common");
-#endif
 		}
 		else if(sr200pc20m_ctrl->vtcall_mode == 1) //vt call
 		{
 			CAM_DEBUG("VT CALL");
 			err = sr200pc20m_i2c_write_list(sr200pc20m_vt_common,
 				sizeof(sr200pc20m_vt_common)/sizeof(sr200pc20m_vt_common[0]),"sr200pc20m_vt_common");
+		}
+		else if(sr200pc20m_ctrl->vtcall_mode == 3) //smart stay
+		{
+			CAM_DEBUG("SMART STAY");
+			err = sr200pc20m_i2c_write_list(sr200pc20m_FD_common,
+				sizeof(sr200pc20m_FD_common)/sizeof(sr200pc20m_FD_common[0]),"sr200pc20m_FD_common");
 		}
 		else //wifi vt call
 		{
@@ -844,25 +860,12 @@ static int sr200pc20m_start(void)
 		CAM_DEBUG("SELF RECORD");
 
 #if defined (CONFIG_JPN_MODEL_SC_03D) //50Hz
-#ifdef I2C_BURST_MODE
-		err = sr200pc20m_i2c_write_burst_list(sr200pc20m_recording_50Hz_common,
-			sizeof(sr200pc20m_recording_50Hz_common)/sizeof(sr200pc20m_recording_50Hz_common[0]),"sr200pc20m_recording_50Hz_common");
-#else
 		err = sr200pc20m_i2c_write_list(sr200pc20m_recording_50Hz_common,
 			sizeof(sr200pc20m_recording_50Hz_common)/sizeof(sr200pc20m_recording_50Hz_common[0]),"sr200pc20m_recording_50Hz_common");
-#endif
-
 
 #else //60Hz
-#ifdef I2C_BURST_MODE
-		err = sr200pc20m_i2c_write_burst_list(sr200pc20m_recording_60Hz_common,
-			sizeof(sr200pc20m_recording_60Hz_common)/sizeof(sr200pc20m_recording_60Hz_common[0]),"sr200pc20m_recording_60Hz_common");
-#else
 		err = sr200pc20m_i2c_write_list(sr200pc20m_recording_60Hz_common,
 			sizeof(sr200pc20m_recording_60Hz_common)/sizeof(sr200pc20m_recording_60Hz_common[0]),"sr200pc20m_recording_60Hz_common");
-#endif
-
-
 #endif
 	}
 
@@ -981,7 +984,26 @@ int sr200pc20m_sensor_open_init(const struct msm_camera_sensor_info *data)
 	sr200pc20m_ctrl->blur = BLUR_LEVEL_0;
 	sr200pc20m_ctrl->exif_exptime = 0; 
 	sr200pc20m_ctrl->exif_iso = 0;
+	
+#ifdef CONFIG_CAMERA_VE
+	rc = sr200pc20m_check_sensor();
+	if (rc < 0) {
+		cam_err(" Front sensor is not sr200pc20m [rc : %d]", rc );
 
+#if 0	// -> msm_io_8x60.c, board-msm8x60_XXX.c
+		gpio_set_value_cansleep(CAM_VGA_RST, LOW);
+		mdelay(1);
+
+		sub_cam_ldo_power(OFF);	// have to turn off MCLK before PMIC
+#endif
+#ifdef CONFIG_LOAD_FILE
+		sr200pc20m_regs_table_exit();
+#endif
+
+		goto init_fail;
+	}
+#endif 
+	
 	CAM_DEBUG("X");
 init_done:
 	return rc;

@@ -137,6 +137,7 @@ enum m5mo_cap_frmsize {
 	M5MO_CAPTURE_HD4MP,	/* 2560 x 1440*/
 	M5MO_CAPTURE_3MP,	/* QXGA - 2048 x 1536 */
 	M5MO_CAPTURE_W2MP,	/* 2048 x 1232 */
+	M5MO_CAPTURE_SXGA,	/* 1280 x 960 */
 	M5MO_CAPTURE_HD1MP,	/* 1280 x 720*/
 	M5MO_CAPTURE_WVGA,	/* 800 x 480 */
 	M5MO_CAPTURE_VGA,	/* 640 x 480 */
@@ -294,6 +295,8 @@ struct m5mo_focus {
 
 	unsigned int mode;
 	unsigned int status;
+
+	unsigned int touchaf;
 
 	unsigned int pos_x;
 	unsigned int pos_y;

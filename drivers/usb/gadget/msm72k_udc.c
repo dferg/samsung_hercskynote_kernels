@@ -494,6 +494,15 @@ static void config_ept(struct msm_endpoint *ept)
 {
 	struct usb_info *ui = ept->ui;
 	unsigned cfg = CONFIG_MAX_PKT(ept->ep.maxpacket) | CONFIG_ZLT;
+	const struct usb_endpoint_descriptor *desc = ept->ep.desc;
+	unsigned mult = 0;
+
+	if (desc && ((desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			== USB_ENDPOINT_XFER_ISOC)) {
+		cfg &= ~(CONFIG_MULT);
+		mult = ((ept->ep.maxpacket >> CONFIG_MULT_SHIFT) + 1) & 0x03;
+		cfg |= (mult << (ffs(CONFIG_MULT) - 1));
+	}
 
 	/* ep0 out needs interrupt-on-setup */
 	if (ept->bit == 0)
@@ -923,7 +932,7 @@ static void handle_setup(struct usb_info *ui)
 	 * TODO: Remove below workaround of adding 1us delay once
 	 * it gets fixed in hardware.
 	 */
-	udelay(200);
+	udelay(10);
 
 	memcpy(&ctl, ui->ep0out.head->setup_data, sizeof(ctl));
 	/* Ensure buffer is read before acknowledging to h/w */
@@ -1568,7 +1577,7 @@ static void usb_do_work(struct work_struct *w)
 
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 				cdev = get_gadget_data(&ui->gadget);
-				if (!is_b_sess_vld())
+//				if (!is_b_sess_vld())
 				{
 					printk("off mute_switch\n");
 					cdev->mute_switch = 0;
@@ -2021,11 +2030,11 @@ static void usb_debugfs_init(struct usb_info *ui)
 		return;
 
 	debugfs_create_file("status", 0444, dent, ui, &debug_stat_ops);
-	debugfs_create_file("reset", 0222, dent, ui, &debug_reset_ops);
-	debugfs_create_file("cycle", 0222, dent, ui, &debug_cycle_ops);
-	debugfs_create_file("release_wlocks", 0666, dent, ui,
+	debugfs_create_file("reset", 0664, dent, ui, &debug_reset_ops);
+	debugfs_create_file("cycle", 0664, dent, ui, &debug_cycle_ops);
+	debugfs_create_file("release_wlocks", 0664, dent, ui,
 						&debug_wlocks_ops);
-	debugfs_create_file("prime_fail_countt", 0666, dent, ui,
+	debugfs_create_file("prime_fail_countt", 0664, dent, ui,
 						&prime_fail_ops);
 }
 #else
@@ -2040,6 +2049,7 @@ msm72k_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
 	_ep->maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	ept->ep.desc = desc;
 	config_ept(ept);
 	ept->wedged = 0;
 	usb_ept_enable(ept, 1, ep_type);

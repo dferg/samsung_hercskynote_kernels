@@ -81,7 +81,6 @@ typedef union ktime ktime_t;		/* Kill this */
 static inline ktime_t ktime_set(const long secs, const unsigned long nsecs)
 {
 #if (BITS_PER_LONG == 64)
-
 	if (unlikely(secs >= KTIME_SEC_MAX))
 		return (ktime_t){ .tv64 = KTIME_MAX };
 #endif

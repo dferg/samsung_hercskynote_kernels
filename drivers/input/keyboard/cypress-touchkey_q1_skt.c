@@ -55,7 +55,7 @@ Melfas touchkey register
 #define END_KEY 0x04
 
 #define I2C_M_WR 0		/* for i2c */
-#define DEVICE_NAME "melfas_touchkey"
+#define DEVICE_NAME "sec_touchkey"
 
 /*sec_class sysfs*/
 extern struct class *sec_class;
@@ -68,19 +68,19 @@ unsigned char data_mdule_rev;
 
 //NAGSM_Android_SEL_Kernel_Aakash_20100320
 #ifdef CONFIG_S5PC110_T959_BOARD
-static int melfas_evt_enable_status = 1;
-static ssize_t melfas_evt_status_show(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
+static int sec_evt_enable_status = 1;
+static ssize_t sec_evt_status_show(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {	
-	return sprintf(sysfsbuf, "%d\n", melfas_evt_enable_status);
+	return sprintf(sysfsbuf, "%d\n", sec_evt_enable_status);
 }
 
-static ssize_t melfas_evt_status_store(struct device *dev, struct device_attribute *attr,const char *sysfsbuf, size_t size)
+static ssize_t sec_evt_status_store(struct device *dev, struct device_attribute *attr,const char *sysfsbuf, size_t size)
 {
-	sscanf(sysfsbuf, "%d", &melfas_evt_enable_status);
+	sscanf(sysfsbuf, "%d", &sec_evt_enable_status);
 	return size;
 }
 
-static DEVICE_ATTR(melfasevtcntrl, S_IRUGO | S_IWUSR, melfas_evt_status_show, melfas_evt_status_store);
+static DEVICE_ATTR(secevtcntrl, S_IRUGO | S_IWUSR, sec_evt_status_show, sec_evt_status_store);
 #endif
 //NAGSM_Android_SEL_Kernel_Aakash_20100320
 
@@ -126,19 +126,15 @@ static bool g_debug_switch = true;
 static bool g_debug_switch = false;
 #endif
 
-#if defined(DEBUG_TKEY_I717)
-static bool Q1_debug_msg = true;
-#else
-static bool Q1_debug_msg = false;
-#endif
 
 
-static const struct i2c_device_id melfas_touchkey_id[] = {
-	{"melfas_touchkey", 0},
+
+static const struct i2c_device_id sec_touchkey_id[] = {
+	{"sec_touchkey", 0},
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, melfas_touchkey_id);
+MODULE_DEVICE_TABLE(i2c, sec_touchkey_id);
 
 static void init_hw(void);
 static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device_id *id);
@@ -152,10 +148,10 @@ static int touchkey_connected = 0;
 
 struct i2c_driver touchkey_i2c_driver = {
 	.driver = {
-		.name = "melfas_touchkey_driver",
+		.name = "sec_touchkey_driver",
 		.owner	= THIS_MODULE,
 	},
-	.id_table = melfas_touchkey_id,
+	.id_table = sec_touchkey_id,
 	.probe = i2c_touchkey_probe,
 };
 
@@ -253,7 +249,7 @@ void touchkey_work_func(struct work_struct *p)
 	int retry = 10;
 
 	set_touchkey_debug('a');
-	printk("[TKEY] INPIN %d\n",gpio_get_value_cansleep(GPIO_TOUCHKEY));
+	//printk("[TKEY] INPIN %d\n",gpio_get_value_cansleep(GPIO_TOUCHKEY));
 
 		ret = i2c_touchkey_read(KEYCODE_REG, data, 1);
 		printk("[0]%d [1]%d [2]%d\n", data[0],data[1], data[2]);
@@ -350,7 +346,7 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)  // ks 79 - threaded
     set_touchkey_debug('I');
     disable_irq_nosync(IRQ_TOUCHKEY_INT);
 
-	tkey_vdd_enable(1); 
+ 	tkey_vdd_enable(1); 
 
 	set_touchkey_debug('a');
 	ret = i2c_touchkey_read(KEYCODE_REG, data, 1);
@@ -472,15 +468,15 @@ static int touchkey_auto_calibration(int autocal_on_off)
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void melfas_touchkey_early_suspend(struct early_suspend *h)
+static void sec_touchkey_early_suspend(struct early_suspend *h)
 {
     int index =0;
-    int ret = 0;
-    signed char int_data[] ={0x80};
+    // int ret = 0;
+    // signed char int_data[] ={0x80};
 
 	touchkey_enable = 0;
     set_touchkey_debug('S');
-    printk(KERN_DEBUG "melfas_touchkey_early_suspend\n");
+    printk(KERN_DEBUG "sec_touchkey_early_suspend\n");
 
     if (touchkey_enable < 0) {
         printk("---%s---touchkey_enable: %d\n", __FUNCTION__, touchkey_enable);
@@ -489,7 +485,7 @@ static void melfas_touchkey_early_suspend(struct early_suspend *h)
 
     disable_irq(IRQ_TOUCHKEY_INT);
 
-		tkey_vdd_enable(0);
+ 		tkey_vdd_enable(0);
 		gpio_direction_output(GPIO_TOUCHKEY_SCL, 0);
 		gpio_free(GPIO_TOUCHKEY_SCL);
 		gpio_direction_output(GPIO_TOUCHKEY_SDA, 0);
@@ -509,33 +505,34 @@ static void melfas_touchkey_early_suspend(struct early_suspend *h)
 	press_check = 0;
 	}
 
-static void melfas_touchkey_early_resume(struct early_suspend *h)
+static void sec_touchkey_early_resume(struct early_suspend *h)
 {
 	set_touchkey_debug('R');
-	printk(KERN_DEBUG "[TKEY] melfas_touchkey_early_resume\n");
+	printk(KERN_DEBUG "[TKEY] sec_touchkey_early_resume\n");
 	if (touchkey_enable < 0) {
 		printk("[TKEY] %s touchkey_enable: %d\n", __FUNCTION__, touchkey_enable);
 		return;
 	}
 
-		tkey_vdd_enable(1);
-		gpio_request(GPIO_TOUCHKEY_SCL, "TKEY_SCL");
-		gpio_direction_input(GPIO_TOUCHKEY_SCL);
-		gpio_request(GPIO_TOUCHKEY_SDA, "TKEY_SDA");
-		gpio_direction_input(GPIO_TOUCHKEY_SDA);
-		init_hw();
+ 	tkey_vdd_enable(1);
+	gpio_request(GPIO_TOUCHKEY_SCL, "TKEY_SCL");
+	gpio_direction_input(GPIO_TOUCHKEY_SCL);
+	gpio_request(GPIO_TOUCHKEY_SDA, "TKEY_SDA");
+	gpio_direction_input(GPIO_TOUCHKEY_SDA);
+	init_hw();
 
-if(touchled_cmd_reversed) {
-			touchled_cmd_reversed = 0;
-			msleep(100);
+	if(touchled_cmd_reversed) {
+		touchled_cmd_reversed = 0;
+		msleep(100);
 
-			if(!touchkey_enable )
-				touchkey_enable = 1; 
-			i2c_touchkey_write(&touchkey_led_status, 1);
-			printk("[TKEY] LED RESERVED !! LED returned on touchkey_led_status = %d\n", touchkey_led_status);
+		if(!touchkey_enable )
+			touchkey_enable = 1; 
+		i2c_touchkey_write((u8 *)&touchkey_led_status, 1);
+		printk("[TKEY] LED RESERVED !! LED returned on touchkey_led_status = %d\n", touchkey_led_status);
 	}
-if (get_hw_rev() >=0x02){		
-	tkey_led_vdd_enable(1); 	
+
+	if (get_hw_rev() >= 0x02){		
+		tkey_led_vdd_enable(1); 	
 }	
 
 enable_irq(IRQ_TOUCHKEY_INT);
@@ -555,7 +552,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
        int touch_auto_calibration_on_off = 0;
 	u8 data[6];
 
-	printk("[TKEY] melfas i2c_touchkey_probe\n");
+	printk("[TKEY] sec i2c_touchkey_probe\n");
 
 	touchkey_driver =
 	    kzalloc(sizeof(struct i2c_touchkey_driver), GFP_KERNEL);
@@ -566,7 +563,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 
 	touchkey_driver->client = client;
 	touchkey_driver->client->irq = IRQ_TOUCHKEY_INT;
-	strlcpy(touchkey_driver->client->name, "melfas-touchkey", I2C_NAME_SIZE);
+	strlcpy(touchkey_driver->client->name, "sec-touchkey", I2C_NAME_SIZE);
 
 	// i2c_set_clientdata(client, state);
 	input_dev = input_allocate_device();
@@ -577,7 +574,7 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 	touchkey_driver->input_dev = input_dev;
 
 	input_dev->name = DEVICE_NAME;
-	input_dev->phys = "melfas-touchkey/input0";
+	input_dev->phys = "sec-touchkey/input0";
 	input_dev->id.bustype = BUS_HOST;
 
 	if(get_hw_rev() >= 0x02) {	
@@ -609,8 +606,8 @@ static int i2c_touchkey_probe(struct i2c_client *client, const struct i2c_device
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     //	touchkey_driver->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING + 1;
-    touchkey_driver->early_suspend.suspend = melfas_touchkey_early_suspend;
-    touchkey_driver->early_suspend.resume = melfas_touchkey_early_resume;
+    touchkey_driver->early_suspend.suspend = sec_touchkey_early_suspend;
+    touchkey_driver->early_suspend.resume = sec_touchkey_early_resume;
     register_early_suspend(&touchkey_driver->early_suspend);
 #endif
 
@@ -693,7 +690,7 @@ struct file_operations touchkey_update_fops = {
 
 static struct miscdevice touchkey_update_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "melfas_touchkey",
+	.name = "sec_touchkey",
 	.fops = &touchkey_update_fops,
 };
 
@@ -813,7 +810,7 @@ static int atoi(const char *name)
 
 static ssize_t touch_led_control(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	unsigned char data = NULL;
+	unsigned char data = 0;
 	int int_data = 0;
 	int errnum = 0;
 	
@@ -1087,6 +1084,7 @@ static ssize_t touch_sensitivity_control(struct device *dev, struct device_attri
 	return size;
 }
 
+#if 0
 static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	/*TO DO IT */
@@ -1100,6 +1098,7 @@ static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_
 #endif
 	return count;
 }
+#endif
 
 static ssize_t set_touchkey_update_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1409,14 +1408,14 @@ static int __init touchkey_init(void)
 	}
 
 #ifdef CONFIG_S5PC110_T959_BOARD //NAGSM_Android_SEL_Kernel_Aakash_20100320
-	if (device_create_file(touchkey_update_device.this_device, &dev_attr_melfasevtcntrl) < 0)
+	if (device_create_file(touchkey_update_device.this_device, &dev_attr_secevtcntrl) < 0)
 	{
-		printk("%s device_create_file fail dev_attr_melfasevtcntrl\n",__FUNCTION__);
-		pr_err("Failed to create device file(%s)!\n", dev_attr_melfasevtcntrl.attr.name);
+		printk("%s device_create_file fail dev_attr_secevtcntrl\n",__FUNCTION__);
+		pr_err("Failed to create device file(%s)!\n", dev_attr_secevtcntrl.attr.name);
 	}
 #endif
 
-	touchkey_wq = create_singlethread_workqueue("melfas_touchkey_wq");
+	touchkey_wq = create_singlethread_workqueue("sec_touchkey_wq");
 	if (!touchkey_wq)
 		return -ENOMEM;
 
@@ -1426,7 +1425,7 @@ static int __init touchkey_init(void)
 	irq_set_irq_type(IRQ_TOUCHKEY_INT, IRQ_TYPE_EDGE_FALLING);
 
 	while (retry--) {
-		if (get_touchkey_firmware(data) == 0)	//melfas need delay for multiple read
+		if (get_touchkey_firmware(data) == 0)	//sec need delay for multiple read
 			break;
 		else
 			printk("[TKEY] f/w read fail retry %d\n", retry);
@@ -1474,7 +1473,7 @@ static int __init touchkey_init(void)
 		}	ret = i2c_add_driver(&touchkey_i2c_driver);
 
 	if (ret) {
-		printk ("melfas touch keypad registration failed, module not inserted.ret= %d\n", ret);
+		printk ("sec touch keypad registration failed, module not inserted.ret= %d\n", ret);
 	}
     printk("[TKEY] touchkey_init END \n");
 	return ret;
@@ -1494,5 +1493,5 @@ module_exit(touchkey_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("@@@");
-MODULE_DESCRIPTION("melfas touch keypad");
+MODULE_DESCRIPTION("sec touch keypad");
 

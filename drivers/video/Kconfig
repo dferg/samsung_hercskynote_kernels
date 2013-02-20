@@ -2337,7 +2337,6 @@ config FB_MSM_LCDC_S6E63M0_WVGA_PANEL
 	---help---
 	  Support for LCDC S6E63M0 WVGA (480x800) panel	  
 
-
 config FB_MX3
 	tristate "MX3 Framebuffer support"
 	depends on FB && MX3_IPU

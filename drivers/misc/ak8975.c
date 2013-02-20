@@ -31,6 +31,11 @@
 #include <linux/mfd/pmic8058.h>
 #include "ak8975-reg.h"
 
+#ifdef SENSORS_LOG_DUMP
+#include <linux/i2c/sensors_core.h>
+#endif
+
+
 struct akm8975_data {
 	struct i2c_client *this_client;
 	struct akm8975_platform_data *pdata;
@@ -40,7 +45,7 @@ struct akm8975_data {
 #if defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I577R) || defined(CONFIG_CAN_MODEL_SGH_I757M) ||  defined(CONFIG_USA_MODEL_SGH_T769)
 	struct class *akm8975_class;
 	struct device *akm8975_dev;
-#endif		
+#endif
 	wait_queue_head_t state_wq;
 	int irq;
 	void	(*power_on) (void);
@@ -157,7 +162,7 @@ static irqreturn_t akm8975_irq_handler(int irq, void *data)
 
 static int akm8975_wait_for_data_ready(struct akm8975_data *akm)
 {
-	int data_ready = gpio_get_value_cansleep(PM8058_GPIO_PM_TO_SYS(akm->pdata->gpio_data_ready_int));
+    int data_ready = gpio_get_value_cansleep(akm->pdata->gpio_data_ready_gpio);
 	int err;
 
 	if (data_ready)
@@ -450,7 +455,7 @@ static int akm8975_setup_irq(struct akm8975_data *akm)
 
 	irq = gpio_to_irq(pdata->gpio_data_ready_int);
 #else
-	irq = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, pdata->gpio_data_ready_int);
+	irq = pdata->gpio_data_ready_int;
 #endif
 
 	/* trigger high so we don't miss initial interrupt if it
@@ -484,7 +489,7 @@ int akm8975_probe(struct i2c_client *client,
 		const struct i2c_device_id *devid)
 {
 	struct akm8975_data *akm;
-	int err;
+	int err = 0, which = 0;
 	struct akm8975_platform_data *pdata = client->dev.platform_data;
 
 	printk("ak8975 probe start!\n");
@@ -492,12 +497,14 @@ int akm8975_probe(struct i2c_client *client,
 	if (pdata == NULL) {
 		dev_err(&client->dev, "platform data is NULL. exiting.\n");
 		err = -ENODEV;
+		which = 0x01;
 		goto exit_platform_data_null;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "I2C check failed, exiting.\n");
 		err = -ENODEV;
+		which = 0x02;
 		goto exit_check_functionality_failed;
 	}
 
@@ -506,6 +513,7 @@ int akm8975_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 			"failed to allocate memory for module data\n");
 		err = -ENOMEM;
+		which = 0x03;
 		goto exit_alloc_data_failed;
 	}
 
@@ -519,13 +527,14 @@ int akm8975_probe(struct i2c_client *client,
 #if defined (CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_EUR_MODEL_GT_I9210) \
      ||	 defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_T769)
 #if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_KOR_MODEL_SHV_E160L)
-	if (get_hw_rev() >= 0x04 ) {
+	if (get_hw_rev() >= 0x04 )
 #elif  defined(CONFIG_USA_MODEL_SGH_I577)
-	if (get_hw_rev() >= 0x06 ) {	
-#else 
-	if (get_hw_rev() >= 0x08 ) {
+	if (get_hw_rev() >= 0x06 )
+#else
+	if (get_hw_rev() >= 0x08 )
 #endif
-	/* For Magnetic sensor POR condition */ 
+	{
+	/* For Magnetic sensor POR condition */
 	if(pdata->power_on_mag)
 		pdata->power_on_mag();
 	msleep(1);
@@ -535,18 +544,7 @@ int akm8975_probe(struct i2c_client *client,
 	/* For Magnetic sensor POR condition */ 
 	}
 #endif
-#if defined (CONFIG_USA_MODEL_SGH_I717)
-	if (get_hw_rev() >= 0x5) {
-		/* For Magnetic sensor POR condition */ 
-		if(pdata->power_on_mag)
-			pdata->power_on_mag();
-		msleep(1);
-		if(pdata->power_off_mag)
-			pdata->power_off_mag();
-		msleep(10);
-		/* For Magnetic sensor POR condition */ 
-	}
-#endif
+
 	if(akm->power_on)
 		akm->power_on();
 
@@ -557,12 +555,15 @@ int akm8975_probe(struct i2c_client *client,
 	akm->this_client = client;
 
 	err = akm8975_ecs_set_mode_power_down(akm);
-	if (err < 0)
+	if (err < 0) {
+		which = 0x04;
 		goto exit_set_mode_power_down_failed;
+	}
 
 	err = akm8975_setup_irq(akm);
 	if (err) {
 		pr_err("%s: could not setup irq\n", __func__);
+		which = 0x05;
 		goto exit_setup_irq;
 	}
 
@@ -571,10 +572,12 @@ int akm8975_probe(struct i2c_client *client,
 	akm->akmd_device.fops = &akmd_fops;
 
 	err = misc_register(&akm->akmd_device);
-	if (err)
+	if (err) {
+		which = 0x06;
 		goto exit_akmd_device_register_failed;
+	}
 
-#if defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I577R) || defined(CONFIG_CAN_MODEL_SGH_I757M) || defined(CONFIG_USA_MODEL_SGH_T769)
+	#if defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I577R) || defined(CONFIG_CAN_MODEL_SGH_I757M) || defined(CONFIG_USA_MODEL_SGH_T769)
 	/* creating class/device for test */
 	akm->akm8975_class = class_create(THIS_MODULE, "magnetometer");
 	if(IS_ERR(akm->akm8975_class)) {
@@ -602,6 +605,9 @@ int akm8975_probe(struct i2c_client *client,
 	init_waitqueue_head(&akm->state_wq);
 
 	printk("ak8975 probe success!\n");
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_magnetic(0, 0);
+#endif
 
 	return 0;
 #if defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_CAN_MODEL_SGH_I577R) || defined(CONFIG_CAN_MODEL_SGH_I757M) || defined(CONFIG_USA_MODEL_SGH_T769)
@@ -624,6 +630,9 @@ exit_set_mode_power_down_failed:
 exit_alloc_data_failed:
 exit_check_functionality_failed:
 exit_platform_data_null:
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_magnetic(which, err);
+#endif
 	return err;
 }
 

@@ -116,7 +116,7 @@ struct mxt540e_platform_data {
 	void (*power_on)(void);
 	void (*power_off)(void);
 	void (*register_cb)(void*);
-	void (*read_ta_status)(void*);	
+	void (*read_ta_status)(bool *);	
 };
 
 typedef enum

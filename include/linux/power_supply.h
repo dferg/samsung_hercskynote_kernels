@@ -165,8 +165,6 @@ struct power_supply {
 				     enum power_supply_property psp);
 	void (*external_power_changed)(struct power_supply *psy);
 	void (*set_charged)(struct power_supply *psy);
-	int (*set_current_limit)(struct power_supply *psy, int limit);
-	int (*set_charging_by)(struct power_supply *psy, bool enable);
 
 	/* For APM emulation, think legacy userspace. */
 	int use_for_apm;
@@ -218,7 +216,6 @@ extern int power_supply_set_battery_charged(struct power_supply *psy);
 extern int power_supply_set_current_limit(struct power_supply *psy, int limit);
 extern int power_supply_set_online(struct power_supply *psy, bool enable);
 extern int power_supply_set_charge_type(struct power_supply *psy, int type);
-extern int power_supply_set_charging_by(struct power_supply *psy, bool enable);
 
 #if defined(CONFIG_POWER_SUPPLY) || defined(CONFIG_POWER_SUPPLY_MODULE)
 extern int power_supply_is_system_supplied(void);

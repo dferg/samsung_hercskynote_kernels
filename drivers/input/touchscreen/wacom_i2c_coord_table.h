@@ -161,15 +161,15 @@ const short CodTblY_PRight_44[] = {
 
 
 /* Distance Offset Table */
-short *tableX[MAX_HAND][MAX_ROTATION]= {{CodTblX_PLeft_44, CodTblX_CCW_LLeft_44, CodTblX_PRight_44, CodTblX_CW_LRight_44},
+const short *tableX[MAX_HAND][MAX_ROTATION]= {{CodTblX_PLeft_44, CodTblX_CCW_LLeft_44, CodTblX_PRight_44, CodTblX_CW_LRight_44},
 										{CodTblX_PRight_44, CodTblX_PLeft_44, CodTblX_CW_LRight_44, CodTblX_CCW_LLeft_44}};
 
-short *tableY[MAX_HAND][MAX_ROTATION]= {{CodTblY_PLeft_44, CodTblY_CCW_LLeft_44, CodTblY_PRight_44, CodTblY_CW_LRight_44},
+const short *tableY[MAX_HAND][MAX_ROTATION]= {{CodTblY_PLeft_44, CodTblY_CCW_LLeft_44, CodTblY_PRight_44, CodTblY_CW_LRight_44},
 										{CodTblY_PRight_44, CodTblY_PLeft_44, CodTblY_CW_LRight_44, CodTblY_CCW_LLeft_44}};
 
-short *tableX_48[MAX_HAND][MAX_ROTATION]= {{CodTblX_PLeft_48, CodTblX_LLeft_48, CodTblX_LLeft2_48, 0},
+const short *tableX_48[MAX_HAND][MAX_ROTATION]= {{CodTblX_PLeft_48, CodTblX_LLeft_48, CodTblX_LLeft2_48, 0},
 										{CodTblX_PRight_48, CodTblX_LRight_48, CodTblX_LRight2_48, 0}};
-short *tableY_48[MAX_HAND][MAX_ROTATION]={{CodTblY_PLeft_48, CodTblY_LLeft_48, CodTblY_LLeft2_48, 0},
+const short *tableY_48[MAX_HAND][MAX_ROTATION]={{CodTblY_PLeft_48, CodTblY_LLeft_48, CodTblY_LLeft2_48, 0},
 										{CodTblY_PRight_48, CodTblY_LRight_48, CodTblY_LRight2_48, 0}};
 
 /* Tilt offset */

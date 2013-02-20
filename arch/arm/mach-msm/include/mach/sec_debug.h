@@ -64,6 +64,9 @@ extern void sec_debug_irq_sched_log(unsigned int irq, void *fn, int en);
 extern void sec_debug_irq_sched_log_end(void);
 extern void sec_debug_timer_log(unsigned int type, int int_lock, void *fn);
 extern void sec_debug_sched_log_init(void);
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+extern void debug_workq_log(int cpu, void *fn, struct task_struct *task);
+#endif
 #else
 static inline void sec_debug_task_sched_log(int cpu, struct task_struct *task)
 {
@@ -80,6 +83,11 @@ static inline void sec_debug_timer_log(unsigned int type, int int_lock, void *fn
 static inline void sec_debug_sched_log_init(void)
 {
 }
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+void debug_workq_log(int cpu, void *fn, struct task_struct *task)
+{
+}
+#endif
 #endif
 #ifdef CONFIG_SEC_DEBUG_IRQ_EXIT_LOG
 extern void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time);
@@ -171,6 +179,14 @@ struct timer_log{
 	int int_lock;
 	void* fn;
 };
+
+#ifdef CONFIG_SEC_DEBUG_WORKQ_LOG
+struct workq_info {
+	void* fn;
+	char comm[TASK_COMM_LEN];
+	pid_t pid;
+};
+#endif
 #endif /* CONFIG_SEC_DEBUG_SCHED_LOG */
 
 #ifdef CONFIG_SEC_DEBUG_SEMAPHORE_LOG

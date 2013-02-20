@@ -321,6 +321,8 @@ static void tdmb_InitOFDM(void)
 
 	RTV_REG_SET(0x16, 0x6C);
 
+	RTV_REG_SET(0x1a, 0xb4);
+
 	RTV_REG_SET(0x38, 0x01);
 
 	RTV_REG_SET(0x20, 0x5B);
@@ -711,7 +713,7 @@ U32 rtvTDMB_GetCNR(void)
 /* MSC BER (0 ~ 140) */
 U32 rtvTDMB_GetCER(void)
 {
-	U8 rcnt3 = 0, rcnt2 = 0, rcnt1 = 0, rcnt0 = 0;
+	U8 lock_stat, rcnt3 = 0, rcnt2 = 0, rcnt1 = 0, rcnt0 = 0;
 	U32 cer_cnt, cer_period_cnt, ret_val;
 
 	if (g_fRtvChannelChange) {
@@ -723,18 +725,23 @@ U32 rtvTDMB_GetCER(void)
 
 	RTV_REG_MAP_SEL(FEC_PAGE);
 
-	/* MSC CER period counter for accumulation */
-	rcnt3 = RTV_REG_GET(0x88);
-	rcnt2 = RTV_REG_GET(0x89);
-	rcnt1 = RTV_REG_GET(0x8A);
-	rcnt0 = RTV_REG_GET(0x8B);
-	/* 442368 */
-	cer_period_cnt = (rcnt3 << 24) | (rcnt2 << 16) | (rcnt1 << 8) | rcnt0;
+	lock_stat = RTV_REG_GET(0x37);
+	if (lock_stat & 0x01) {
+		/* MSC CER period counter for accumulation */
+		rcnt3 = RTV_REG_GET(0x88);
+		rcnt2 = RTV_REG_GET(0x89);
+		rcnt1 = RTV_REG_GET(0x8A);
+		rcnt0 = RTV_REG_GET(0x8B);
+		/* 442368 */
+		cer_period_cnt = (rcnt3 << 24) | (rcnt2 << 16)
+						| (rcnt1 << 8) | rcnt0;
 
-	rcnt3 = RTV_REG_GET(0x8C);
-	rcnt2 = RTV_REG_GET(0x8D);
-	rcnt1 = RTV_REG_GET(0x8E);
-	rcnt0 = RTV_REG_GET(0x8F);
+		rcnt3 = RTV_REG_GET(0x8C);
+		rcnt2 = RTV_REG_GET(0x8D);
+		rcnt1 = RTV_REG_GET(0x8E);
+		rcnt0 = RTV_REG_GET(0x8F);
+	} else
+		cer_period_cnt = 0;
 
 	RTV_GUARD_FREE;
 
@@ -769,7 +776,7 @@ U32 rtvTDMB_GetBER(void)
 
 	if (g_fRtvChannelChange) {
 		RTV_DBGMSG0("[rtvTDMB_GetBER] RTV Freqency change state!\n");
-		return 0;
+		return 2000;
 	}
 
 	RTV_GUARD_LOCK;
@@ -812,6 +819,9 @@ UINT rtvTDMB_GetAntennaLevel(U32 dwCER)
 	UINT nPrevLevel = g_nTdmbPrevAntennaLevel;
 	static const UINT aAntLvlTbl[TDMB_MAX_NUM_ANTENNA_LEVEL]
 		= {810, 700, 490, 400, 250, 180, 0};
+
+	if (dwCER == 2000)
+		return 0;
 
 	do {
 		if (dwCER >= aAntLvlTbl[nCurLevel]) /* Use equal for CER 0 */
@@ -1193,6 +1203,11 @@ INT rtvTDMB_OpenSubChannel(
 		RTV_GUARD_LOCK;
 		/* Max sub channel is 1. So, we close the previous sub ch. */
 		tdmb_CloseSubChannel(0);
+#if defined(RTV_IF_SPI) || defined(RTV_IF_EBI2)
+		RTV_REG_MAP_SEL(OFDM_PAGE);
+		RTV_REG_SET(0x10, 0x48);
+		RTV_REG_SET(0x10, 0xC9);
+#endif
 		tdmb_OpenSubChannel(nSubChID, eServiceType, nThresholdSize);
 		RTV_GUARD_FREE;
 #else
@@ -1907,7 +1922,7 @@ TDMB_SCAN_EXIT:
 
 	g_dwTdmbPrevChFreqKHz = dwChFreqKHz;
 
-	/*RTV_DBGMSG1("[rtvTDMB_ScanFrequency] 0x%04X\n", fail);*/
+	RTV_DBGMSG1("[rtvTDMB_ScanFrequency] 0x%04X\n", fail);
 
 	return scan_flag; /* Auto-scan result return */
 }

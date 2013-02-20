@@ -31,8 +31,7 @@
 /* Length of the DSP frame info header added to the voc packet. */
 #define DSP_FRAME_HDR_LEN 1
 
-
-//QC Case : 00503435
+/* QC Case: 00503435 */
 #define VSS_NETWORK_ID_CDMA_NB	0x00010021
 #define VSS_NETWORK_ID_CDMA_WB	0x00010022
 
@@ -693,29 +692,33 @@ static uint32_t audio_mvs_get_network_type(uint32_t mvs_mode)
 	case MVS_MODE_PCM:
 	case MVS_MODE_G729A:
 	case MVS_MODE_G711A:
-        #if 1 //QC Case : 00503435
-        /*--------------------------------------------------------------------------------
-          network ID(=VSS_NETWORK_ID_VOIP_NB) is not supported on acdb file and acdb parser.
-          you have to add new device for VoIP.
-        ----------------------------------------------------------------------------------*/
+#if 1
+	/* QC Case : 00503435 */
+	/*
+	 * Network ID(=VSS_NETWORK_ID_VOIP_NB) is not supported
+	 * on acdb file and acdb parser.
+	 * You have to add new device for VoIP.
+	*/
 		network_type = VSS_NETWORK_ID_CDMA_NB;
-        #else
+#else
 		network_type = VSS_NETWORK_ID_VOIP_NB;
-        #endif
+#endif
 		break;
 
 	case MVS_MODE_4GV_WB:
 	case MVS_MODE_AMR_WB:
 	case MVS_MODE_PCM_WB:
-        #if 1 //QC Case : 00503435
-        /*--------------------------------------------------------------------------------
-          network ID(=VSS_NETWORK_ID_VOIP_NB) is not supported on acdb file and acdb parser.
-          you have to add new device for VoIP.
-        ----------------------------------------------------------------------------------*/
+#if 1
+	/* QC Case : 00503435 */
+	/*
+	 * Network ID(=VSS_NETWORK_ID_VOIP_NB) is not supported
+	 * on acdb file and acdb parser.
+	 * You have to add new device for VoIP.
+	*/
 		network_type = VSS_NETWORK_ID_CDMA_WB;
-        #else
+#else
 		network_type = VSS_NETWORK_ID_VOIP_WB;
-        #endif
+#endif
 		break;
 
 	default:

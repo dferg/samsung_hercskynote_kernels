@@ -37,7 +37,7 @@
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)|| defined(CONFIG_KOR_MODEL_SHV_E160L)
 #define CONFIG_VPCM_INTERFACE_ON_SVLTE2
 #endif
-#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I577) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717)
+#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) || defined(CONFIG_USA_MODEL_SGH_I717)
 #define CONFIG_VPCM_INTERFACE_ON_CSFB
 #endif
 
@@ -112,22 +112,20 @@ int apr_send_pkt(void *handle, uint32_t *buf)
 /* BEGIN: VPCM */
 	if ( hdr->opcode == 0x10001001 || hdr->opcode == 0x10001002 
 #ifdef CONFIG_SEC_DHA_SOL_MAL
-	    || hdr->opcode == 0x0001128A
-#endif /* CONFIG_SEC_DHA_SOL_MAL*/
-       )
-	{
+		|| hdr->opcode == 0x0001128A
+#endif /* CONFIG_SEC_DHA_SOL_MAL */
+	) {
 		hdr->dest_domain = 0x03;
-	    hdr->dest_svc = 0x02;
+		hdr->dest_svc = 0x02;
 	}
 #elif defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
 	if ( hdr->opcode == 0x0001128D || hdr->opcode == 0x0001128E ||hdr->opcode == 0x0001128F ||hdr->opcode == 0x0001128C 
 #ifdef CONFIG_SEC_DHA_SOL_MAL
-	    || hdr->opcode == 0x0001128A
-#endif /* CONFIG_SEC_DHA_SOL_MAL*/
-	    )
-	{
+		|| hdr->opcode == 0x0001128A
+#endif /* CONFIG_SEC_DHA_SOL_MAL */
+	) {
 		hdr->dest_domain = 0x03;
-        hdr->dest_svc = 0x07;
+		hdr->dest_svc = 0x07;
 	}
 /* END: VPCM */
 #endif 
@@ -206,16 +204,15 @@ static void apr_cb_func(void *buf, int len, void *priv)
 	}
 
 	svc = hdr->dest_svc;
-	
+
 #if defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
 /* BEGIN: VPCM */
 	/* If the incoming message is from modem domain and for CVP (VPCM hack) */
 	if (hdr->src_domain == APR_DOMAIN_MODEM && svc == APR_SVC_ADSP_CVP) {
 		src = APR_DEST_QDSP6;
 		clnt = APR_CLIENT_AUDIO;
-	}
-	else
-/* END: VPCM */	
+	} else
+/* END: VPCM */
 #endif
 	if (hdr->src_domain == APR_DOMAIN_MODEM) {
 		src = APR_DEST_MODEM;
@@ -224,12 +221,13 @@ static void apr_cb_func(void *buf, int len, void *priv)
 			svc == APR_SVC_TEST_CLIENT
 #if defined(CONFIG_VPCM_INTERFACE_ON_CSFB) 
 /* BEGIN: VPCM */
-            || svc == 0x02
+			|| svc == 0x02
 #elif defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
-            || svc == 0x07
+			|| svc == 0x07
 #endif
-/* END: VPCM */			
-			)
+/* END: VPCM */
+		)
+
 			clnt = APR_CLIENT_VOICE;
 		else {
 			pr_err("APR: Wrong svc :%d\n", svc);
@@ -559,8 +557,6 @@ void apr_reset(void *handle)
 
 	if (apr_reset_worker == NULL) {
 		pr_err("%s: mem failure\n", __func__);
-		if(apr_reset_worker)
-			kfree (apr_reset_worker);		
 		return;
 	}
 

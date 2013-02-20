@@ -79,7 +79,7 @@ struct str_table_info {
     // end gray value, st + count
     u8 et;
     u8 count;
-    u8 *offset_table;
+    const u8 *offset_table;
     // rv : ratio value 
     u32 rv;
 };
@@ -95,12 +95,12 @@ struct str_smart_dim{
     s16 mtp[CI_MAX][IV_MAX];
     //s16 adjust_mtp[CI_MAX][IV_MAX];
     struct str_voltage_entry ve[256];
-    u8 *default_gamma; 
+    const u8 *default_gamma; 
     struct str_table_info t_info[IV_TABLE_MAX];
     //u8 v_table_array[256];
-    struct str_flookup_table *flooktbl;
-    u32 *g22_tbl;
-    u32 *g300_gra_tbl;
+    const struct str_flookup_table *flooktbl;
+    const u32 *g22_tbl;
+    const u32 *g300_gra_tbl;
     u32 adjust_volt[CI_MAX][AD_IVMAX];
     s16 adjust_mtp[CI_MAX][IV_MAX];
 
@@ -111,7 +111,7 @@ struct str_smart_dim{
 
 
 
-int init_table_info(struct str_smart_dim *smart, unsigned char* srcGammaTable);
+int init_table_info(struct str_smart_dim *smart, unsigned char const * srcGammaTable);
 u8 calc_voltage_table(struct str_smart_dim *smart, const u8 *mtp);
 u32 calc_gamma_table(struct str_smart_dim *smart, u32 gv, u8 result[]);
 

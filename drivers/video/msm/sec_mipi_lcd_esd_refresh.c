@@ -82,7 +82,7 @@ void set_lcd_esd_ignore( boolean src )
 	}
 
 	p_sec_esd_info->esd_ignore = src;
-//	DPRINT( "%s : %d\n", __func__, p_sec_esd_info->esd_ignore );
+	DPRINT( "%s : %d\n", __func__, p_sec_esd_info->esd_ignore );
 }	
 void set_lcd_esd_forced_ignore( boolean src )
 {
@@ -98,7 +98,7 @@ void set_lcd_esd_forced_ignore( boolean src )
 }	
 
 
-#if defined(CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL) || defined(CONFIG_FB_MSM_MIPI_S6E8AB0_WXGA_PANEL)
+#ifdef CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL
 
 void lcd_esd_seq( struct sec_esd_info *pSrc )
 {
@@ -146,6 +146,7 @@ void lcd_esd_seq( struct sec_esd_info *pSrc )
 }
 
 #else
+
 extern void TSP_ESD_seq(void);
 
 void lcd_LP11_signal( void )
@@ -187,7 +188,11 @@ void lcd_esd_seq( struct sec_esd_info *pSrc )
 	lcd_LP11_signal();
 	use_vsyncLPmode = TRUE;
 	TSP_ESD_seq();
-
+	msleep(1000);
+	
+	lcd_LP11_signal();
+	use_vsyncLPmode = TRUE;
+	TSP_ESD_seq();
 #endif
 
 	use_vsyncLPmode = TRUE; // in this code, LCD must be hit by ESD
@@ -235,7 +240,7 @@ static void sec_esd_work_func(struct work_struct *work)
 }
 
 #if defined (CONFIG_KOR_MODEL_SHV_E160S)
-extern unsigned int get_hw_rev();
+extern unsigned int get_hw_rev(void);
 #endif
 
 static int sec_esd_probe(struct platform_device *pdev)

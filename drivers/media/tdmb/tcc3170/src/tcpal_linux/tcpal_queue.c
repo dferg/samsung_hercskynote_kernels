@@ -72,7 +72,8 @@ void tcbd_reset_queue(struct tcbd_queue *_queue)
 }
 
 s32 tcbd_enqueue(
-	struct tcbd_queue *_queue, u8 *_chunk, s32 _size, s32 _type)
+	struct tcbd_queue *_queue, u8 *_chunk, s32 _size,
+	u8 _subch_id, s32 _type)
 {
 	if (_chunk == NULL || _size <= 0) {
 		tcbd_debug(DEBUG_ERROR, "Invalid argument!!\n");
@@ -109,15 +110,18 @@ s32 tcbd_enqueue(
 	else
 		_queue->pointer += _size;
 	memcpy(_queue->q[_queue->rear].buffer, _chunk, _size);
-	_queue->q[_queue->rear].size   = _size;
-	_queue->q[_queue->rear].type   = _type;
+	_queue->q[_queue->rear].size = _size;
+	_queue->q[_queue->rear].type = _type;
+	_queue->q[_queue->rear].subch_id = _subch_id;
+
 	_queue->rear = (_queue->rear + 1) % _queue->qsize;
 	tcpal_unlock(&_queue->sem);
 	return 0;
 }
 
 s32 tcbd_dequeue(
-	struct tcbd_queue *_queue, u8 *_chunk, s32 *_size, s32 *_type)
+	struct tcbd_queue *_queue, u8 *_chunk, s32 *_size,
+	u8 *_subch_id, s32 *_type)
 {
 	tcpal_lock(&_queue->sem);
 	if (tcbd_queue_is_empty(_queue)) {
@@ -141,6 +145,9 @@ s32 tcbd_dequeue(
 	*_size = _queue->q[_queue->front].size;
 	if (_type)
 		*_type = _queue->q[_queue->front].type;
+	if (_subch_id)
+		*_subch_id = _queue->q[_queue->front].subch_id;
+
 	_queue->front = (_queue->front + 1) % _queue->qsize;
 	tcbd_debug(0, "pos:%d, size:%d\n", _queue->pointer, *_size);
 	tcpal_unlock(&_queue->sem);

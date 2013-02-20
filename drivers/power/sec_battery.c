@@ -51,7 +51,11 @@
 #define MEASURE_CHG_INTERVAL	(5 * 1000)
 
 #if defined(CONFIG_KOR_MODEL_SHV_E120L)
+#if defined(CONFIG_PMIC8058_XOADC_CAL)
+#define CURRENT_OF_FULL_CHG		2750	/* 210mA */
+#else
 #define CURRENT_OF_FULL_CHG		2100	/* 210mA */
+#endif
 #define RCOMP0_TEMP			20	/* 'C */
 #elif defined(CONFIG_KOR_MODEL_SHV_E120S) || \
 	defined(CONFIG_KOR_MODEL_SHV_E120K)
@@ -83,8 +87,8 @@
 	defined(CONFIG_CAN_MODEL_SGH_I577R) || \
 	defined(CONFIG_CAN_MODEL_SGH_I757M)
 #if defined(CONFIG_PMIC8058_XOADC_CAL)
-#define CURRENT_OF_FULL_CHG_UI		2600    /* 260mA */
-#define CURRENT_OF_FULL_CHG		2600    /* 260mA */
+#define CURRENT_OF_FULL_CHG_UI		2780	/* 278mA */
+#define CURRENT_OF_FULL_CHG		2780	/* 278mA */
 #define RCOMP0_TEMP			20	/* 'C */
 #else
 #define CURRENT_OF_FULL_CHG_UI		2300	/* 278mA */
@@ -419,9 +423,11 @@
 	OFFSET_VOICE_CALL_3G | OFFSET_DATA_CALL | OFFSET_VIDEO_PLAY |\
 	OFFSET_CAMERA_ON | OFFSET_WIFI | OFFSET_GPS)
 
-static int event_occur = 0;
-static unsigned int event_start_time_msec = 0;
-static unsigned int event_total_time_msec = 0;
+#if defined(CONFIG_TARGET_LOCALE_USA)
+static int event_occur;
+static unsigned int event_start_time_msec;
+static unsigned int event_total_time_msec;
+#endif
 
 #define CELOX_BATTERY_CHARGING_CONTROL
 
@@ -591,10 +597,8 @@ struct sec_bat_info {
 #if defined(CONFIG_TARGET_LOCALE_USA)
 	bool ui_full_charge_status;
 	unsigned int device_state;
-	unsigned int vf_adc;
 	bool cable_uart_off;
 #endif
-
 #if defined(ADC_QUEUE_FEATURE) || defined(PRE_CHANOPEN_FEATURE)
 	/* 2 temperature, current, battid */
 	struct sec_batt_adc_chan batt_adc_chan[MAX_BATT_ADC_CHAN];
@@ -703,9 +707,9 @@ static int sec_bat_check_vf(struct sec_bat_info *info)
 		if (info->test_info.test_value == 999) {
 			pr_info("%s : test case : %d\n", __func__,
 					info->test_info.test_value);
-			health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-		} else
 			health = POWER_SUPPLY_HEALTH_DEAD;
+		} else
+			health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 	} else {
 		health = POWER_SUPPLY_HEALTH_GOOD;
 	}
@@ -734,49 +738,55 @@ static int sec_bat_check_detbat(struct sec_bat_info *info)
 	union power_supply_propval value;
 	static int cnt;
 	int vf_state = BAT_DETECTED;
+#if defined(CONFIG_EUR_MODEL_GT_I9210)
+/*	if (get_hw_rev() >= 0x07) { */ /* EUR rev0.3 and after [remove condition to fix build error]*/ 
+		int adc_data = 0, adc_physical = 0;
+/*	} */
+        int ret = 0; /* added to fix build error*/
+#elif defined(CONFIG_TARGET_LOCALE_USA)
+	int adc_data = 0, adc_physical = 0;
+#ifndef ADC_QUEUE_FEATURE
 	int ret = 0;
+#endif
 
+#else
+	int ret = 0;
+#endif
 	if (!psy) {
 		dev_err(info->dev, "%s: fail to get charger ps\n", __func__);
 		return -ENODEV;
 	}
 
 #if defined(CONFIG_EUR_MODEL_GT_I9210)
-	if(get_hw_rev()>=0x07)
-	{ // EUR rev0.3 and after
-		int adc_data = 0, adc_physical = 0;
-		
+	if (get_hw_rev() >= 0x07) { /* EUR rev0.3 and after */
+
 #ifdef ADC_QUEUE_FEATURE
 		if (sec_bat_get_adc_depot(info, CHANNEL_ADC_BATT_ID,
-										&adc_data, &adc_physical) < 0) {
-			printk("%s: get adc depot failed (chan - %d), return\n",
-								__func__, CHANNEL_ADC_BATT_ID);
+					&adc_data, &adc_physical) < 0) {
+			pr_err("%s: get adc depot failed (chan - %d), return\n",
+					__func__, CHANNEL_ADC_BATT_ID);
 			return 0;
 	}
-#else /* ADC_QUEUE_FEATURE */	
+#else /* ADC_QUEUE_FEATURE */
 		ret = sec_bat_read_adc(info, CHANNEL_ADC_BATT_ID,
-										&adc_data, &adc_physical);
-#endif /* ADC_QUEUE_FEATURE */	
-	
+						&adc_data, &adc_physical);
+#endif /* ADC_QUEUE_FEATURE */
 
-		printk("%s : vf adc : %d\n",__func__,adc_physical);
-	
-		if(adc_physical >500 && adc_physical < 900)
+		pr_info("%s : vf adc : %d\n", __func__, adc_physical);
+
+		if (adc_physical > 500 && adc_physical < 900)
 			value.intval = BAT_DETECTED;
 		else
 			value.intval = BAT_NOT_DETECTED;
-	}
-	else
-	{ // EUR rev0.2 and before
+	} else { /* EUR rev0.2 and before */
 		ret = psy->get_property(psy, POWER_SUPPLY_PROP_PRESENT, &value);
 		if (ret < 0) {
-			dev_err(info->dev, "%s: fail to get status(%d)\n", __func__, ret);
+			dev_err(info->dev, "%s: fail to get status(%d)\n",
+						__func__, ret);
 			return -ENODEV;
 		}
 	}
 #elif defined(CONFIG_TARGET_LOCALE_USA)
-
-	int adc_data = 0, adc_physical = 0;
 
 #ifdef ADC_QUEUE_FEATURE
 	if (sec_bat_get_adc_depot(info, CHANNEL_ADC_BATT_ID,
@@ -802,7 +812,7 @@ static int sec_bat_check_detbat(struct sec_bat_info *info)
 	defined(CONFIG_USA_MODEL_SGH_T769) || \
 	defined(CONFIG_USA_MODEL_SGH_I577) || \
 	defined(CONFIG_CAN_MODEL_SGH_I577R)
-	if (adc_physical > 300 && adc_physical < 900)
+	if (adc_physical > 500 && adc_physical < 900)
 #elif defined(CONFIG_USA_MODEL_SGH_I717)
 	if ((get_hw_rev() == 0x01) &&
 		(adc_physical > 1290 && adc_physical < 1800))
@@ -814,8 +824,6 @@ static int sec_bat_check_detbat(struct sec_bat_info *info)
 	else
 		value.intval = BAT_NOT_DETECTED;
 
-	info->vf_adc = adc_physical;
-	
 	/*
 	if (adc_physical >100 && adc_physical < 800)
 		value.intval = BAT_DETECTED;
@@ -846,26 +854,16 @@ static int sec_bat_check_detbat(struct sec_bat_info *info)
 
 	if (info->present == 1 &&
 		vf_state == BAT_NOT_DETECTED) {
-#if defined(CONFIG_TARGET_LOCALE_USA)
-		pr_info("%s : detbat state(->%d) changed, %d\n",
-			__func__, vf_state, info->vf_adc);
-#else
 		pr_info("%s : detbat state(->%d) changed\n",
 			__func__, vf_state);
-#endif
 		info->present = 0;
 		cancel_work_sync(&info->monitor_work);
 		wake_lock(&info->monitor_wake_lock);
 		queue_work(info->monitor_wqueue, &info->monitor_work);
 	} else if (info->present == 0 &&
 		vf_state == BAT_DETECTED) {
-#if defined(CONFIG_TARGET_LOCALE_USA)
-		pr_info("%s : detbat state(->%d) changed, %d\n",
-			__func__, vf_state, info->vf_adc);
-#else
 		pr_info("%s : detbat state(->%d) changed\n",
 			__func__, vf_state);
-#endif
 		info->present = 1;
 		cancel_work_sync(&info->monitor_work);
 		wake_lock(&info->monitor_wake_lock);
@@ -938,9 +936,10 @@ static int sec_bat_get_property(struct power_supply *ps,
 				__func__, info->test_info.test_value);
 			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 		} else if (info->is_timeout_chgstop &&
-			info->charging_status == POWER_SUPPLY_STATUS_FULL) {
+			info->charging_status == POWER_SUPPLY_STATUS_FULL &&
+			info->batt_soc != 100) {
 			/* new concept : in case of time-out charging stop,
-			   Do not update FULL for UI,
+			   Do not update FULL for UI except soc 100%,
 			   Use same time-out value for first charing and
 			   re-charging
 			*/
@@ -958,12 +957,6 @@ static int sec_bat_get_property(struct power_supply *ps,
 		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-#if defined(CONFIG_TARGET_LOCALE_USA)
-		if (info->batt_health == POWER_SUPPLY_HEALTH_DEAD) {
-			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-			break;
-		}
-#endif
 		val->intval = info->batt_health;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -1212,7 +1205,7 @@ static int sec_bat_set_property(struct power_supply *ps,
 		switch (val->intval) {
 		case POWER_SUPPLY_TYPE_BATTERY:
 			info->cable_type = CABLE_TYPE_NONE;
-#if defined (CONFIG_TARGET_LOCALE_USA)
+#if defined(CONFIG_TARGET_LOCALE_USA)
 			info->cable_uart_off = false;
 #endif
 			break;
@@ -1230,7 +1223,7 @@ static int sec_bat_set_property(struct power_supply *ps,
 			break;
 		case POWER_SUPPLY_TYPE_UARTOFF:
 			info->cable_type = CABLE_TYPE_UARTOFF;
-#if defined (CONFIG_TARGET_LOCALE_USA)
+#if defined(CONFIG_TARGET_LOCALE_USA)
 			info->cable_uart_off = true;
 #endif
 			break;
@@ -1414,11 +1407,7 @@ static int sec_bat_read_adc(struct sec_bat_info *info, int channel,
 
 	if (adc_data)
 		*adc_data = adc_chan_result.measurement;
-	else {
-		ret = -EINVAL;
-		goto out;
-	}
-		
+
 	pr_debug("%s: done for %d\n", __func__, channel);
 	*adc_physical = adc_chan_result.physical;
 
@@ -1477,6 +1466,7 @@ static int sec_bat_rescale_adcvalue(struct sec_bat_info *info,
 	return 0;
 }
 
+#if defined(CONFIG_TARGET_LOCALE_USA)
 static int is_over_event_time(void)
 {
 	unsigned int total_time = 0;
@@ -1535,8 +1525,6 @@ static void sec_set_time_for_event(int mode)
 		*/
 	}
 }
-
-#if defined(CONFIG_TARGET_LOCALE_USA)
 
 #if defined(CONFIG_USA_MODEL_SGH_T769)
 const int temper_table[][2] =  {
@@ -1665,7 +1653,9 @@ const int temper_table[][2] =  {
 
 static int sec_bat_check_temper_adc_USA(struct sec_bat_info *info)
 {
+#ifndef ADC_QUEUE_FEATURE
 	int ret = 0;
+#endif
 	int adc_data = 0, adc_physical = 0;
 	int rescale_adc = 0;
 	int high_block_temp_USA = HIGH_BLOCK_TEMP_ADC;
@@ -1785,7 +1775,9 @@ skip_hupdate:
 
 static int sec_bat_check_temper_adc_USA_nb(struct sec_bat_info *info)
 {
+#ifndef ADC_QUEUE_FEATURE
 	int ret = 0;
+#endif
 	int adc_data = 0, adc_physical = 0;
 	int temp = 0;
 	int array_size, i;
@@ -1897,9 +1889,7 @@ static int sec_bat_check_temper_adc_USA_nb(struct sec_bat_info *info)
 		if (!info->lpm_chg_mode)
 			high_recover_temp_USA = NB_EVT_HIGH_RECOVER_TEMP_ADC_ON;
 #endif
-	}
-	else
-	{
+	} else {
 		high_block_temp_USA = NB_HIGH_BLOCK_TEMP_ADC;
 		high_recover_temp_USA = NB_HIGH_RECOVER_TEMP_ADC;
 
@@ -2298,8 +2288,7 @@ static void sec_check_chgcurrent(struct sec_bat_info *info)
 				    POWER_SUPPLY_STATUS_FULL &&
 				    info->batt_current_adc <=
 				    CURRENT_OF_FULL_CHG_UI &&
-				    !info->ui_full_charge_status)
-				{
+				    !info->ui_full_charge_status) {
 					cnt_ui++;
 					pr_info("%s : UI full state? %d, %d\n",
 						__func__,
@@ -2574,7 +2563,7 @@ static int sec_fg_update_rcomp(struct sec_bat_info *info)
 	if (info->fuel_gauge_name) {
 		value.intval = info->charging_status;
 		ret =
-		psy->set_property(psy,POWER_SUPPLY_PROP_STATUS, &value);
+		psy->set_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
 		if (ret) {
 			dev_err(info->dev, "%s: fail to set status(%d)\n",
 				__func__, ret);
@@ -2624,6 +2613,13 @@ static void sec_bat_cable_work(struct work_struct *work)
 	}
 	*/
 
+	#ifdef CONFIG_USA_MODEL_SGH_I717
+        if (info->cable_type != CABLE_TYPE_NONE) {
+                sec_bat_check_detbat(info);
+                sec_bat_check_vf(info);
+        }
+	#endif
+	
 	switch (info->cable_type) {
 	case CABLE_TYPE_NONE:
 		/* TODO : check DCIN state again*/
@@ -2877,7 +2873,8 @@ static void sec_bat_monitor_work(struct work_struct *work)
 			info->test_info.is_rechg_state = false;
 
 			dev_info(info->dev, "%s: Not charging\n", __func__);
-		} else if (info->batt_health == POWER_SUPPLY_HEALTH_DEAD) {
+		} else if (info->batt_health ==
+				POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
 			sec_bat_enable_charging(info, false);
 			info->charging_status =
 				POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -3331,7 +3328,7 @@ static struct device_attribute sec_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_temp_adc),
 	SEC_BATTERY_ATTR(batt_temp_radc),
 	SEC_BATTERY_ATTR(batt_temp_radc_sub),
-	SEC_BATTERY_ATTR(charging_source),
+	SEC_BATTERY_ATTR(batt_charging_source),
 	SEC_BATTERY_ATTR(batt_lp_charging),
 	SEC_BATTERY_ATTR(batt_type),
 	SEC_BATTERY_ATTR(batt_full_check),
@@ -3341,8 +3338,9 @@ static struct device_attribute sec_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_current_adc),
 	SEC_BATTERY_ATTR(batt_esus_test),
 	SEC_BATTERY_ATTR(system_rev),
-	SEC_BATTERY_ATTR(fg_psoc),
+	SEC_BATTERY_ATTR(batt_read_raw_soc),
 	SEC_BATTERY_ATTR(batt_lpm_state),
+	SEC_BATTERY_ATTR(current_avg),
 #ifdef ADC_QUEUE_FEATURE
 	SEC_BATTERY_ATTR(wadc_alive),
 #endif
@@ -3360,7 +3358,7 @@ static struct device_attribute sec_battery_attrs[] = {
 
 #if defined(CONFIG_TARGET_LOCALE_USA)
 	SEC_BATTERY_ATTR(camera),
-	SEC_BATTERY_ATTR(mp3),
+	SEC_BATTERY_ATTR(music),
 	SEC_BATTERY_ATTR(video),
 	SEC_BATTERY_ATTR(talk_gsm),
 	SEC_BATTERY_ATTR(talk_wcdma),
@@ -3383,7 +3381,7 @@ enum {
 	BATT_TEMP_ADC,
 	BATT_TEMP_RADC,
 	BATT_TEMP_RADC_SUB,
-	CHARGING_SOURCE,
+	BATT_CHARGING_SOURCE,
 	BATT_LP_CHARGING,
 	BATT_TYPE,
 	BATT_FULL_CHECK,
@@ -3393,8 +3391,9 @@ enum {
 	BATT_CURRENT_ADC,
 	BATT_ESUS_TEST,
 	BATT_SYSTEM_REV,
-	BATT_FG_PSOC,
+	BATT_READ_RAW_SOC,
 	BATT_LPM_STATE,
+	CURRENT_AVG,
 #ifdef ADC_QUEUE_FEATURE
 	BATT_WADC_ALIVE,
 #endif
@@ -3521,7 +3520,7 @@ static ssize_t sec_bat_show_property(struct device *dev,
 		if (get_hw_rev() >= 0x08) {
 #elif defined(CONFIG_USA_MODEL_SGH_I717) || \
 	defined(CONFIG_USA_MODEL_SGH_I757) || \
-	defined (CONFIG_USA_MODEL_SGH_I577) || \
+	defined(CONFIG_USA_MODEL_SGH_I577) || \
 	defined(CONFIG_CAN_MODEL_SGH_I577R) || \
 	defined(CONFIG_CAN_MODEL_SGH_I757M)
 		if (true) {
@@ -3601,7 +3600,7 @@ static ssize_t sec_bat_show_property(struct device *dev,
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			info->batt_temp_radc_sub);
 		break;
-	case CHARGING_SOURCE:
+	case BATT_CHARGING_SOURCE:
 		val = info->cable_type;
 		/* for lpm test */
 		/* val = 2; */
@@ -3665,13 +3664,16 @@ static ssize_t sec_bat_show_property(struct device *dev,
 	case BATT_SYSTEM_REV:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n", info->hw_rev);
 		break;
-	case BATT_FG_PSOC:
+	case BATT_READ_RAW_SOC:
 		val = sec_bat_get_fuelgauge_data(info, FG_T_PSOC);
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n", val);
 		break;
 	case BATT_LPM_STATE:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			info->batt_lpm_state);
+		break;
+	case CURRENT_AVG:
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n", 0);
 		break;
 #if defined(CONFIG_TARGET_LOCALE_USA)
 	case BATT_DEV_STATE:

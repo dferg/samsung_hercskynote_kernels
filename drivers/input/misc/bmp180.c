@@ -28,6 +28,11 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
+#ifdef SENSORS_LOG_DUMP
+#include <linux/i2c/sensors_core.h>
+#endif
+
+
 #define BMP180_DRV_NAME		"bmp180"
 #define DRIVER_VERSION		"1.0"
 
@@ -371,7 +376,6 @@ done:
 static void bmp180_input_cleanup(struct bmp180_data *barom)
 {
 	input_unregister_device(barom->input_dev);
-	input_free_device(barom->input_dev);
 }
 
 static int bmp180_read_store_eeprom_val(struct bmp180_data *barom)
@@ -464,7 +468,7 @@ static ssize_t bmp180_enable_store(struct device *dev,
 	struct bmp180_data *barom = dev_get_drvdata(dev);
 
 	pr_debug("%s: enable %s\n", __func__, buf);
-        
+	
 	if (sysfs_streq(buf, "1")) {
 		new_value = true;
 	} else if (sysfs_streq(buf, "0")) {
@@ -604,7 +608,7 @@ static DEVICE_ATTR(sea_level_pressure, S_IRUGO | S_IWUSR | S_IWGRP,
 static int __devinit bmp180_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int err;
+	int err=0, which=0;
 	struct bmp180_data *barom;
 
 	pr_debug("%s: enter\n", __func__);
@@ -612,15 +616,17 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s: client not i2c capable\n", __func__);
-		printk(KERN_ERR "%s : client not i2c capable\n", __func__);
-		return -EIO;
+		which = 0x1;
+		err = -EIO;
+		goto done;
 	}
 
 	barom = kzalloc(sizeof(*barom), GFP_KERNEL);
 	if (!barom) {
 		pr_err("%s: failed to allocate memory for module\n", __func__);
-		printk(KERN_ERR "%s : failed to allocate memory for module\n", __func__);
-		return -ENOMEM;
+		which = 0x2;
+		err = -ENOMEM;
+		goto done;
 	}
 
 	mutex_init(&barom->lock);
@@ -631,8 +637,7 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 	err = bmp180_read_store_eeprom_val(barom);
 	if (err) {
 		pr_err("%s: Reading the EEPROM failed\n", __func__);
-              printk(KERN_ERR "%s : Reading the EEPROM failed\n", __func__);
-		err = -ENODEV;
+		which = 0x3;
 		goto err_read_eeprom;
 	}
 
@@ -644,8 +649,7 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 	if (!barom->wq) {
 		err = -ENOMEM;
 		pr_err("%s: could not create workqueue\n", __func__);
-              printk(KERN_ERR "%s : could not create workqueue\n", __func__);
-
+		which = 0x4;
 		goto err_create_workqueue;
 	}
 
@@ -654,26 +658,34 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 	err = bmp180_input_init(barom);
 	if (err) {
 		pr_err("%s: could not create input device\n", __func__);
-              printk(KERN_ERR "%s : could not create input device\n", __func__);
-
+		which = 0x5;
 		goto err_input_init;
 	}
 	err = sysfs_create_group(&barom->input_dev->dev.kobj,
 		&bmp180_attribute_group);
 	if (err) {
 		pr_err("%s: could not create sysfs group\n", __func__);
-              printk(KERN_ERR "%s : could not create sysfs group\n", __func__);
-
+		which = 0x6;
 		goto err_sysfs_create_group;
 	}
 
 #ifdef FACTORY_TEST
 	/* sysfs for factory test */
+#ifdef SENSORS_LOG_DUMP
+	barom->dev = sensors_classdev_register("barometer_sensor");
+	if (IS_ERR(barom->dev)) {
+		err = PTR_ERR(barom->dev);
+		pr_err("%s: device_create failed[%d]\n", __func__, err);
+		which = 0x7;
+		goto err_class_create;
+	}
+	dev_set_drvdata(barom->dev, barom);
+#else
 	barom->class = class_create(THIS_MODULE, "sensors");
 	if (IS_ERR(barom->class)) {
 		err = PTR_ERR(barom->class);
 		pr_err("%s: class_create failed\n", __func__);
-              printk(KERN_ERR "%s: class_create failed\n", __func__);
+		which = 0x7;
 		goto err_class_create;
 	}
 
@@ -682,18 +694,16 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 	if (IS_ERR(barom->dev)) {
 		err = PTR_ERR(barom->dev);
 		pr_err("%s: device_create failed[%d]\n", __func__, err);
-              printk(KERN_ERR "%s: device_create failed[%d]\n", __func__, err);
-
+		which = 0x7;
 		goto err_device_create;
 	}
+#endif
 
 	err = device_create_file(barom->dev, &dev_attr_sea_level_pressure);
 	if (err < 0) {
 		pr_err("%s: device_create_fil(sea_level_pressure) failed\n",
 			__func__);
-              printk(KERN_ERR "%s: device_create_fil(sea_level_pressure) failed\n",
-			__func__);
-
+		which = 0x8;
 		goto err_device_create_file1;
 	}
 
@@ -701,8 +711,7 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 	if (err < 0) {
 		pr_err("%s: device_create_file(eeprom_check) failed\n",
 			__func__);
-              printk(KERN_ERR "%s: device_create_file(eeprom_check) failed\n",
-			__func__);
+		which = 0x9;
 		goto err_device_create_file2;
 	}
 #endif
@@ -712,9 +721,13 @@ static int __devinit bmp180_probe(struct i2c_client *client,
 err_device_create_file2:
 	device_remove_file(barom->dev, &dev_attr_sea_level_pressure);
 err_device_create_file1:
+#ifdef SENSORS_LOG_DUMP
+	sensors_classdev_unregister(barom->dev);
+#else
 	device_destroy(barom->class, 0);
 err_device_create:
 	class_destroy(barom->class);
+#endif
 err_class_create:
 	sysfs_remove_group(&barom->input_dev->dev.kobj,
 				&bmp180_attribute_group);
@@ -723,12 +736,16 @@ err_class_create:
 err_sysfs_create_group:
 	bmp180_input_cleanup(barom);
 err_input_init:
+	destroy_work_on_stack(&barom->work_pressure);
 	destroy_workqueue(barom->wq);
 err_create_workqueue:
 err_read_eeprom:
 	mutex_destroy(&barom->lock);
 	kfree(barom);
 done:
+#ifdef SENSORS_LOG_DUMP
+	sensors_status_set_pressure(which, err);
+#endif
 	return err;
 }
 
@@ -738,14 +755,24 @@ static int __devexit bmp180_remove(struct i2c_client *client)
 	struct bmp180_data *barom = i2c_get_clientdata(client);
 
 	pr_debug("%s: bmp180_remove +\n", __func__);
-
+	#ifdef FACTORY_TEST
+	device_remove_file(barom->dev, &dev_attr_eeprom_check);
+	device_remove_file(barom->dev, &dev_attr_sea_level_pressure);
+	#endif
+	
+	#ifdef SENSORS_LOG_DUMP
+	sensors_classdev_unregister(barom->dev);
+	#else
+	device_destroy(barom->class, 0);
+	class_destroy(barom->class);
+	#endif
 	sysfs_remove_group(&barom->input_dev->dev.kobj,
 				&bmp180_attribute_group);
 
 	bmp180_disable(barom);
 
 	bmp180_input_cleanup(barom);
-
+	destroy_work_on_stack(&barom->work_pressure);
 	destroy_workqueue(barom->wq);
 
 	mutex_destroy(&barom->lock);

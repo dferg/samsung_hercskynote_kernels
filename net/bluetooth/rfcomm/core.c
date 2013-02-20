@@ -409,19 +409,11 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 			return err;
 	}
 
-	/* After L2sock created, increase refcnt immediately
-	* It can make connection drop in rfcomm_security_cfm because of refcnt.
-	*/
-	rfcomm_session_hold(s);
-
 	dlci = __dlci(!s->initiator, channel);
 
 	/* Check if DLCI already exists */
-	if (rfcomm_dlc_get(s, dlci)) {
-		/* decrement refcnt */
-		rfcomm_session_put(s);
+	if (rfcomm_dlc_get(s, dlci))
 		return -EBUSY;
-	}
 
 	rfcomm_dlc_clear_state(d);
 
@@ -436,9 +428,6 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 
 	d->mtu = s->mtu;
 	d->cfc = (s->cfc == RFCOMM_CFC_UNKNOWN) ? 0 : s->cfc;
-
-	/* decrement refcnt */
-	rfcomm_session_put(s);
 
 	if (s->state == BT_CONNECTED) {
 		if (rfcomm_check_security(d))
@@ -1170,12 +1159,18 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 			break;
 
 		case BT_DISCONN:
-			/* When socket is closed and we are not RFCOMM
-			 * initiator rfcomm_process_rx already calls
-			 * rfcomm_session_put() */
-			if (s->sock->sk->sk_state != BT_CLOSED && !s->initiator)
-				if (list_empty(&s->dlcs))
-					rfcomm_session_put(s);
+			/* rfcomm_session_put is called later so don't do
+			 * anything here otherwise we will mess up the session
+			 * reference counter:
+			 *
+			 * (a) when we are the initiator dlc_unlink will drive
+			 * the reference counter to 0 (there is no initial put
+			 * after session_add)
+			 *
+			 * (b) when we are not the initiator rfcomm_rx_process
+			 * will explicitly call put to balance the initial hold
+			 * done after session add.
+			 */
 			break;
 		}
 	}

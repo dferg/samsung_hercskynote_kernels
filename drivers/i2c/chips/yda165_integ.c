@@ -1756,33 +1756,10 @@ static int amp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int amp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
-{
-	/* int mode;
-	 * switch (cmd)
-	 * {
-		 * case SND_SET_AMPGAIN :
-			 * if (copy_from_user(&mode, (void __user *) arg, sizeof(mode)))
-			 * {
-				 * pr_err(MODULE_NAME ": %s fail\n", __func__);
-				 * break;
-			 * }
-			 * if (mode >= 0 && mode < MODE_NUM_MAX)
-				 * cur_mode = mode;
-
-			 * break;
-		 * default :
-			 * break;
-	 * } */
-	return 0;
-}
-
 static struct file_operations amp_fops = {
 	.owner = THIS_MODULE,
 	.open = amp_open,
 	.release = amp_release,
-//temp	.ioctl = amp_ioctl,
 };
 
 static struct miscdevice amp_device = {

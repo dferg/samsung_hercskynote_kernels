@@ -33,9 +33,7 @@
 #endif
 
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) ||defined(CONFIG_USA_MODEL_SGH_I717)
 #include <linux/input/mt.h>
-#endif
 
 #define OBJECT_TABLE_START_ADDRESS	7
 #define OBJECT_TABLE_ELEMENT_SIZE	6
@@ -55,7 +53,7 @@
 #define VECTOR_MSG_MASK			0x08
 #define AMP_MSG_MASK			0x04
 #define SUPPRESS_MSG_MASK		0x02
-#define UNGRIP_MSG_MASK			0x01
+#define UNGRIP_MSG_MASK 		0x01
 
 /* Version */
 #define MXT540E_VER_10			0x10
@@ -97,6 +95,9 @@
 
 #define CLEAR_MEDIAN_FILTER_ERROR
 
+
+#define MXT540E_FREQ_57Hz		18
+#define MXT540E_FREQ_FREERUN	255
 
 /* Cut out ghost ... Xtopher */
 #define MAX_GHOSTCHECK_FINGER 		10
@@ -191,7 +192,7 @@ struct mxt540e_data {
 	void (*power_on)(void);
 	void (*power_off)(void);
 	void (*register_cb)(void *);
-	void (*read_ta_status)(void *);
+	void (*read_ta_status)(bool *);
 	int num_fingers;
 #ifdef ITDEV
 	u16 last_read_addr;
@@ -230,19 +231,8 @@ int16_t sumsize;
 
 
 /* Below is used for clearing ghost touch or for checking to system reboot.  by Xtopher */
-static int cghost_clear = 0;  /* ghost touch clear count  by Xtopher */
-static int ftouch_reboot = 0; 
-static int tcount_finger[MAX_GHOSTCHECK_FINGER] = {0,0,0,0,0,0,0,0,0,0};
-static int touchbx[MAX_GHOSTCHECK_FINGER] = {0,0,0,0,0,0,0,0,0,0};
-static int touchby[MAX_GHOSTCHECK_FINGER] = {0,0,0,0,0,0,0,0,0,0};
-static int ghosttouchcount = 0;
-static int tsp_reboot_count = 0;
-static int cFailbyPattenTracking = 0;
 static void report_input_data(struct mxt540e_data *data);
 static void Mxt540e_force_released(void);
-//static void TSP_forced_release_for_call(void);
-static int tsp_pattern_tracking(int fingerindex, s16 x, s16 y);
-static void TSP_forced_reboot(void);
 static int is_drawingmode = 0;
 
 
@@ -530,10 +520,11 @@ static void mxt540e_ta_probe(int ta_status)
 		return;
 	}
 
+	printk(KERN_ERR"[TSP] %s  ta_status = %d\n", __func__,ta_status);
+
 	error = 0;
 	obj_address = 0;
 /* medina filter error */
-
 	Medianfilter_Err_cnt_Ta = 0;
 	Medianfilter_Err_cnt_Batt = 0;
 	MedianFirst_Flag = 1;
@@ -790,7 +781,6 @@ set_lcd_esd_ignore(1);
 		data->fingers[i].z = 0;
 		data->fingers[i].state = MXT540E_STATE_RELEASE;
 		
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
 	if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 		input_mt_slot(data->input_dev, i);
 		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -808,18 +798,6 @@ set_lcd_esd_ignore(1);
 		input_report_abs(data->input_dev, ABS_MT_SUMSIZE, sumsize);
 		#endif
 	}
-#else
-	input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
-	input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-	input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-	input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, data->fingers[i].w);
-	input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, i);
-	#if defined(CONFIG_SHAPE_TOUCH)
-	input_report_abs(data->input_dev, ABS_MT_COMPONENT, data->fingers[i].component);
-	input_report_abs(data->input_dev, ABS_MT_SUMSIZE, sumsize);
-	#endif
-	input_mt_sync(data->input_dev);
-#endif
 
 #if 0
 #if defined(CONFIG_SHAPE_TOUCH)
@@ -862,42 +840,18 @@ set_lcd_esd_ignore(1);
 	schedule_delayed_work(&data->config_dwork, HZ*5);
 }
 
-static void clear_tcount(void)
-{
-	int i;
-	for(i=0;i<MAX_GHOSTCHECK_FINGER;i++){
-		tcount_finger[i] = 0;
-		touchbx[i] = 0;
-		touchby[i] = 0;
-	}		
-}
-
-static int diff_two_point(s16 x, s16 y, s16 oldx, s16 oldy)
-{
-	s16 diffx,diffy;
-	s16 distance;
-	
-	diffx = x-oldx;
-	diffy = y-oldy;
-	distance = abs(diffx) + abs(diffy);
-
-	if(distance < PATTERN_TRACKING_DISTANCE) return 1;
-	else return 0;
-}
-
 
 static void report_input_data_torelease(struct mxt540e_data *data)
 {
 	int i;
-	int count = 0;
+	// int count = 0;
 	int report_count = 0;
-	int press_count = 0;
-	int move_count = 0;
+	// int press_count = 0;
+	// int move_count = 0;
 
 	for (i = 0; i < data->num_fingers; i++) {
 		if (data->fingers[i].state == MXT540E_STATE_INACTIVE)
 			continue;
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
 		if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -910,15 +864,6 @@ static void report_input_data_torelease(struct mxt540e_data *data)
 			input_report_abs(data->input_dev, ABS_MT_PRESSURE, data->fingers[i].z);
 			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].w);
 			}
-#else
-		input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
-		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-		input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, data->fingers[i].w);
-		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, i);
-
-		input_mt_sync(data->input_dev);
-#endif		
 		report_count++;
 
 		// debug-log all   press/move/release    
@@ -947,121 +892,7 @@ static void report_input_data_torelease(struct mxt540e_data *data)
 
 
 
-/* Forced reboot sequence.  
-    Don't use arbitraily. 
-    if you meet special case that this routine has to be used, ask Xtopher's advice.
-*/
-static void TSP_forced_reboot(void)
-{
-    struct mxt540e_data *data = copy_data;
-
-	int i;
-	bool ta_status=0;
-
-	if(ftouch_reboot == 1) return;
-	ftouch_reboot  = 1;
-	printk(KERN_ERR "[TSP] Reboot-Touch by Pattern Tracking S\n");
-	cghost_clear = 0;
-
-	cancel_delayed_work(&data->config_dwork);
-	set_lcd_esd_ignore(1);
-
-	/* Below is reboot sequence   */
-	//disable_irq(copy_data->client->irq);		
-	copy_data->power_off();
 	
-#if 0
-	for (i = 0; i < copy_data->num_fingers; i++) {
-		if (copy_data->fingers[i].z == -1)
-			continue;
-	
-		//touch_is_pressed_arr[i] = 0;
-		copy_data->fingers[i].z = 0;
-	}
-	report_input_data(copy_data);
-#else
-	for (i = 0; i < data->num_fingers; i++) {
-		if (data->fingers[i].state == MXT540E_STATE_INACTIVE)
-			continue;
-
-		data->fingers[i].z = -1; // 0;
-		data->fingers[i].state = MXT540E_STATE_RELEASE;
-	}
-	report_input_data_torelease(data);
-#endif
-
-	msleep(100);
-	copy_data->power_on();
-	msleep(50);
-	set_lcd_esd_ignore(0);
-
-	//enable_irq(copy_data->client->irq);
-	mxt540e_enabled = 1;
-	
-	if(copy_data->read_ta_status) {
-		copy_data->read_ta_status(&ta_status);
-		printk(KERN_ERR "[TSP] ta_status is %d", ta_status);
-		mxt540e_ta_probe(ta_status);
-	}
-
-	check_resume_err = 2;
-	calibrate_chip();
-	check_calibrate = 3;
-	schedule_delayed_work(&data->config_dwork, HZ*5);
-	config_dwork_flag = 3;
-	
-	ftouch_reboot  = 0;
-	printk(KERN_ERR "[TSP] Reboot-Touch by Pattern Tracking E\n");
-
-}
-
-/* To do forced calibration when ghost touch occured at the same point
-    for several second.   Xtopher */
-static int tsp_pattern_tracking(int fingerindex, s16 x, s16 y)
-{
-	int i;
-	int ghosttouch  = 0;
-
-	for( i = 0; i< MAX_GHOSTCHECK_FINGER; i++)
-	{
-		if( i == fingerindex){
-			//if((touchbx[i] == x)&&(touchby[i] == y))
-			if(diff_two_point(x,y, touchbx[i], touchby[i]))
-			{
-				tcount_finger[i] = tcount_finger[i]+1;
-			}
-			else
-			{
-				tcount_finger[i] = 0;
-			}
-
-			touchbx[i] = x;
-			touchby[i] = y;
-
-			if(tcount_finger[i]> MAX_GHOSTTOUCH_COUNT){
-				ghosttouch = 1;
-				ghosttouchcount++;
-				printk(KERN_ERR "[TSP] SUNFLOWER (PATTERN TRACKING) %d\n",ghosttouchcount);
-				clear_tcount();
-
-				cFailbyPattenTracking++;
-				if(cFailbyPattenTracking > MAX_GHOSTTOUCH_BY_PATTERNTRACKING)
-				{
-					cFailbyPattenTracking = 0;
-					TSP_forced_reboot();
-				}
-				else
-				{
-					Mxt540e_force_released();
-				}
-			}
-		}
-	}
-	return ghosttouch;
-}
-
-
-
 static void report_input_data(struct mxt540e_data *data)
 {
 	int i;
@@ -1074,7 +905,6 @@ static void report_input_data(struct mxt540e_data *data)
 		if (data->fingers[i].state == MXT540E_STATE_INACTIVE)
 			continue;
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
 		if (data->fingers[i].state == MXT540E_STATE_RELEASE) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
@@ -1092,19 +922,6 @@ static void report_input_data(struct mxt540e_data *data)
 			input_report_abs(data->input_dev, ABS_MT_SUMSIZE, sumsize);
 			#endif
 		}
-#else
-		input_report_abs(data->input_dev, ABS_MT_POSITION_X, data->fingers[i].x);
-		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, data->fingers[i].y);
-		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, data->fingers[i].z);
-		input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, data->fingers[i].w);
-		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, i);
-
-		#if defined(CONFIG_SHAPE_TOUCH)
-		input_report_abs(data->input_dev, ABS_MT_COMPONENT, data->fingers[i].component);
-		input_report_abs(data->input_dev, ABS_MT_SUMSIZE, sumsize);
-		#endif
-		input_mt_sync(data->input_dev);
-#endif
 
 		report_count++;
 		if (data->fingers[i].state == MXT540E_STATE_PRESS || data->fingers[i].state == MXT540E_STATE_RELEASE) {
@@ -1140,10 +957,10 @@ static void report_input_data(struct mxt540e_data *data)
 		if (g_debug_switch){
 			#if defined(CONFIG_USA_MODEL_SGH_I717)
 			if (data->fingers[i].state == MXT540E_STATE_PRESS || data->fingers[i].state == MXT540E_STATE_RELEASE) {
-				printk(KERN_ERR "[TSP] ID-%d, %4d,%4d  UD:%d \n", i, data->fingers[i].x, data->fingers[i].y, data->fingers[i].state);
+		printk(KERN_ERR "[TSP] ID-%d, %4d,%4d  UD:%d \n", i, data->fingers[i].x, data->fingers[i].y, data->fingers[i].state);
 			}
 			#else
-			printk(KERN_ERR "[TSP] ID-%d, %4d,%4d  UD:%d \n", i, data->fingers[i].x, data->fingers[i].y, data->fingers[i].state);
+		printk(KERN_ERR "[TSP] ID-%d, %4d,%4d  UD:%d \n", i, data->fingers[i].x, data->fingers[i].y, data->fingers[i].state);
 			#endif
 		}
 		else
@@ -1524,7 +1341,8 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 				data->finger_mask |= 1U << id;
 				data->fingers[id].state = MXT540E_STATE_RELEASE;
 			} else if ((msg[1] & DETECT_MSG_MASK) &&
-				(msg[1] & (PRESS_MSG_MASK | MOVE_MSG_MASK | VECTOR_MSG_MASK))) {
+				(msg[1] & (PRESS_MSG_MASK | MOVE_MSG_MASK
+/*						| VECTOR_MSG_MASK*/ ))) {
 #ifdef TOUCH_CPU_LOCK				
 				if (touch_cpu_lock_status == 0) {
 #ifdef CONFIG_S5PV310_HI_ARMCLK_THAN_1_2GHZ
@@ -1583,12 +1401,14 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
+#if 0
 static void mxt540e_deepsleep(struct mxt540e_data *data)
 {
 	u8 power_cfg[3] = {0, };
 	write_config(data, GEN_POWERCONFIG_T7, power_cfg);
 	deepsleep = 1;
 }
+#endif
 
 static void mxt540e_wakeup(struct mxt540e_data *data)
 {
@@ -2356,7 +2176,7 @@ out:
 
 static int mxt540e_load_fw_bootmode(struct device *dev, const char *fn)
 {
-	struct mxt540e_data *data = copy_data;
+	// struct mxt540e_data *data = copy_data;
 	struct i2c_client *client = copy_data->client;
 	struct firmware *fw = NULL;
 	unsigned int frame_size;
@@ -2603,7 +2423,7 @@ static int atoi(char *str)
 	int count = 0;
 	if( str == NULL )
 		return -1;
-	while( str[count] != NULL && str[count] >= '0' && str[count] <= '9' )
+	while( str[count] != 0 && str[count] >= '0' && str[count] <= '9' )
 	{
 		result = result * 10 + str[count] - '0';
 		++count;
@@ -2618,7 +2438,7 @@ ssize_t disp_all_refdata_show(struct device *dev, struct device_attribute *attr,
 
 ssize_t disp_all_refdata_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	index_reference = atoi(buf);
+	index_reference = atoi((char *)buf);
 	return size;
 }
 
@@ -2644,7 +2464,7 @@ ssize_t disp_all_deltadata_show(struct device *dev, struct device_attribute *att
 ssize_t disp_all_deltadata_store(struct device *dev, struct device_attribute *attr,
 								   const char *buf, size_t size)
 {
-	index_delta = atoi(buf);
+	index_delta = atoi((char *)buf);
 	return size;
 }
 
@@ -3170,6 +2990,7 @@ static const struct attribute_group mxt540e_attr_group = {
 	.attrs = mxt540e_attrs,
 };
 
+
 static int __devinit mxt540e_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mxt540e_platform_data *pdata = client->dev.platform_data;
@@ -3181,10 +3002,10 @@ static int __devinit mxt540e_probe(struct i2c_client *client, const struct i2c_d
 	u8 **tsp_config;
 	int retry = 5;
 
-tsp_reinit:;
+// tsp_reinit:;
 	input_dev = NULL;
 	touch_is_pressed = 0;
-    	printk("[TSP] mxt540e_probe START\n");
+    printk("[TSP] mxt540e_probe START\n");
      
 	if (!pdata) {
 		dev_err(&client->dev, "missing platform data\n");
@@ -3218,7 +3039,6 @@ tsp_reinit:;
 	input_set_drvdata(input_dev, data);
 	input_dev->name = "sec_touchscreen";
 
-#if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined(CONFIG_USA_MODEL_SGH_I717)
 	set_bit(EV_ABS, input_dev->evbit);
 	set_bit(MT_TOOL_FINGER, input_dev->keybit);
 	set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
@@ -3229,14 +3049,7 @@ tsp_reinit:;
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->min_y, pdata->max_y, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_PRESSURE, pdata->min_z, pdata->max_z, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, pdata->min_w, pdata->max_w, 0, 0);
-#else	    
- 	set_bit(EV_ABS, input_dev->evbit);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->min_x, pdata->max_x, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->min_y, pdata->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, pdata->min_z, pdata->max_z, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, pdata->min_w, pdata->max_w, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, data->num_fingers - 1, 0, 0);
-#endif
+
 #if defined (CONFIG_SHAPE_TOUCH)
 	input_set_abs_params(input_dev, ABS_MT_COMPONENT, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_SUMSIZE, 0, 16*26, 0, 0);

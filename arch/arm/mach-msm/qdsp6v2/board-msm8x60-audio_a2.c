@@ -33,7 +33,7 @@
 #include <linux/i2c/yda165_integ.h>
 #endif
 #include <linux/i2c/fsa9480.h>
-
+#include <mach/board-msm8660.h>
 #include <mach/qdsp6v2/audio_dev_ctl.h>
 #include <sound/apr_audio.h>
 #include <mach/mpp.h>
@@ -543,7 +543,6 @@ void msm_snddev_vpsamp_off_headset(void)
 	pr_info("%s: power off amp headset\n", __func__);
 #endif
 	fsa9480_manual_switching(SWITCH_PORT_USB);
-	return 0;
 }
 
 
@@ -848,6 +847,7 @@ static void msm_snddev_disable_dmic_power(void)
 
 #endif
 
+#ifndef SEC_AUDIO_DEVICE
 static int msm_snddev_enable_dmic_sec_power(void)
 {
 	int ret;
@@ -876,6 +876,7 @@ static void msm_snddev_disable_dmic_sec_power(void)
 		pm8058_micbias_enable(OTHC_MICBIAS_2, OTHC_SIGNAL_OFF);
 #endif
 }
+#endif
 
 #ifdef SEC_AUDIO_DEVICE
 static int msm_snddev_enable_submic_power(void)
@@ -999,10 +1000,12 @@ ADIE_HEADSET_LOOPBACK_TX_48000_256;
  
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_action_unit dualmic_handset_tx_48KHz_osr256_actions[] =
 ADIE_HANDSET_TX_48000_256;
 static struct adie_codec_action_unit dualmic_speaker_tx_48KHz_osr256_actions[] =
 ADIE_SPEAKER_TX_48000_256;
+#endif
  static struct adie_codec_action_unit speaker_vr_tx_48KHz_osr256_actions[] =
 ADIE_SPEAKER_VR_TX_48000_256;
 static struct adie_codec_action_unit headset_vr_tx_48KHz_osr256_actions[] =
@@ -1024,9 +1027,10 @@ ADIE_SPEAKER_HEADSET_RX_48000_256;
 static struct adie_codec_action_unit speaker_lineout_rx_48KHz_osr256_actions[] =
 ADIE_SPEAKER_HEADSET_RX_48000_256; //ADIE_SPEAKER_RX_48000_256;
 
+#if 0
 static struct adie_codec_action_unit hac_handset_call_rx_48KHz_osr256_actions[] =
 ADIE_HANDSET_CALL_RX_48000_256;
-
+#endif
 static struct adie_codec_action_unit camcoder_tx_48KHz_osr256_actions[] =
 ADIE_SPEAKER_TX_48000_256;
 
@@ -1382,6 +1386,7 @@ static struct adie_codec_hwsetting_entry headset_loopback_tx_settings[] = {
 
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_hwsetting_entry dualmic_handset_tx_settings[] = {
 	{
 		.freq_plan = 48000,
@@ -1390,6 +1395,7 @@ static struct adie_codec_hwsetting_entry dualmic_handset_tx_settings[] = {
 		.action_sz = ARRAY_SIZE(dualmic_handset_tx_48KHz_osr256_actions),
 	}
 };
+
 static struct adie_codec_hwsetting_entry dualmic_speaker_tx_settings[] = {
 	{
 		.freq_plan = 48000,
@@ -1398,6 +1404,8 @@ static struct adie_codec_hwsetting_entry dualmic_speaker_tx_settings[] = {
 		.action_sz = ARRAY_SIZE(dualmic_speaker_tx_48KHz_osr256_actions),
 	}
 };
+#endif
+
 static struct adie_codec_hwsetting_entry speaker_vr_tx_settings[] = {
 	{
 		.freq_plan = 48000,
@@ -1482,6 +1490,7 @@ static struct adie_codec_hwsetting_entry dock_voip_tx_settings[] = {
 	}
 };
 
+#if 0
 static struct adie_codec_hwsetting_entry hac_handset_call_rx_settings[] = {
 	{
 		.freq_plan = DATA_SAMPLE_RATE,
@@ -1490,6 +1499,7 @@ static struct adie_codec_hwsetting_entry hac_handset_call_rx_settings[] = {
 		.action_sz = ARRAY_SIZE(hac_handset_call_rx_48KHz_osr256_actions),
 	}
 };
+#endif
 
 static struct adie_codec_hwsetting_entry camcoder_tx_settings[] = {
 	{
@@ -1705,6 +1715,7 @@ static struct adie_codec_dev_profile headset_loopback_tx_profile = {
 };
 
 // ------- DEFINITION OF SPECIAL DEVICES ------ 
+#if 0
 static struct adie_codec_dev_profile dualmic_handset_tx_profile = {
 	.path_type = ADIE_CODEC_TX,
 	.settings = dualmic_handset_tx_settings,
@@ -1715,6 +1726,7 @@ static struct adie_codec_dev_profile dualmic_speaker_tx_profile = {
 	.settings = dualmic_speaker_tx_settings,
 	.setting_sz = ARRAY_SIZE(dualmic_speaker_tx_settings),
 };
+#endif
 static struct adie_codec_dev_profile speaker_vr_tx_profile = {
 	.path_type = ADIE_CODEC_TX,
 	.settings = speaker_vr_tx_settings,
@@ -1770,11 +1782,13 @@ static struct adie_codec_dev_profile dock_voip_tx_profile = {
 	.setting_sz = ARRAY_SIZE(dock_voip_tx_settings),
 };
 
+#if 0
 static struct adie_codec_dev_profile hac_handset_call_rx_profile = {
 	.path_type = ADIE_CODEC_RX,
 	.settings = hac_handset_call_rx_settings,
 	.setting_sz = ARRAY_SIZE(hac_handset_call_rx_settings),
 };
+#endif
 
 static struct adie_codec_dev_profile camcoder_tx_profile = {
 	.path_type = ADIE_CODEC_TX,
@@ -2556,6 +2570,7 @@ static struct snddev_hdmi_data speaker_hdmi_rx_data = {
 	.default_sample_rate = 48000,
 };
 
+#if 0
 static struct snddev_icodec_data hac_handset_call_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
 	.name = "hac_handset_call_rx",
@@ -2564,6 +2579,7 @@ static struct snddev_icodec_data hac_handset_call_rx_data = {
 	.channel_mode = 1,
 	.default_sample_rate = DATA_SAMPLE_RATE,
 };
+#endif
 
 static struct snddev_icodec_data camcoder_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -2929,7 +2945,7 @@ static struct snddev_icodec_data headset_voip3_tx_data = {
 	.default_sample_rate = 48000,
 };
 
-
+#if 0
 static struct snddev_ecodec_data bt_sco_mono_voip3_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
 	.name = "bt_sco_mono_voip3_rx",
@@ -2943,6 +2959,7 @@ static struct snddev_ecodec_data bt_sco_mono_voip3_tx_data = {
 	.copp_id = PCM_TX,
 	.channel_mode = 1,
 };
+
 
 static struct snddev_ecodec_data bt_sco_mono_nrec_voip3_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
@@ -3006,7 +3023,7 @@ static struct snddev_icodec_data deskdock_voip3_tx_data = {
 	.pamp_on = msm_snddev_enable_submic_power,
 	.pamp_off = msm_snddev_disable_submic_power,
 };
-
+#endif
 
 // ------- DEFINITION OF LOOPBACK PAIRED DEVICES ------ 
 static struct snddev_icodec_data handset_loopback_rx_data = {
@@ -3417,10 +3434,12 @@ static struct platform_device device_speaker_hdmi_rx = {
 	.dev = { .platform_data = &speaker_hdmi_rx_data },
 };
 
+#if 0
 static struct platform_device device_hac_handset_call_rx = {
 	.name = "snddev_icodec",
 	.dev = { .platform_data = &hac_handset_call_rx_data },
 };
+#endif
 
 static struct platform_device device_camcoder_tx = {
 	.name = "snddev_icodec",
@@ -3588,6 +3607,7 @@ static struct platform_device device_headset_voip3_tx = {
 	.dev = { .platform_data = &headset_voip3_tx_data },
 };
 
+#if 0
 static struct platform_device device_bt_sco_mono_voip3_rx = {
 	.name = "msm_snddev_ecodec",
 	.dev = { .platform_data = &bt_sco_mono_voip3_rx_data },
@@ -3596,6 +3616,7 @@ static struct platform_device device_bt_sco_mono_voip3_tx = {
 	.name = "msm_snddev_ecodec",
 	.dev = { .platform_data = &bt_sco_mono_voip3_tx_data },
 };
+
 static struct platform_device device_bt_sco_mono_nrec_voip3_rx = {
 	.name = "msm_snddev_ecodec",
 	.dev = { .platform_data = &bt_sco_mono_nrec_voip3_rx_data },
@@ -3629,6 +3650,7 @@ static struct platform_device device_deskdock_voip3_tx = {
 	.name = "snddev_icodec",
 	.dev = { .platform_data = &deskdock_voip3_tx_data },
 };
+#endif
 
 // ------- DEFINITION OF LOOPBACK PAIRED DEVICES ------ 
 static struct platform_device device_handset_loopback_rx = {
@@ -4038,6 +4060,7 @@ static struct platform_device msm_ispkr_mic_device = {
 	.dev = { .platform_data = &snddev_ispkr_mic_data },
 };
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit iearpiece_ffa_48KHz_osr256_actions[] =
 EAR_PRI_MONO_8000_OSR_256;
 
@@ -4065,10 +4088,12 @@ static struct snddev_icodec_data snddev_iearpiece_ffa_data = {
 	.default_sample_rate = 48000,
 };
 
+
 static struct platform_device msm_iearpiece_ffa_device = {
 	.name = "snddev_icodec",
 	.dev = { .platform_data = &snddev_iearpiece_ffa_data },
 };
+ #endif
  
 static struct snddev_icodec_data snddev_qt_dual_dmic_d0_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -4086,6 +4111,7 @@ static struct platform_device msm_qt_dual_dmic_d0_device = {
 	.dev = { .platform_data = &snddev_qt_dual_dmic_d0_data },
 };
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit dual_mic_endfire_8KHz_osr256_actions[] =
 DMIC1_PRI_STEREO_OSR_256;
 
@@ -4136,7 +4162,9 @@ static struct platform_device msm_spkr_dual_mic_endfire_device = {
 	.id = 15,
 	.dev = { .platform_data = &snddev_dual_mic_spkr_endfire_data },
 };
+#endif
 
+#ifndef SEC_AUDIO_DEVICE
 static struct adie_codec_action_unit dual_mic_broadside_8osr256_actions[] =
 HS_DMIC2_STEREO_OSR_256;
 
@@ -4188,6 +4216,7 @@ static struct platform_device msm_spkr_dual_mic_broadside_device = {
 	.id = 18,
 	.dev = { .platform_data = &snddev_spkr_dual_mic_broadside_data },
 };
+#endif
 
 static struct snddev_hdmi_data snddev_hdmi_stereo_rx_data = {
 	.capability = SNDDEV_CAP_RX ,
@@ -5596,6 +5625,7 @@ static const struct file_operations snddev_hsed_config_debug_fops = {
 };
 #endif
 
+#ifndef SEC_AUDIO_DEVICE
 static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_iearpiece_ffa_device,
 	&msm_imic_device,
@@ -5622,6 +5652,7 @@ static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_icodec_gpio_device,
 	&msm_snddev_hdmi_non_linear_pcm_rx_device,
 };
+#endif
 
 static struct platform_device *snd_devices_surf[] __initdata = {
 	&msm_iearpiece_device,

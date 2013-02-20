@@ -21,7 +21,6 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/pm_runtime.h>
-#include <linux/gpio.h>
 
 #include <linux/device.h>
 #include <linux/pm_qos_params.h>
@@ -35,7 +34,6 @@
 
 #define MSM_USB_BASE	(dev->regs)
 #define USB_LINK_RESET_TIMEOUT	(msecs_to_jiffies(10))
-#define SM_WORK_TIMER_FREQ	(jiffies + msecs_to_jiffies(2000))
 #define DRIVER_NAME	"msm_otg"
 static void otg_reset(struct otg_transceiver *xceiv, int phy_reset);
 static void msm_otg_set_vbus_state(int online);
@@ -1270,11 +1268,6 @@ void msm_otg_set_vbus_state(int online)
 }
 
 #ifdef CONFIG_USB_HOST_NOTIFY
-enum otg_control_type {
-	OTG_NO_CONTROL = 0,
-	OTG_PBA_CONTROL,
-};
-
 /* id =1 on, id = 0 off */
 void msm_otg_set_id_state_pbatest(int id)
 {
@@ -1284,8 +1277,6 @@ void msm_otg_set_id_state_pbatest(int id)
 		dev->pdata->otg_mode = OTG_USER_CONTROL;
 	else
 		dev->pdata->otg_mode = OTG_ID;
-
-	dev->otg_control = OTG_PBA_CONTROL;
 	
 	wake_lock(&dev->wlock);
 	if (!id) {
@@ -1295,39 +1286,6 @@ void msm_otg_set_id_state_pbatest(int id)
 		set_bit(A_BUS_REQ, &dev->inputs);
 	}
 	queue_work(dev->wq, &dev->sm_work);
-}
-
-enum usb_notify_state {
-	ACC_POWER_ON = 0,
-	ACC_POWER_OFF,
-	ACC_POWER_OVER_CURRENT,
-};
-
-static void msm_otg_notify_work(struct work_struct *w)
-{
-	struct msm_otg *dev = the_msm_otg;
-
-	switch (dev->notify_state) {
-	case ACC_POWER_ON:
-		dev_info(dev->otg.dev, "Acc power on detect\n");
-		break;
-	case ACC_POWER_OFF:
-		dev_info(dev->otg.dev, "Acc power off detect\n");
-		if (dev->otg_control == OTG_PBA_CONTROL) {
-			dev->otg_control = OTG_NO_CONTROL;
-			if (dev->pdata->set_autosw_pba) {
-				mdelay(200);
-				dev->pdata->set_autosw_pba();
-			}
-		}
-		break;
-	case ACC_POWER_OVER_CURRENT:
-		host_state_notify(&dev->ndev, NOTIFY_HOST_OVERCURRENT);
-		dev_err(dev->otg.dev, "OTG overcurrent!!!!!!\n");
-		break;
-	default:
-		break;
-	}
 }
 
 static void msm_otg_late_power_work(struct work_struct *w)
@@ -1344,29 +1302,6 @@ static void msm_otg_late_power_work(struct work_struct *w)
 			dev->pdata->vbus_power(USB_PHY_INTEGRATED, 1);
 	}
 }
-
-static void msm_otg_sm_work_timer_func(unsigned long data)
-{
-	struct msm_otg *motg = (struct msm_otg *) data;
-	struct otg_transceiver *otg = &motg->otg;
-
-	if (atomic_read(&motg->in_lpm)) {
-		dev_info(motg->otg.dev, "sm_work_timer: skip in lpm\n");
-		return;
-	}
-
-	if (otg->state > OTG_STATE_B_IDLE) {
-		dev_info(motg->otg.dev, "sm_work_timer: skip on working\n");
-		return;
-	}
-
-	dev_info(motg->otg.dev, "sm_work_timer: schedule work\n");
-
-	if (!schedule_work(&motg->sm_work)) {
-		dev_info(motg->otg.dev, "sm_work_timer: pending\n");
-		mod_timer(&motg->sm_work_timer, SM_WORK_TIMER_FREQ);
-	}
-}
 #endif
 static irqreturn_t msm_otg_irq(int irq, void *data)
 {
@@ -1381,9 +1316,6 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 		disable_irq_nosync(dev->irq);
 		wake_lock(&dev->wlock);
 		queue_work(dev->wq, &dev->otg_resume_work);
-#ifdef CONFIG_USB_HOST_NOTIFY
-		mod_timer(&the_msm_otg->sm_work_timer, SM_WORK_TIMER_FREQ);
-#endif
 		goto out;
 	}
 
@@ -1441,17 +1373,15 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 #ifdef CONFIG_USB_HOST_NOTIFY
 			if (otgsc & OTGSC_BSV) {
 				the_msm_otg->ndev.booster = NOTIFY_POWER_ON;
-				the_msm_otg->notify_state = ACC_POWER_ON;
-				schedule_work(&the_msm_otg->notify_work);
+				dev_info(the_msm_otg->otg.dev, "Acc power on detect\n");
 			}
 			else {
 				if (the_msm_otg->ndev.mode == NOTIFY_HOST_MODE) {
-					the_msm_otg->notify_state = ACC_POWER_OVER_CURRENT;
-					schedule_work(&the_msm_otg->notify_work);
+					host_state_notify(&the_msm_otg->ndev, NOTIFY_HOST_OVERCURRENT);
+					dev_err(the_msm_otg->otg.dev, "OTG overcurrent!!!!!!\n");
 				}
 				else {
-					the_msm_otg->notify_state = ACC_POWER_OFF;
-					schedule_work(&the_msm_otg->notify_work);
+					dev_info(the_msm_otg->otg.dev, "Acc power off detect\n");
 				}
 				the_msm_otg->ndev.booster = NOTIFY_POWER_OFF;
 			}
@@ -1890,7 +1820,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		if ((test_bit(ID, &dev->inputs)) &&
 				!test_bit(ID_A, &dev->inputs)) {
 			dev->otg.state = OTG_STATE_B_IDLE;
-		printk("%s %d OTG_STATE_UNDEFINED\n", __func__, __LINE__);
 		} else {
 			set_bit(A_BUS_REQ, &dev->inputs);
 			dev->otg.state = OTG_STATE_A_IDLE;
@@ -1900,12 +1829,11 @@ static void msm_otg_sm_work(struct work_struct *w)
 #endif
 		}
 		spin_unlock_irqrestore(&dev->lock, flags);
-		printk("%s %d OTG_STATE_UNDEFINED\n", __func__, __LINE__);
+
 		work = 1;
 		break;
 	case OTG_STATE_B_IDLE:
 		dev->otg.default_a = 0;
-		printk("%s %d OTG_STATE_B_IDLE\n", __func__, __LINE__);
 		if (!test_bit(ID, &dev->inputs) ||
 				test_bit(ID_A, &dev->inputs)) {
 			pr_debug("!id || id_A\n");
@@ -1944,9 +1872,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_set_power(&dev->otg, USB_IDCHG_MAX);
 		} else {
 			msm_otg_set_power(&dev->otg, 0);
-#ifdef CONFIG_USB_HOST_NOTIFY
-			del_timer(&dev->sm_work_timer);
-#endif
 			pr_debug("entering into lpm\n");
 			msm_otg_put_suspend(dev);
 
@@ -2118,7 +2043,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			spin_unlock_irqrestore(&dev->lock, flags);
 			msm_otg_set_power(&dev->otg, 0);
 			work = 1;
-		printk("%s %d OTG_STATE_A_IDLE\n", __func__, __LINE__);
 		} else if (!test_bit(A_BUS_DROP, &dev->inputs) &&
 				(test_bit(A_SRP_DET, &dev->inputs) ||
 				 test_bit(A_BUS_REQ, &dev->inputs))) {
@@ -2138,7 +2062,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			else
 				dev->pdata->vbus_power(USB_PHY_INTEGRATED, 1);
 			msm_otg_start_timer(dev, TA_WAIT_VRISE, A_WAIT_VRISE);
-		printk("%s %d OTG_STATE_A_IDLE\n", __func__, __LINE__);
 			/* no need to schedule work now */
 		} else {
 			pr_debug("No session requested\n");
@@ -2149,7 +2072,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			writel((readl(USB_OTGSC) & ~OTGSC_INTR_STS_MASK) |
 					OTGSC_DPIE, USB_OTGSC);
 			msm_otg_put_suspend(dev);
-		printk("%s %d OTG_STATE_A_IDLE\n", __func__, __LINE__);
 
 		}
 		break;
@@ -2166,7 +2088,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			dev->otg.state = OTG_STATE_A_WAIT_VFALL;
 			spin_unlock_irqrestore(&dev->lock, flags);
 			msm_otg_start_timer(dev, TA_WAIT_VFALL, A_WAIT_VFALL);
-		printk("%s %d OTG_STATE_A_WAIT_VRISE\n", __func__, __LINE__);
 		} else if (test_bit(A_VBUS_VLD, &dev->inputs)) {
 			pr_debug("a_vbus_vld\n");
 			spin_lock_irqsave(&dev->lock, flags);
@@ -2177,7 +2098,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 					A_WAIT_BCON);
 			/* Start HCD to detect peripherals. */
 			msm_otg_start_host(&dev->otg, REQUEST_START);
-		printk("%s %d OTG_STATE_A_WAIT_VRISE\n", __func__, __LINE__);
 		}
 		break;
 	case OTG_STATE_A_WAIT_BCON:
@@ -2252,7 +2172,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				dev->pdata->vbus_power(USB_PHY_INTEGRATED, 0);
 			msm_otg_start_timer(dev, TA_WAIT_VFALL, A_WAIT_VFALL);
 			msm_otg_set_power(&dev->otg, 0);
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 		} else if (!test_bit(A_VBUS_VLD, &dev->inputs)) {
 			pr_debug("!a_vbus_vld\n");
 			clear_bit(B_CONN, &dev->inputs);
@@ -2262,7 +2181,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_host(&dev->otg, REQUEST_STOP);
 			/* Reset both phy and link */
 			otg_reset(&dev->otg, 1);
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 			/* no work */
 		} else if (!test_bit(A_BUS_REQ, &dev->inputs)) {
 			/* a_bus_req is de-asserted when root hub is
@@ -2282,7 +2200,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			if (test_bit(ID_A, &dev->inputs))
 				msm_otg_set_power(&dev->otg,
 						USB_IDCHG_MIN - USB_IB_UNCFG);
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 		} else if (!test_bit(B_CONN, &dev->inputs)) {
 			pr_debug("!b_conn\n");
 			spin_lock_irqsave(&dev->lock, flags);
@@ -2291,18 +2208,15 @@ static void msm_otg_sm_work(struct work_struct *w)
 			if (TA_WAIT_BCON > 0)
 				msm_otg_start_timer(dev, TA_WAIT_BCON,
 					A_WAIT_BCON);
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 		} else if (test_bit(ID_A, &dev->inputs)) {
 			atomic_set(&dev->chg_type, USB_CHG_TYPE__SDP);
 			dev->pdata->vbus_power(USB_PHY_INTEGRATED, 0);
 			msm_otg_set_power(&dev->otg,
 					USB_IDCHG_MIN - get_aca_bmaxpower(dev));
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 		} else if (!test_bit(ID, &dev->inputs)) {
 			atomic_set(&dev->chg_type, USB_CHG_TYPE__INVALID);
 			msm_otg_set_power(&dev->otg, 0);
 			dev->pdata->vbus_power(USB_PHY_INTEGRATED, 1);
-		printk("%s %d OTG_STATE_A_HOST\n", __func__, __LINE__);
 		}
 		break;
 	case OTG_STATE_A_SUSPEND:
@@ -2745,7 +2659,7 @@ static int otg_debugfs_init(struct msm_otg *dev)
 	if (!otg_debug_root)
 		return -ENOENT;
 
-	otg_debug_mode = debugfs_create_file("mode", 0222,
+	otg_debug_mode = debugfs_create_file("mode", 0664,
 						otg_debug_root, dev,
 						&otgfs_fops);
 	if (!otg_debug_mode)
@@ -2784,40 +2698,6 @@ struct otg_io_access_ops msm_otg_io_ops = {
 	.read = usb_ulpi_read,
 	.write = usb_ulpi_write,
 };
-
-#ifdef CONFIG_30PIN_CONN
-static int msm_get_accpower_level(int irq)
-{
-	return gpio_get_value_cansleep(the_msm_otg->accessory_irq_gpio);
-}
-
-static irqreturn_t msm_accessory_irq_thread(int irq, void *data)
-{
-	struct msm_otg *msm_otg = data;
-	dev_info(msm_otg->otg.dev, "%s\n", __func__);
-
-	if (msm_get_accpower_level(msm_otg->accessory_irq_gpio)) {
-#ifdef CONFIG_USB_HOST_NOTIFY
-		msm_otg->ndev.booster = NOTIFY_POWER_ON;
-		msm_otg->notify_state = ACC_POWER_ON;
-		schedule_work(&msm_otg->notify_work);
-#endif
-	} else {
-#ifdef CONFIG_USB_HOST_NOTIFY
-		if (msm_otg->ndev.mode == NOTIFY_HOST_MODE) {
-			msm_otg->notify_state = ACC_POWER_OVER_CURRENT;
-			schedule_work(&msm_otg->notify_work);
-		}
-		else {
-			msm_otg->notify_state = ACC_POWER_OFF;
-			schedule_work(&msm_otg->notify_work);
-		}
-		msm_otg->ndev.booster = NOTIFY_POWER_OFF;
-#endif
-	}
-	return IRQ_HANDLED;
-}
-#endif
 
 static int __init msm_otg_probe(struct platform_device *pdev)
 {
@@ -2945,6 +2825,8 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	wake_lock_init(&dev->wlock, WAKE_LOCK_SUSPEND, "msm_otg");
 #ifdef CONFIG_USB_HOST_NOTIFY
 	wake_lock_init(&dev->wlock_host, WAKE_LOCK_SUSPEND, "msm_otg_connection_kit");
+	INIT_DELAYED_WORK(&dev->late_power_work,
+					msm_otg_late_power_work);
 #endif
 
 	dev->wq = alloc_workqueue("k_otg", WQ_NON_REENTRANT, 0);
@@ -3086,24 +2968,6 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	}
 #endif
 
-#ifdef CONFIG_30PIN_CONN
-	if (dev->pdata->accessory_irq_gpio && dev->pdata->accessory_irq) {
-		the_msm_otg->accessory_irq_gpio =
-			dev->pdata->accessory_irq_gpio();
-		ret = request_threaded_irq(dev->pdata->accessory_irq(),
-					NULL,
-					msm_accessory_irq_thread,
-					(IRQF_TRIGGER_FALLING |
-						IRQF_TRIGGER_RISING),
-					dev_name(&pdev->dev),
-					the_msm_otg);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to register IRQ\n");
-			goto err_irq;
-		}
-	}
-#endif
-
 #ifdef CONFIG_USB_HOST_NOTIFY
 #define NOTIFY_DRIVER_NAME "usb_otg"
 	the_msm_otg->ndev.name = NOTIFY_DRIVER_NAME;
@@ -3116,13 +2980,6 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	}
 	else
 		dev_info(&pdev->dev, "success to host_notify_dev_register\n");
-	INIT_WORK(&dev->notify_work, msm_otg_notify_work);
-	INIT_DELAYED_WORK(&dev->late_power_work,
-					msm_otg_late_power_work);
-	dev->notify_state = ACC_POWER_OFF;
-	dev->otg_control = OTG_NO_CONTROL;
-	setup_timer(&the_msm_otg->sm_work_timer, msm_otg_sm_work_timer_func,
-				(unsigned long) the_msm_otg);
 #endif
 
 	return 0;
@@ -3204,7 +3061,6 @@ static int __exit msm_otg_remove(struct platform_device *pdev)
 #ifdef CONFIG_USB_HOST_NOTIFY
 	cancel_delayed_work_sync(&dev->late_power_work);
 	wake_lock_destroy(&dev->wlock_host);
-	cancel_work_sync(&dev->notify_work);
 #endif
 
 	if (dev->pdata->setup_gpio)

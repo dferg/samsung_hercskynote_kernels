@@ -2755,7 +2755,6 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		else
 			debug_bus_voting_enabled = true;
 	}
-
 #ifdef CONFIG_USB_HOST_NOTIFY
 #define NOTIFY_DRIVER_NAME "usb_otg"
 	motg->ndev.name = NOTIFY_DRIVER_NAME;

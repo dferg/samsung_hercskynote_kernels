@@ -96,6 +96,10 @@ typedef enum {
 	mDNIe_MOVIE,
 } Lcd_mDNIe_User_Set;
 
+typedef enum {
+	mDNIe_NEGATIVE_OFF = 0,
+	mDNIe_NEGATIVE_ON,
+}Lcd_mDNIe_Negative;
 
 static struct class *mdnie_class;
 struct device *mdnie_dev;
@@ -103,7 +107,7 @@ struct class *mdnieset_outdoor_class;
 struct device *switch_mdnieset_outdoor_dev;
 
 Lcd_mDNIe_UI current_mDNIe_Mode = mDNIe_UI_MODE; /* mDNIe Set Status Checking Value.*/
-// Lcd_mDNIe_User_Set current_mDNIe_user_mode = mDNIe_STANDARD; /*mDNIe_user Set Status Checking Value.*/ //not support by mdp
+Lcd_mDNIe_Negative current_Negative_Mode = mDNIe_NEGATIVE_OFF;
 
 //u8 current_mDNIe_OutDoor_OnOff = FALSE;  // not support by mdp
 static bool g_mdine_enable = 0;
@@ -130,7 +134,7 @@ static int parse_text(char *src, int len)
 	int i,count, ret;
 	int index=0;
 	int j = 0;
-	char *str_line[300];
+	static char *str_line[300];
 	char *sstart;
 	char *c;
 	unsigned int data1, data2, data3;
@@ -410,6 +414,9 @@ int s3c_mdnie_off(void)
 	return 0;
 }
 
+int DMB_Qseed_change = 0;
+int SharpValue = SHARPNESS_DMB;
+
 void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 {
 	unsigned int *pLut = NULL;
@@ -426,7 +433,8 @@ void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 #if 1 // QSEED Check save			
 			if(isSetDMBMode==1)
 			{
-				mdp4_vg_qseed_init_VideoPlay(0);
+				DMB_Qseed_change = 2;
+//				mdp4_vg_qseed_init_VideoPlay(0);
 //				mdp4_vg_qseed_init_VideoPlay(1);
 				isSetDMBMode = 0;
 			}
@@ -441,7 +449,8 @@ void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 #if 1 // QSEED Check save			
 			if(isSetDMBMode==1)
 			{
-				mdp4_vg_qseed_init_VideoPlay(0);
+				DMB_Qseed_change = 2;
+//				mdp4_vg_qseed_init_VideoPlay(0);
 //				mdp4_vg_qseed_init_VideoPlay(1);
 				isSetDMBMode = 0;
 			}
@@ -476,7 +485,9 @@ void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 #if 1  // QSEED Check save			
 			if(isSetDMBMode==0)
 			{
-				mdp4_vg_qseed_init_DMB(0);
+				DMB_Qseed_change = 1;
+				SharpValue = SHARPNESS_DMB;
+//				mdp4_vg_qseed_init_DMB(0);
 //				mdp4_vg_qseed_init_DMB(1);
 				isSetDMBMode = 1;
 			}
@@ -511,7 +522,7 @@ void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 		}
 
 		lut_tune(MAX_LUT_SIZE, pLut);
-		sharpness_tune(sharpvalue);
+//		sharpness_tune(sharpvalue);
 
 		current_mDNIe_Mode = mode;
 //		current_mDNIe_OutDoor_OnOff = FALSE;
@@ -522,6 +533,39 @@ void mDNIe_Set_Mode(Lcd_mDNIe_UI mode)
 #endif	/* CONFIG_FB_S3C_MDNIE_TUNINGMODE_FOR_BACKLIGHT */
 	DPRINT("[mDNIe] mDNIe_Set_Mode : Current_mDNIe_mode (%d)  \n", current_mDNIe_Mode);  
 }
+
+void mDNIe_set_negative(Lcd_mDNIe_Negative negative)
+{
+	unsigned int *pLut;
+	int sharpvalue = 0;
+
+	if (negative == 0) {
+		DPRINT("[mdnie set] mDNIe_Set_mDNIe_Mode = %d\n",
+			current_mDNIe_Mode);
+
+		mDNIe_Set_Mode(current_mDNIe_Mode);
+		return;
+	} else {
+		DPRINT("[mdnie set] mDNIe_Set_Negative = %d\n", negative);
+		pLut = NEGATIVE_LUT;
+		sharpvalue = SHARPNESS_NEGATIVE;
+		lut_tune(MAX_LUT_SIZE, pLut);
+		sharpness_tune(sharpvalue);
+	}
+	DPRINT("[mdnie set] mDNIe_Set_Negative END\n");
+}
+
+/*
+int is_negativeMode_on(void)
+{
+	pr_info("is negative Mode On = %d\n", current_Negative_Mode);
+	if (current_Negative_Mode)
+		mDNIe_set_negative(current_Negative_Mode);
+	else
+		return 0;
+	return 1;
+}
+*/
 
 void mDNIe_User_Select_Mode(Lcd_mDNIe_User_Set mode)
 {
@@ -715,9 +759,14 @@ static ssize_t scenario_store(struct device *dev,
 		printk(KERN_ERR "\nscenario_store value is wrong : value(%d)\n", value);
 		break;
 	}
-
-	mDNIe_Set_Mode(current_mDNIe_Mode);
-
+	if (current_Negative_Mode) {
+		DPRINT("[mdnie set] already negative mode = %d\n",
+			current_Negative_Mode);
+	} else {
+		DPRINT("[mdnie set] in scenario_store, input value = %d\n",
+			value);
+		mDNIe_Set_Mode(current_mDNIe_Mode);
+	}
 	return size;
 }
 
@@ -809,6 +858,40 @@ static ssize_t outdoor_store(struct device *dev,
 }
 
 static DEVICE_ATTR(outdoor, 0664, outdoor_show, outdoor_store);
+
+static ssize_t negative_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	DPRINT("called %s\n", __func__);
+	return sprintf(buf, "0\n");
+}
+
+static ssize_t negative_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t size)
+{
+	int value;
+
+	sscanf(buf, "%d", &value);
+
+	DPRINT
+	    ("[mdnie set]negative_store, input value = %d\n",
+	     value);
+	pr_info("[negative] value = %d\n", value);
+	if (value == 0)
+		current_Negative_Mode = mDNIe_NEGATIVE_OFF;
+	else if(value == 1)
+		current_Negative_Mode = mDNIe_NEGATIVE_ON;
+	else
+		return size;
+	mDNIe_set_negative(current_Negative_Mode);
+	return size;
+}
+static DEVICE_ATTR(negative, 0664,
+		   negative_show,
+		   negative_store);
+
 ////////////////]
 
 
@@ -842,6 +925,12 @@ void init_mdnie_class(void)
 	if (device_create_file(mdnie_dev, &dev_attr_outdoor) < 0)
 		pr_err("Failed to create device file(%s)!\n", dev_attr_outdoor.attr.name);
 	
+
+	if (device_create_file
+		(mdnie_dev, &dev_attr_negative) < 0)
+		pr_err("Failed to create device file(%s)!\n",
+			dev_attr_negative.attr.name);
+
 #ifdef MDP4_VIDEO_ENHANCE_TUNING    
     if (device_create_file(mdnie_dev, &dev_attr_tuning) < 0) {
         pr_err("Failed to create device file(%s)!\n",dev_attr_tuning.attr.name);
@@ -849,7 +938,7 @@ void init_mdnie_class(void)
 #endif	
 	s3c_mdnie_start();
 	sharpness_tune(0);	
-#ifdef CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL
+#if defined(CONFIG_FB_MSM_MIPI_S6E8AA0_WXGA_Q1_PANEL) || defined(CONFIG_FB_MSM_MIPI_S6E8AA0_HD720_PANEL)
 	lut_tune(MAX_LUT_SIZE, UI_LUT);
 #endif
 }
